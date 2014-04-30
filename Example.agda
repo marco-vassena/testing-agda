@@ -4,6 +4,7 @@ open import Base
 open import Coinduction
 open import Data.Nat
 open import Data.Stream
+open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 
 data Even  : ℕ →  Set where
@@ -39,4 +40,11 @@ test-even-double = {!unquote (test { \ n -> Even n } 10 nats isEven? ) !}
 
 -- It will raise an error at compile time 
 test-all-even : Pass
-test-all-even = {!unquote (test {Even} 2 nats isEven?)!}
+test-all-even = {!unquote (test {Even} 10 nats isEven?)!}
+
+-- Unit tests
+unit-even-double : {!unquote (test { \ n -> Even n } 10 nats isEven? )!} ≡ Pass
+unit-even-double = {!!}
+
+unit-all-even : {!unquote (test {Even} 2 nats isEven?)!} ≡ CounterExample 1
+unit-all-even = {!!}

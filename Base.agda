@@ -8,7 +8,7 @@ open import Reflection
 open import Relation.Nullary
 
 -- Specifies the options for the test generator. 
--- In principle it depends on the test generator.
+-- In principle they depend on the test generator.
 Options : Set
 Options = ℕ
 
@@ -18,7 +18,7 @@ Input = ℕ
 
 -- TODO : The constructor must be hidden
 data Pass : Set where
-  Success : Pass   -- Can contain additional information
+  Success : Pass   -- Could contain logging information in the future
 
 data Fail : Set where
   CounterExample : Input -> Fail
