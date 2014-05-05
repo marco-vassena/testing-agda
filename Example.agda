@@ -3,7 +3,7 @@ module Example where
 open import Base
 open import Coinduction
 open import Data.Nat
-open import Data.Stream
+open import Data.Stream hiding (take)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 
@@ -35,16 +35,9 @@ nats = go 0
     go : ℕ -> Stream ℕ
     go n = n ∷ ♯ (go (n + 1))
 
-test-even-double : Pass
-test-even-double = {!unquote (test { \ n -> Even n } 10 nats isEven? ) !}
+test-even-double : allTrue (take 10 nats) (Lemma isEven? even-double)
+test-even-double = Ok
 
--- It will raise an error at compile time 
-test-all-even : Pass
-test-all-even = {!unquote (test {Even} 10 nats isEven?)!}
-
--- Unit tests
-unit-even-double : {!unquote (test { \ n -> Even n } 10 nats isEven? )!} ≡ Pass
-unit-even-double = {!!}
-
-unit-all-even : {!unquote (test {Even} 2 nats isEven?)!} ≡ CounterExample 1
-unit-all-even = {!!}
+test-all-even : allTrue (take 2 nats) (Lemma isEven? all-even)
+test-all-even = {!!}
+-- test-all-even2
