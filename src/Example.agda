@@ -4,6 +4,7 @@ open import Base
 open import Coinduction
 open import Data.Nat
 open import Data.Stream hiding (take)
+open import Data.Product using ( ∃ )
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 
@@ -19,6 +20,9 @@ even-double (suc n) = {!!}
 -- Here I should find a counter example
 all-even : (n : ℕ) -> Even n
 all-even n = {!!}
+
+some-even : ∃ Even
+some-even = zero Data.Product., isEven0
 
 isEven? : (n : ℕ) -> Dec (Even n)
 isEven? zero = yes isEven0
@@ -38,6 +42,8 @@ nats = go 0
 test-even-double : allTrue (take 10 nats) (Lemma isEven? even-double)
 test-even-double = Ok
 
-test-all-even : allTrue (take 2 nats) (Lemma isEven? all-even)
+test-all-even : allTrue (take 10 nats) (Lemma isEven? all-even)
 test-all-even = {!!}
--- test-all-even2
+
+test-some-even : ∃True (take 10 nats) (Lemma isEven? some-even)
+test-some-even = Exists zero
