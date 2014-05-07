@@ -91,14 +91,19 @@ test4 = {!!}
 --------------------------------------------------------------------------------
 
 open import Data.Unit
-open import Data.Sum
-open import Data.Product
+open import Data.Sum hiding (map)
+open import Data.Product hiding (map)
 open import Data.Nat
 
--- Code
+record Serial (A : Set) : Set₁ where
+  constructor Gen 
+  field 
+    series : ℕ -> List A
+
+-- Code + Generator
 data Regular : Set₁ where
   U    :                      Regular
-  K    : (A : Set)        ->  Regular
+  K    : (A : Set) -> Serial A ->  Regular
   _⊕_  : (F G : Regular)  ->  Regular
   _⊗_  : (F G : Regular)  ->  Regular
   I    :                      Regular
@@ -106,7 +111,7 @@ data Regular : Set₁ where
 -- Interpretation
 ⟦_⟧ : Regular -> Set -> Set
 ⟦ U      ⟧ r = ⊤
-⟦ K a    ⟧ r = a
+⟦ K a _  ⟧ r = a
 ⟦ F ⊕ G  ⟧ r = ⟦ F ⟧ r ⊎ ⟦ G ⟧ r
 ⟦ F ⊗ G  ⟧ r = ⟦ F ⟧ r × ⟦ G ⟧ r
 ⟦ I      ⟧ r = r
@@ -115,19 +120,16 @@ data Regular : Set₁ where
 data µ (F : Regular) : Set where
   ⟨_⟩ : ⟦ F ⟧ (µ F) -> µ F
 
-
 -- The user (or automatically using reflection) defines an isomorphism 
 -- from the data types involved in the properties to Regular.
 -- Regular data types are generated and then mapped back to the user-defined type.
 
--- TODO Shall I require the proof of the isomorphism? 
 record Isomorphism (A : Set) : Set₁ where
   constructor Iso
-  field
-    PF   : Set -> Set -> Set
-    from : A -> PF A A 
-    to   : PF A A -> A
-
+  field 
+    C : Regular
+    from : A -> ⟦ C ⟧ A
+    to   : ⟦ C ⟧ A -> A
 -- Returns the depth of a Regular data type
 -- Problem : We cannot write this function directly for a generic A, because PF is abstract.
 -- depth : ∀ {A} -> Isomorphism A -> A -> ℕ
@@ -137,15 +139,24 @@ record Isomorphism (A : Set) : Set₁ where
 Depth : Set
 Depth = ℕ 
 
-series : ∀ {A} -> Isomorphism A -> Depth -> List A
-series = {!!}
+interleave : {A : Set} -> List A -> List A -> List A 
+interleave [] ys = ys
+interleave (x ∷ xs) (y ∷ ys) = x ∷ y ∷ interleave xs ys
+interleave xs [] = xs
 
-gSeries : ∀ {r} -> (C : Regular) -> ℕ -> List ( ⟦ C ⟧ r )
+gSeries : ∀ {r} -> (C : Regular) -> Depth -> List ( ⟦ C ⟧ r )
 gSeries U n = [ tt ]
-gSeries (K A) n = {!!}
-gSeries (C ⊕ C₁) n = {!!}
-gSeries (C ⊗ C₁) n = {!!}
-gSeries I n = {!!}
+gSeries (K A (Gen series)) n = series n
+gSeries (C ⊕ C₁) zero = []
+gSeries {r} (C ⊕ C₁) (suc n) =
+  let ls = map inj₁ (gSeries {r} C n)
+      rs = map inj₂ (gSeries {r} C₁ n) in
+  interleave ls rs
+gSeries {r} (C ⊗ C₁) n = zipWith _,_ (gSeries {r} C n) (gSeries {r} C₁ n)
+gSeries I n = {!!} -- Should I use the fixpoint ? How ?
+
+series : ∀ {A} -> Isomorphism A -> Depth -> List A
+series {A} (Iso C from to) depth = map to (gSeries {A} C depth)
 
 --------------------------------------------------------------------------------
 -- Examples
@@ -154,23 +165,56 @@ gSeries I n = {!!}
 open import Data.Nat
 open import Relation.Binary.PropositionalEquality
 
+NatC : Regular
+NatC = U ⊕ I
+
+aNat : µ NatC
+aNat = ⟨ inj₂ ⟨ inj₂ ⟨ inj₁ tt ⟩ ⟩ ⟩
+
+fromℕ : ℕ -> ⟦ NatC ⟧ ℕ
+fromℕ zero = inj₁ tt
+fromℕ (suc n) = inj₂ n
+
+toℕ : ⟦ NatC ⟧ ℕ -> ℕ
+toℕ (inj₁ tt) = zero
+toℕ (inj₂ n) = suc n
+
+sanity-check' : ∀ (n : ℕ) -> (toℕ (fromℕ n)) ≡ n
+sanity-check' zero = refl
+sanity-check' (suc n) = refl 
+
+isoℕ : Isomorphism ℕ
+isoℕ = Iso NatC fromℕ toℕ
+
+--------------------------------------------------------------------------------
+-- In Haskell I need a pattern functor because I don't have dependent types?
+-- It is the machinery in the compiler that makes it work
+
+-- TODO Shall I require the proof of the isomorphism? 
+record Isomorphism' (A : Set) : Set₁ where
+  constructor Iso'
+  field
+    PF   : Set -> Set -> Set
+    from : A -> PF A A 
+    to   : PF A A -> A
+
+
 PFℕ : Set -> Set -> Set
 PFℕ ℕ = ⟦ U ⊕ I ⟧
 
 -- Iso for ℕ
-fromℕ : ℕ -> PFℕ ℕ ℕ 
-fromℕ zero = inj₁ tt
-fromℕ (suc t) = inj₂ t
+fromℕ' : ℕ -> PFℕ ℕ ℕ 
+fromℕ' zero = inj₁ tt
+fromℕ' (suc t) = inj₂ t
 
-toℕ : PFℕ ℕ ℕ -> ℕ 
-toℕ (inj₁ x) = zero
-toℕ (inj₂ y) = suc y
+toℕ' : PFℕ ℕ ℕ -> ℕ 
+toℕ' (inj₁ x) = zero
+toℕ' (inj₂ y) = suc y
 
-isoℕ : Isomorphism ℕ
-isoℕ = Iso PFℕ fromℕ toℕ
+isoℕ' : Isomorphism' ℕ
+isoℕ' = Iso' PFℕ fromℕ toℕ
 
 -- Sanity check
 isoℕ-proof : ∀ n -> toℕ (fromℕ n) ≡ n
 isoℕ-proof zero = refl
 isoℕ-proof (suc n) = refl 
-
