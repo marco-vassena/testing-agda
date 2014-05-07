@@ -29,12 +29,14 @@ maximum n (arg v r x₁) [] = n ⊔ depth x₁ -- Should I take into account vis
 maximum n (arg v₁ r₁ x₁) (arg v₂ r₂ x₂ ∷ args₁) = maximum (n ⊔ (depth x₁)) (arg v₂ r₂ x₂) args₁ 
 
 -- Probably builtin (and primitive) types (String, Int, Floats) are problematic because I think they
-  -- would end up in unknown. However in common Agda programs they are not as common as ADT.
+-- would end up in unknown. However in common Agda programs they are not as common as ADT.
+
+
 
 --------------------------------------------------------------------------------
 -- Example from the paper
 --------------------------------------------------------------------------------
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Data.Bool
 
 data Name' : Set where
@@ -131,6 +133,19 @@ record Isomorphism (A : Set) : Set₁ where
 -- depth : ∀ {A} -> Isomorphism A -> A -> ℕ
 -- depth (Iso PF from to) a with from a
 -- ... | r = {!!}
+
+Depth : Set
+Depth = ℕ 
+
+series : ∀ {A} -> Isomorphism A -> Depth -> List A
+series = {!!}
+
+gSeries : ∀ {r} -> (C : Regular) -> ℕ -> List ( ⟦ C ⟧ r )
+gSeries U n = [ tt ]
+gSeries (K A) n = {!!}
+gSeries (C ⊕ C₁) n = {!!}
+gSeries (C ⊗ C₁) n = {!!}
+gSeries I n = {!!}
 
 --------------------------------------------------------------------------------
 -- Examples
