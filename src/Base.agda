@@ -26,8 +26,8 @@ Dec' {Input} P = (x : Input) -> Dec (P x)
 data Pass : Set where
   Ok : Pass
 
-data Fail (Input : Set) : Input -> Set where
-  CounterExample : (x : Input) -> Fail Input x
+data Fail {Input : Set} {Actual : Set} : Input -> Actual -> Set where
+  CounterExample : (x : Input) -> (a : Actual) -> Fail x a
 
 record ∀Property {Hyp : Set} {Input : Set} : Set₁ where
   constructor Lemma
@@ -41,7 +41,7 @@ forAll : {Hyp : Set} {Input : Set} -> List Hyp -> ∀Property {Hyp} {Input} -> S
 forAll [] _ = Pass
 forAll (x ∷ xs) t with (∀Property.dec t) ((∀Property.f t) x)
 forAll (x ∷ xs) t | yes p = forAll xs t
-forAll (x ∷ xs) t | no ¬p = Fail _ x
+forAll (x ∷ xs) t | no ¬p = Fail x ((∀Property.f t) x)
 
 --------------------------------------------------------------------------------
 -- ∃Property
@@ -50,8 +50,8 @@ forAll (x ∷ xs) t | no ¬p = Fail _ x
 -- Results
 data NotFound : Set where
 
-data Found (Input : Set) : Input -> Set where
-  Exists : (x : Input) -> Found Input x
+data Found {Input : Set} : Input -> Set where
+  Exists : (x : Input) -> Found x
 
 record ∃Property {Hyp : Set} {Input : Set} : Set₁ where
   constructor Lemma
@@ -65,5 +65,5 @@ record ∃Property {Hyp : Set} {Input : Set} : Set₁ where
 ∃ : {Hyp : Set} {Input : Set} -> List Hyp -> ∃Property {Hyp} {Input} -> Set
 ∃ [] t = NotFound
 ∃ (x ∷ xs) t with (∃Property.dec t) ((∃Property.f t) x)
-∃ (x ∷ xs) t | yes p = Found _ x
+∃ (x ∷ xs) t | yes p = Found x
 ∃ (x ∷ xs) t | no ¬p = ∃ xs t
