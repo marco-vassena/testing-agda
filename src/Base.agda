@@ -27,8 +27,7 @@ data Pass : Set where
   Ok : Pass
 
 data Fail (Input : Set) : Input -> Set where
--- Without constructor it's not possible to fill the hole when a test fail (but still not a compile time error)
---  CounterExample : (x : Input) -> Fail Input x     
+  CounterExample : (x : Input) -> Fail Input x
 
 record ∀Property {Hyp : Set} {Input : Set} : Set₁ where
   constructor Lemma

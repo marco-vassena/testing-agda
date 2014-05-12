@@ -53,7 +53,7 @@ test-even-double : forAll (take 10 nats) (Lemma isEven? even-double)
 test-even-double = Ok
 
 test-all-even : forAll (take 10 nats) (Lemma isEven? all-even)
-test-all-even = {!!}
+test-all-even = CounterExample (suc zero)
 
 test-all-even-evens : forAll (take 10 (evens nats)) (Lemma isEven? all-even)
 test-all-even-evens = Ok
