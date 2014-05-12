@@ -99,3 +99,9 @@ input = (0 , 0) ∷ (0 , 1) ∷ (1 , 0) ∷ (1 , 1) ∷ []
 
 test-all-sym-plus  : forAll input (Lemma eq2'-ℕ sym-plus')
 test-all-sym-plus = Ok
+
+false-equality : (p : ℕ × ℕ) -> let (n , m) = p in ((n + m + 1) ≡ n + m)
+false-equality = {!!}
+
+test-all-false-equality : forAll input (Lemma eq2'-ℕ false-equality)
+test-all-false-equality = CounterExample (zero , zero)
