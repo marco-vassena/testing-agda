@@ -8,7 +8,7 @@ open import Data.List hiding (take)
 open import Data.Vec hiding (take)
 open import Data.Product as P hiding ( ∃ )
 open import Reflection
-open import Relation.Nullary hiding (¬_)
+open import Relation.Nullary
 open import Function
 
 take : ∀ {a} -> ℕ -> Stream a -> List a
@@ -28,8 +28,8 @@ data Pass : Set where
   Ok : Pass
 
 -- Property falsifiable for an input
-data ¬_for_ {Input : Set} (Actual : Set) : Input -> Set where
-  CounterExample : (x : Input) -> ¬ Actual for x 
+data ¬_for_ {Input : Set} (Property : Set) : Input -> Set where
+  CounterExample : (x : Input) -> ¬ Property for x 
 
 record ∀Property {Hyp : Set} {Input : Set} : Set₁ where
   constructor Lemma
@@ -52,8 +52,8 @@ forAll (x ∷ xs) t | no ¬p = ¬ (∀Property.P t (∀Property.f t x)) for x
 -- Results
 data NotFound : Set where
 
-data Found {Input : Set} : Input -> Set where
-  Exists : (x : Input) -> Found x
+data _by_ {Input : Set} (Property : Set) : Input -> Set where
+  Exists : (x : Input) -> Property by x
 
 record ∃Property {Hyp : Set} {Input : Set} : Set₁ where
   constructor Lemma
@@ -67,6 +67,6 @@ record ∃Property {Hyp : Set} {Input : Set} : Set₁ where
 ∃ : {Hyp : Set} {Input : Set} -> List Hyp -> ∃Property {Hyp} {Input} -> Set
 ∃ [] t = NotFound
 ∃ (x ∷ xs) t with (∃Property.dec t) ((∃Property.f t) x)
-∃ (x ∷ xs) t | yes p = Found x
+∃ (x ∷ xs) t | yes p = (∃Property.P t (∃Property.f t x)) by x
 ∃ (x ∷ xs) t | no ¬p = ∃ xs t
 
