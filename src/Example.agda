@@ -5,6 +5,7 @@ open import Coinduction
 open import Data.Nat
 open import Data.Stream hiding (take)
 open import Data.Product as P hiding ( ∃ )
+open import Data.List hiding (take)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 
@@ -12,7 +13,7 @@ open import Relation.Nullary
 -- Example definitions and lemmas
 --------------------------------------------------------------------------------
 
-data Even  : ℕ →  Set where
+data Even  : ℕ → Set where
   isEven0  : Even 0
   isEven+2 : ∀ {n} → Even n → Even (suc (suc n))
 
@@ -63,3 +64,38 @@ test-some-even = Exists zero
 
 test-some-even-odds : ∃ (take 10 (odds nats)) (Lemma isEven? some-even) 
 test-some-even-odds = {!!}
+
+
+--------------------------------------------------------------------------------
+-- Arithmetics with naturals 
+--------------------------------------------------------------------------------
+
+eq1-ℕ : (n : ℕ) -> Dec (n ≡ n)
+eq1-ℕ n = yes refl
+
+reflexivity : ∀ (n : ℕ) -> n ≡ n
+reflexivity n = refl
+
+test-all-refl : forAll (take 10 nats) (Lemma eq1-ℕ reflexivity)
+test-all-refl = Ok
+
+-- The uncurried version cannot be tested directly.
+eq2-ℕ : (n m : ℕ) -> Dec (n ≡ m)
+eq2-ℕ = {!!}
+
+sym-plus : ∀ (n m : ℕ) -> (n + m) ≡ (m + n)
+sym-plus n m = {!!}
+
+-- You need to pack everything together, but then also the
+-- lemma must use it, which is cumbersome
+eq2'-ℕ : (p : ℕ × ℕ) -> let (n , m) = p in Dec (n ≡ m)
+eq2'-ℕ (n , m) = n ≟ m
+
+sym-plus' : (p : ℕ × ℕ) -> let (n , m) = p in n + m ≡ m + n
+sym-plus' (n , m) = sym-plus n m
+
+input : List (ℕ × ℕ)
+input = (0 , 0) ∷ (0 , 1) ∷ (1 , 0) ∷ (1 , 1) ∷ []
+
+test-all-sym-plus  : forAll input (Lemma eq2'-ℕ sym-plus')
+test-all-sym-plus = Ok
