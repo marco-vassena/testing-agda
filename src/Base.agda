@@ -36,8 +36,10 @@ data U : (List Set) -> Set₁ where
   Exists : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
   Property : (P : Set) -> U []
 
+-- Returns the type of the view function required to check if 
+-- the given property holds for some input values. 
 ⟦_⟧ : ∀ {xs} -> U xs -> Set
-⟦_⟧ (Forall {A = A} f) = (a : A) → ⟦ f a ⟧
+⟦ Forall {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
 ⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
 ⟦ Property P ⟧ = Dec P
 
@@ -104,7 +106,7 @@ ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
 dec-ex1 : ⟦ ex1 ⟧
 dec-ex1 = λ x -> Data.Nat._≟_ x x
 
-test-ex1 : test (C ex1 dec-ex1 {!ConsF nats Nil!}) 
+test-ex1 : test (C ex1 dec-ex1 {!ConsF nats (Nil {Property ?})!}) 
 test-ex1 = {!!}
 
 ex : U (ℕ ∷ List ℕ ∷ [])
