@@ -70,3 +70,29 @@ record ∃Property {Hyp : Set} {Input : Set} : Set₁ where
 ∃ (x ∷ xs) t | yes p = (∃Property.P t (∃Property.f t x)) by x
 ∃ (x ∷ xs) t | no ¬p = ∃ xs t
 
+
+--------------------------------------------------------------------------------
+
+
+mutual 
+  -- Universe
+  data U : Set₁ where
+    Forall : {A : Set} -> (A -> U) -> U
+    Exists : {A : Set} -> (A -> U) -> U
+    Property : (P : Set) -> U
+
+⟦_⟧ : U -> Set
+⟦_⟧ (Forall {A} f) = (a : A) → ⟦ f a ⟧
+⟦ Exists {A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ Property P ⟧ = Dec P
+
+data Testable : Set₁ where
+  P : ∀ (u : U) -> ⟦ u ⟧ -> Testable
+
+open import Relation.Binary.PropositionalEquality
+
+ex : U 
+ex =  (Forall {ℕ} (λ n -> Exists {List ℕ} ( λ xs -> Property (n ≡ (length xs)))))
+
+dec-ex : ⟦ ex2 ⟧
+dec-ex = λ n xs → Data.Nat._≟_ n (length xs)
