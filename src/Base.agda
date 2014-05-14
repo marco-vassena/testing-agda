@@ -73,6 +73,7 @@ test' (Property P) (no ¬p) Nil = No
 
 open import Data.Empty
 
+-- TODO give precise result inspecting the outer quantifier
 test : Testable -> Set
 test (C u k input) with test' u k input
 test (C u k input) | Yes = Pass
@@ -99,6 +100,15 @@ dec-ex0 = yes unit
 
 test-ex0 : test (C ex0 dec-ex0 Nil)
 test-ex0 = Ok
+
+ex0' : U []
+ex0' = Property ⊥
+
+dec-ex0' : ⟦ ex0' ⟧
+dec-ex0' = no (λ z → z)
+
+test-ex0' : test (C ex0' dec-ex0' Nil)
+test-ex0' = {!!}
 
 ex1 : U (ℕ ∷ []) 
 ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
