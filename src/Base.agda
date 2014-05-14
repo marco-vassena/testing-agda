@@ -74,25 +74,85 @@ record ∃Property {Hyp : Set} {Input : Set} : Set₁ where
 --------------------------------------------------------------------------------
 
 
+open import Data.Unit 
+
+
 mutual 
   -- Universe
-  data U : Set₁ where
-    Forall : {A : Set} -> (A -> U) -> U
-    Exists : {A : Set} -> (A -> U) -> U
-    Property : (P : Set) -> U
+  data U : (List Set) -> Set₁ where
+    Forall : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
+    Exists : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
+    Property : (P : Set) -> U []
 
-⟦_⟧ : U -> Set
-⟦_⟧ (Forall {A} f) = (a : A) → ⟦ f a ⟧
-⟦ Exists {A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦_⟧ : ∀ {xs} -> U xs -> Set
+⟦_⟧ (Forall {A = A} f) = (a : A) → ⟦ f a ⟧
+⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
 ⟦ Property P ⟧ = Dec P
 
+-- Contains input values for testing a property
+data Input : ∀ xs -> U xs -> Set₁ where
+  Nil : ∀ {u} -> Input [] u 
+  ConsF : ∀ {xs} {A : Set} {u : U xs} -> List A -> Input xs u -> Input (A ∷ xs) (Forall (λ x → u)) 
+  ConsE : ∀ {xs} {A : Set} {u : U xs} -> List A -> Input xs u -> Input (A ∷ xs) (Exists (λ x → u)) 
+
+-- Input 
+<_> : ∀ {xs} -> U xs -> Set₁
+<_> {A ∷ xs} (Forall p) = Input (A ∷ xs) (Forall p)
+<_> {A ∷ xs} (Exists p) = Input (A ∷ xs) (Exists p) 
+< Property P > = Input [] (Property P)
+
+<_>-iso : ∀ {xs} {u : U xs} -> Input xs u -> < u >
+<_>-iso {[]} {Property P} Nil = Nil
+<_>-iso {A ∷ xs} {Forall ._} (ConsF x input) = ConsF x input
+<_>-iso {A ∷ xs} {Exists ._} (ConsE x input)= ConsE x input
+
 data Testable : Set₁ where
-  P : ∀ (u : U) -> ⟦ u ⟧ -> Testable
+  C : ∀ {A} -> (u : U A) -> (k : ⟦ u ⟧) -> < u > -> Testable
 
 open import Relation.Binary.PropositionalEquality
 
-ex : U 
+ex' : U (ℕ ∷ []) 
+ex' = Forall {ℕ} (λ n -> Property (n ≡ n))
+
+dec-ex' : ⟦ ex' ⟧
+dec-ex' = λ x -> Data.Nat._≟_ x x
+
+ex : U (ℕ ∷ List ℕ ∷ [])
 ex =  (Forall {ℕ} (λ n -> Exists {List ℕ} ( λ xs -> Property (n ≡ (length xs)))))
 
-dec-ex : ⟦ ex2 ⟧
+dec-ex : ⟦ ex ⟧
 dec-ex = λ n xs → Data.Nat._≟_ n (length xs)
+
+data Result : Set where
+  Yes : Result
+  No : Result
+
+-- I guess it does not see termination because it stops because ConsF / ConsE are the same constructor.
+-- However xs is strictly smaller than x ∷ xs, therefore it terminates. 
+test' : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> < u > -> Result
+test' (Forall ._) check (ConsF [] gen) = Yes
+test' (Forall ._) check (ConsF {u = u} (x ∷ xs) gen) with test' u (check x) < gen >-iso
+test' (Forall ._) check (ConsF (x ∷ xs) gen) | Yes = test' (Forall _) check (ConsF xs gen)
+test' (Forall ._) check (ConsF (x ∷ xs) gen) | No = No
+test' (Exists .(λ x → u)) check (ConsE {u = u} [] gen) = No
+test' (Exists .(λ x → u)) check (ConsE {u = u} (x ∷ xs) gen) with test' u (check x) < gen >-iso
+test' (Exists ._) check (ConsE (x ∷ xs) gen) | Yes = Yes
+test' (Exists ._) check (ConsE (x ∷ xs) gen) | No = test' (Exists _) check (ConsE xs gen)
+test' (Property P) (yes p) Nil = Yes
+test' (Property P) (no ¬p) Nil = No
+
+open import Data.Empty
+
+test : Testable -> Set
+test (C u k input) with test' u k input
+test (C u k input) | Yes = Pass
+test (C u k input) | No = ⊥       -- TODO collect input
+
+nats : List ℕ
+nats = 0 ∷ 1 ∷ []
+
+lists : List (List ℕ)
+lists = ([] ∷ nats ∷ [])
+
+test-ex : test (C ex dec-ex {!ConsF nats (ConsE lists Nil) !})
+test-ex = {!!}
