@@ -30,54 +30,51 @@ data _by_ {Input : Set} (Property : Set) : Input -> Set where
 
 --------------------------------------------------------------------------------
 
+open import Data.Unit
+
 -- Universe
-data U : (List Set) -> Set₁ where
-  Forall : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
-  Exists : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
-  Property : (P : Set) -> U []
+data U : Set₁ where
+  Forall : {A : Set} -> List A -> (p : A -> U) -> U
+  Exists : {A : Set} -> List A -> (p : A -> U ) -> U
+  Property : (P : Set) -> U
 
 -- Returns the type of the view function required to check if 
 -- the given property holds for some input values. 
-⟦_⟧ : ∀ {xs} -> U xs -> Set
-⟦ Forall {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
-⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦_⟧ : U -> Set
+⟦ Forall {A = A} gen f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ Exists {A = A} gen f ⟧ = (a : A) → ⟦ f a ⟧
 ⟦ Property P ⟧ = Dec P
 
--- Contains input values for testing a property
-data Input : ∀ xs -> U xs -> Set₁ where
-  Nil : ∀ {u} -> Input [] u 
-  ConsF : ∀ {xs} {A : Set} {u : U xs} -> List A -> Input xs u -> Input (A ∷ xs) (Forall (λ x → u)) 
-  ConsE : ∀ {xs} {A : Set} {u : U xs} -> List A -> Input xs u -> Input (A ∷ xs) (Exists (λ x → u)) 
-
 data Testable : Set₁ where
-  C : ∀ {A} -> (u : U A) -> (k : ⟦ u ⟧) -> Input A u -> Testable
+  C : (u : U) -> (k : ⟦ u ⟧) -> Testable
 
 data Result : Set where
   Yes : Result
   No : Result
 
--- I guess it does not pass the termination checker because the Input values 
--- have the same constructors ConsF / ConsE.
+-- I guess it does not pass the termination checker because from the type signature of test'
+-- it is not visible that the recursive call is structural. 
 -- However xs is strictly smaller than x ∷ xs, therefore it terminates. 
-test' : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input xs u  -> Result
-test' (Forall ._) check (ConsF [] gen) = Yes
-test' (Forall ._) check (ConsF {u = u} (x ∷ xs) gen) with test' u (check x) gen
-test' (Forall ._) check (ConsF (x ∷ xs) gen) | Yes = test' (Forall _) check (ConsF xs gen)
-test' (Forall ._) check (ConsF (x ∷ xs) gen) | No = No
-test' (Exists ._) check (ConsE {u = u} [] gen) = No
-test' (Exists ._) check (ConsE {u = u} (x ∷ xs) gen) with test' u (check x) gen
-test' (Exists ._) check (ConsE (x ∷ xs) gen) | Yes = Yes
-test' (Exists ._) check (ConsE (x ∷ xs) gen) | No = test' (Exists _) check (ConsE xs gen)
-test' (Property P) (yes p) Nil = Yes
-test' (Property P) (no ¬p) Nil = No
+-- Having xs as index of U could fix it I think.
+test' : (u : U) -> ⟦ u ⟧ -> Result
+test' (Forall [] p) check = Yes
+test' (Forall (x ∷ xs) p) check with test' (p x) (check x) 
+test' (Forall (x ∷ xs) p) check | Yes = test' (Forall xs p) check
+test' (Forall (x ∷ xs) p) check | No = No
+test' (Exists [] p) check = No
+test' (Exists (x ∷ xs) p) check with test' (p x) (check x)
+test' (Exists (x ∷ xs) p) check | Yes = Yes
+test' (Exists (x ∷ xs) p) check | No = test' (Exists xs p) check
+test' (Property P) (yes p) = Yes
+test' (Property P) (no ¬p) = No
 
 open import Data.Empty
 
 -- TODO give precise result inspecting the outer quantifier
 test : Testable -> Set
-test (C u k input) with test' u k input
-test (C u k input) | Yes = Pass
-test (C u k input) | No = ⊥       -- TODO collect input
+test (C u k) with test' u k
+test (C u k) | Yes = Pass
+test (C u k) | No = ⊥       -- TODO collect input
 
 --------------------------------------------------------------------------------
 -- Examples
@@ -92,39 +89,39 @@ nats = 0 ∷ 1 ∷ []
 lists : List (List ℕ)
 lists = ([] ∷ nats ∷ [])
 
-ex0 : U []
+ex0 : U
 ex0 = Property Unit
 
 dec-ex0 : ⟦ ex0 ⟧
 dec-ex0 = yes unit
 
-test-ex0 : test (C ex0 dec-ex0 Nil)
+test-ex0 : test (C ex0 dec-ex0)
 test-ex0 = Ok
 
-ex0' : U []
+ex0' : U
 ex0' = Property ⊥
 
 dec-ex0' : ⟦ ex0' ⟧
 dec-ex0' = no (λ z → z)
 
-test-ex0' : test (C ex0' dec-ex0' Nil)
+test-ex0' : test (C ex0' dec-ex0')
 test-ex0' = {!!}
 
-ex1 : U (ℕ ∷ []) 
-ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
+ex1 : U
+ex1 = Forall {ℕ} nats (λ n -> Property (n ≡ n))
 
 dec-ex1 : ⟦ ex1 ⟧
 dec-ex1 = λ x -> Data.Nat._≟_ x x
 
-test-ex1 : test (C ex1 dec-ex1 {!ConsF nats (Nil {Property ?})!}) 
-test-ex1 = {!!}
+test-ex1 : test (C ex1 dec-ex1) 
+test-ex1 = Ok
 
-ex : U (ℕ ∷ List ℕ ∷ [])
-ex =  (Forall {ℕ} (λ n -> Exists {List ℕ} ( λ xs -> Property (n ≡ (length xs)))))
+ex : U
+ex =  (Forall {ℕ} nats (λ n -> Exists {List ℕ} lists ( λ xs -> Property (n ≡ (length xs)))))
 
 dec-ex : ⟦ ex ⟧
 dec-ex = λ n xs → Data.Nat._≟_ n (length xs)
 
-test-ex : test (C ex dec-ex {!ConsF nats (ConsE lists Nil) !})
+test-ex : test (C ex dec-ex)
 test-ex = {!!}
 
