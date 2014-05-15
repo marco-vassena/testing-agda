@@ -1,13 +1,66 @@
 module Example where
 
 open import Base
+import StreamGenerator as S 
 open import Coinduction
 open import Data.Nat
 open import Data.Stream hiding (take)
 open import Data.Product as P hiding ( ∃ )
 open import Data.List hiding (take)
+open import Data.Unit 
+open import Data.Empty
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
+
+-- Examples using explicit lists
+
+lists : List (List ℕ)
+lists = ([] ∷ (1 ∷ []) ∷ [])
+
+-- Input stream, all the natural numbers
+nats : Stream ℕ
+nats = go 0
+  where 
+    go : ℕ -> Stream ℕ
+    go n = n ∷ ♯ (go (n + 1))
+
+-- Constant property
+
+trivial : U []
+trivial = Property Unit
+
+dec-trivial : ⟦ trivial ⟧
+dec-trivial = yes unit
+
+test-trivial : run (Test trivial on Nil by dec-trivial )
+test-trivial = Ok
+
+impossible : U []
+impossible = Property ⊥
+
+dec-impossible : ⟦ impossible ⟧
+dec-impossible = no (λ z → z)
+
+test-impossible : run (Test impossible on Nil by dec-impossible)
+test-impossible = {!!}
+
+ex1 : U (ℕ ∷ []) 
+ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
+
+dec-ex1 : ⟦ ex1 ⟧
+dec-ex1 = λ x -> Data.Nat._≟_ x x
+
+test-ex1 : run (Test ex1 on (Cons (S.take 10 nats) Nil) by dec-ex1 ) 
+test-ex1 = Ok
+
+ex : U (ℕ ∷ List ℕ ∷ [])
+ex =  (Forall {ℕ} (λ n -> Exists {List ℕ} ( λ xs -> Property (n ≡ (length xs)))))
+
+dec-ex : ⟦ ex ⟧
+dec-ex = λ n xs → Data.Nat._≟_ n (length xs)
+
+test-ex : run (Test ex on (Cons (S.take 2 nats) (Cons lists Nil)) by dec-ex )
+test-ex = Ok
 
 --------------------------------------------------------------------------------
 -- Example definitions and lemmas
@@ -16,17 +69,6 @@ open import Relation.Nullary
 data Even  : ℕ → Set where
   isEven0  : Even 0
   isEven+2 : ∀ {n} → Even n → Even (suc (suc n))
-
--- The lemmas I would like to test before starting proving
-even-double : (n : ℕ) -> Even ( n + n )
-even-double zero = isEven0
-even-double (suc n) = {!!}
-
-all-even : (n : ℕ) -> Even n
-all-even n = {!!}
-
-some-even : P.∃ Even
-some-even = zero P., isEven0
 
 -- Even is a decidable property.
 isEven? : (n : ℕ) -> Dec (Even n)
@@ -38,70 +80,33 @@ isEven? (suc (suc n)) | no ¬p = no ( \ p -> ¬p (unpack p) )
   where unpack : ∀ {n} -> Even (suc (suc n)) -> Even n
         unpack (isEven+2 r) = r
 
--- Input stream, all the natural numbers
-nats : Stream ℕ
-nats = go 0
-  where 
-    go : ℕ -> Stream ℕ
-    go n = n ∷ ♯ (go (n + 1))
-
-
 --------------------------------------------------------------------------------
--- Test cases
+-- Even properties
 --------------------------------------------------------------------------------
 
-test-even-double : forAll (take 10 nats) (Lemma isEven? even-double)
+test-even-double : run (S.Test Forall (λ n → Property (Even (n + n))) on (S.Cons nats S.Nil) by (λ n → isEven? (n + n)))
 test-even-double = Ok
 
-test-all-even : forAll (take 10 nats) (Lemma isEven? all-even)
-test-all-even = CounterExample (suc zero)
+test-all-even : run (S.Test (Forall (λ n → Property (Even n))) on (S.Cons nats S.Nil) by isEven?)
+test-all-even = {!!}
 
-test-all-even-evens : forAll (take 10 (evens nats)) (Lemma isEven? all-even)
+test-all-even-evens : run (S.Test Forall (λ n → Property (Even n)) on (S.Cons (evens nats) S.Nil) by isEven?)
 test-all-even-evens = Ok
 
-test-some-even : ∃ (take 10 nats) (Lemma isEven? some-even)
-test-some-even = Exists zero
+test-some-even : run (S.Test Exists (λ n → Property (Even n)) on S.Cons nats S.Nil by isEven?)
+test-some-even = Ok
 
-test-some-even-odds : ∃ (take 10 (odds nats)) (Lemma isEven? some-even) 
+test-some-even-odds : run (S.Test (Exists (λ n → Property (Even n))) on S.Cons (odds nats) S.Nil by isEven?)
 test-some-even-odds = {!!}
-
 
 --------------------------------------------------------------------------------
 -- Arithmetics with naturals 
 --------------------------------------------------------------------------------
 
-eq1-ℕ : (n : ℕ) -> Dec (n ≡ n)
-eq1-ℕ n = yes refl
-
-reflexivity : ∀ (n : ℕ) -> n ≡ n
-reflexivity n = refl
-
-test-all-refl : forAll (take 10 nats) (Lemma eq1-ℕ reflexivity)
-test-all-refl = Ok
-
--- The uncurried version cannot be tested directly.
-eq2-ℕ : (n m : ℕ) -> Dec (n ≡ m)
-eq2-ℕ = {!!}
-
-sym-plus : ∀ (n m : ℕ) -> (n + m) ≡ (m + n)
-sym-plus n m = {!!}
-
--- You need to pack everything together, but then also the
--- lemma must use it, which is cumbersome
-eq2'-ℕ : (p : ℕ × ℕ) -> let (n , m) = p in Dec (n ≡ m)
-eq2'-ℕ (n , m) = n ≟ m
-
-sym-plus' : (p : ℕ × ℕ) -> let (n , m) = p in n + m ≡ m + n
-sym-plus' (n , m) = sym-plus n m
-
-input : List (ℕ × ℕ)
-input = (0 , 0) ∷ (0 , 1) ∷ (1 , 0) ∷ (1 , 1) ∷ []
-
-test-all-sym-plus  : forAll input (Lemma eq2'-ℕ sym-plus')
+test-all-sym-plus  : run (S.Test Forall (λ n → Forall (λ m → Property (n + m ≡ m + n))) on 
+                         S.Cons nats (S.Cons nats S.Nil) by (λ n m → (n + m) Data.Nat.≟ (m + n)))
 test-all-sym-plus = Ok
 
-false-equality : (p : ℕ × ℕ) -> let (n , m) = p in ((n + m + 1) ≡ n + m)
-false-equality = {!!}
-
-test-all-false-equality : forAll input (Lemma eq2'-ℕ false-equality)
-test-all-false-equality = CounterExample (zero , zero)
+test-all-false-equality : run (S.Test (Forall (λ n → Forall (λ m → Property (n ≡ m)))) on 
+                              S.Cons nats (S.Cons nats S.Nil) by Data.Nat._≟_)
+test-all-false-equality = {!!} 

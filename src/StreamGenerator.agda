@@ -25,5 +25,5 @@ Test_on_by_withℕ_ : ∀ {xs} -> (u : U xs) -> Input xs -> ⟦ u ⟧ -> ℕ -> 
 Test_on_by_withℕ_ u input check n = B.Test u on (toInput n input) by check
 
 -- Provides default parameter (20)
-Test_on_by : ∀ {xs} -> (u : U xs) -> Input xs -> ⟦ u ⟧ -> B.Testable
-Test_on_by u input check = Test u on input by check withℕ 20
+Test_on_by_ : ∀ {xs} -> (u : U xs) -> Input xs -> ⟦ u ⟧ -> B.Testable
+Test_on_by_ u input check = Test u on input by check withℕ 20
