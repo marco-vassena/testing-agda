@@ -12,8 +12,8 @@ take : ∀ {a} -> ℕ -> Stream a -> List a
 take {a} n = toList ∘ (Data.Stream.take {a} n)
 
 toInput : {xs : List Set} -> ℕ -> Input Stream xs -> Input List xs
-toInput n Nil = Nil
-toInput n (Cons x input) = Cons (take n x) (toInput n input)
+toInput n [] = []
+toInput n (x ∷ input) = (take n x) ∷ (toInput n input)
 
 -- Tests up to n input values for each input type
 Test_on_by_withℕ_ : ∀ {xs} -> (u : U xs) -> Input Stream xs -> ⟦ u ⟧ -> ℕ -> Testable

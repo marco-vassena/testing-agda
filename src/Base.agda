@@ -5,7 +5,7 @@ module Base where
 open import Coinduction
 open import Data.Bool
 open import Data.Nat
-open import Data.List
+open import Data.List hiding ( [_] )
 open import Reflection
 open import Relation.Nullary
 open import Function
@@ -41,8 +41,14 @@ data U : (List Set) -> Set₁ where
 
 -- Contains input values for testing a property
 data Input (F : Set -> Set) : (List Set) -> Set₁ where
-  Nil : Input F []
-  Cons : ∀ {xs} {A : Set} -> F A -> Input F xs -> Input F (A ∷ xs)
+  [] : Input F []
+  _∷_ : ∀ {xs} {A : Set} -> F A -> Input F xs -> Input F (A ∷ xs)
+
+infixr 5 _∷_ 
+
+-- Shorthand
+[_] : ∀ {F A} -> F A -> Input F (A ∷ [])
+[ x ] = x ∷ []
 
 data Testable : Set₁ where
   Test_on_by_ : ∀ {A} -> (u : U A) -> Input List A -> (k : ⟦ u ⟧) -> Testable
@@ -56,16 +62,16 @@ data Result : Set where
 -- However xs is strictly smaller than x ∷ xs, therefore it terminates.
 -- Maybe use sized types?
 test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> Result
-test (Forall p) check (Cons [] input) = Yes
-test (Forall p) check (Cons (x ∷ xs) input) with test (p x) (check x) input
-test (Forall p) check (Cons (x ∷ xs) input) | Yes = test (Forall p) check (Cons xs input)
-test (Forall p) check (Cons (x ∷ xs) input) | No = No
-test (Exists p) check (Cons [] input) = No
-test (Exists p) check (Cons (x ∷ xs) input) with test (p x) (check x) input 
-test (Exists p) check (Cons (x ∷ xs) input) | Yes = Yes
-test (Exists p) check (Cons (x ∷ xs) input) | No = test (Exists p) check (Cons xs input)
-test (Property P) (yes p) Nil = Yes
-test (Property P) (no ¬p) Nil = No
+test (Forall p) check ([] ∷ input) = Yes
+test (Forall p) check ((x ∷ xs) ∷ input) with test (p x) (check x) input
+test (Forall p) check ((x ∷ xs) ∷ input) | Yes = test (Forall p) check (xs ∷ input)
+test (Forall p) check ((x ∷ xs) ∷ input) | No = No
+test (Exists p) check ([] ∷ input) = No
+test (Exists p) check ((x ∷ xs) ∷ input) with test (p x) (check x) input 
+test (Exists p) check ((x ∷ xs) ∷ input) | Yes = Yes
+test (Exists p) check ((x ∷ xs) ∷ input) | No = test (Exists p) check (xs ∷ input)
+test (Property P) (yes p) [] = Yes
+test (Property P) (no ¬p) [] = No
 
 open import Data.Empty
 
