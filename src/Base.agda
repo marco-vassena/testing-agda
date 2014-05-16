@@ -40,12 +40,12 @@ data U : (List Set) -> Set₁ where
 ⟦ Property P ⟧ = Dec P
 
 -- Contains input values for testing a property
-data Input : (List Set) -> Set₁ where
-  Nil : Input []
-  Cons : ∀ {xs} {A : Set} -> List A -> Input xs -> Input (A ∷ xs)
+data Input (F : Set -> Set) : (List Set) -> Set₁ where
+  Nil : Input F []
+  Cons : ∀ {xs} {A : Set} -> F A -> Input F xs -> Input F (A ∷ xs)
 
 data Testable : Set₁ where
-  Test_on_by_ : ∀ {A} -> (u : U A) -> Input A -> (k : ⟦ u ⟧) -> Testable
+  Test_on_by_ : ∀ {A} -> (u : U A) -> Input List A -> (k : ⟦ u ⟧) -> Testable
 
 data Result : Set where
   Yes : Result
@@ -55,7 +55,7 @@ data Result : Set where
 -- have the same constructors ConsF / ConsE.
 -- However xs is strictly smaller than x ∷ xs, therefore it terminates.
 -- Maybe use sized types?
-test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input xs -> Result
+test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> Result
 test (Forall p) check (Cons [] input) = Yes
 test (Forall p) check (Cons (x ∷ xs) input) with test (p x) (check x) input
 test (Forall p) check (Cons (x ∷ xs) input) | Yes = test (Forall p) check (Cons xs input)

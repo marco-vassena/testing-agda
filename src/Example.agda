@@ -1,7 +1,8 @@
 module Example where
 
-open import Base
-import StreamGenerator as S 
+open import Base using (Forall ; Property ; Exists ; U ; run ; ⟦_⟧ ; Cons ; Nil ; Ok)
+import Base as B
+open import StreamGenerator 
 open import Coinduction
 open import Data.Nat
 open import Data.Stream hiding (take)
@@ -50,7 +51,7 @@ ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
 dec-ex1 : ⟦ ex1 ⟧
 dec-ex1 = λ x -> Data.Nat._≟_ x x
 
-test-ex1 : run (Test ex1 on (Cons (S.take 10 nats) Nil) by dec-ex1 ) 
+test-ex1 : run (B.Test ex1 on (Cons (take 10 nats) Nil) by dec-ex1 ) 
 test-ex1 = Ok
 
 ex : U (ℕ ∷ List ℕ ∷ [])
@@ -59,7 +60,7 @@ ex =  (Forall {ℕ} (λ n -> Exists {List ℕ} ( λ xs -> Property (n ≡ (lengt
 dec-ex : ⟦ ex ⟧
 dec-ex = λ n xs → Data.Nat._≟_ n (length xs)
 
-test-ex : run (Test ex on (Cons (S.take 2 nats) (Cons lists Nil)) by dec-ex )
+test-ex : run (B.Test ex on (Cons (take 2 nats) (Cons lists Nil)) by dec-ex )
 test-ex = Ok
 
 --------------------------------------------------------------------------------
@@ -84,29 +85,29 @@ isEven? (suc (suc n)) | no ¬p = no ( \ p -> ¬p (unpack p) )
 -- Even properties
 --------------------------------------------------------------------------------
 
-test-even-double : run (S.Test Forall (λ n → Property (Even (n + n))) on (S.Cons nats S.Nil) by (λ n → isEven? (n + n)))
+test-even-double : run (Test Forall (λ n → Property (Even (n + n))) on (Cons nats Nil) by (λ n → isEven? (n + n)))
 test-even-double = Ok
 
-test-all-even : run (S.Test (Forall (λ n → Property (Even n))) on (S.Cons nats S.Nil) by isEven?)
+test-all-even : run (Test (Forall (λ n → Property (Even n))) on (Cons nats Nil) by isEven?)
 test-all-even = {!!}
 
-test-all-even-evens : run (S.Test Forall (λ n → Property (Even n)) on (S.Cons (evens nats) S.Nil) by isEven?)
+test-all-even-evens : run (Test Forall (λ n → Property (Even n)) on (Cons (evens nats) Nil) by isEven?)
 test-all-even-evens = Ok
 
-test-some-even : run (S.Test Exists (λ n → Property (Even n)) on S.Cons nats S.Nil by isEven?)
+test-some-even : run (Test Exists (λ n → Property (Even n)) on Cons nats Nil by isEven?)
 test-some-even = Ok
 
-test-some-even-odds : run (S.Test (Exists (λ n → Property (Even n))) on S.Cons (odds nats) S.Nil by isEven?)
+test-some-even-odds : run (Test (Exists (λ n → Property (Even n))) on Cons (odds nats) Nil by isEven?)
 test-some-even-odds = {!!}
 
 --------------------------------------------------------------------------------
 -- Arithmetics with naturals 
 --------------------------------------------------------------------------------
 
-test-all-sym-plus  : run (S.Test Forall (λ n → Forall (λ m → Property (n + m ≡ m + n))) on 
-                         S.Cons nats (S.Cons nats S.Nil) by (λ n m → (n + m) Data.Nat.≟ (m + n)))
+test-all-sym-plus  : run (Test Forall (λ n → Forall (λ m → Property (n + m ≡ m + n))) on 
+                         Cons nats (Cons nats Nil) by (λ n m → (n + m) Data.Nat.≟ (m + n)))
 test-all-sym-plus = Ok
 
-test-all-false-equality : run (S.Test (Forall (λ n → Forall (λ m → Property (n ≡ m)))) on 
-                              S.Cons nats (S.Cons nats S.Nil) by Data.Nat._≟_)
+test-all-false-equality : run (Test (Forall (λ n → Forall (λ m → Property (n ≡ m)))) on 
+                              Cons nats (Cons nats Nil) by Data.Nat._≟_)
 test-all-false-equality = {!!} 
