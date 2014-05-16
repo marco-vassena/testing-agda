@@ -1,5 +1,3 @@
-{-# OPTIONS --no-termination-check #-}  -- FIX : see test' 
-
 module Base where
 
 open import Coinduction
@@ -57,19 +55,20 @@ data Result : Set where
   Yes : Result
   No : Result
 
--- I guess it does not pass the termination checker because the Input values 
--- have the same constructors ConsF / ConsE.
--- However xs is strictly smaller than x ∷ xs, therefore it terminates.
--- Maybe use sized types?
 test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> Result
-test (Forall p) check ([] ∷ input) = Yes
-test (Forall p) check ((x ∷ xs) ∷ input) with test (p x) (check x) input
-test (Forall p) check ((x ∷ xs) ∷ input) | Yes = test (Forall p) check (xs ∷ input)
-test (Forall p) check ((x ∷ xs) ∷ input) | No = No
-test (Exists p) check ([] ∷ input) = No
-test (Exists p) check ((x ∷ xs) ∷ input) with test (p x) (check x) input 
-test (Exists p) check ((x ∷ xs) ∷ input) | Yes = Yes
-test (Exists p) check ((x ∷ xs) ∷ input) | No = test (Exists p) check (xs ∷ input)
+test' : ∀ {xs} {A : Set} (u : U (A ∷ xs)) -> ⟦ u ⟧ -> List A -> Input List xs -> Result
+
+test' (Forall p) check [] input = Yes
+test' (Forall p) check (x ∷ xs) input with test (p x) (check x) input
+test' (Forall p) check (x ∷ xs) input | Yes = test' (Forall p) check xs input
+test' (Forall p) check (x ∷ xs) input | No = No
+test' (Exists p) check [] input = No
+test' (Exists p) check (x ∷ xs) input with test (p x) (check x) input 
+test' (Exists p) check (x ∷ xs) input | Yes = Yes
+test' (Exists p) check (x ∷ xs) input | No = test' (Exists p) check xs input 
+
+test (Forall p) check (x ∷ input) = test' (Forall p) check x input
+test (Exists p) check (x ∷ input) = test' (Exists p) check x input
 test (Property P) (yes p) [] = Yes
 test (Property P) (no ¬p) [] = No
 
