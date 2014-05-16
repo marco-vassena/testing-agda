@@ -1,6 +1,6 @@
 module Example where
 
-open import Base using (Forall ; Property ; Exists ; U ; run ; ⟦_⟧ ; _∷_ ; [] ; [_] ; Ok)
+open import Base hiding (Test_on_by_)
 import Base as B
 open import StreamGenerator 
 open import Coinduction
@@ -44,6 +44,9 @@ dec-impossible = no (λ z → z)
 
 test-impossible : run (Test impossible on [] by dec-impossible)
 test-impossible = {!!}
+
+skip-impossible : skip (Test impossible on [] by dec-impossible)
+skip-impossible = Skipped
 
 ex1 : U (ℕ ∷ []) 
 ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
@@ -111,3 +114,4 @@ test-all-sym-plus = Ok
 test-all-false-equality : run (Test (Forall (λ n → Forall (λ m → Property (n ≡ m)))) on 
                               (nats ∷ nats ∷ []) by Data.Nat._≟_)
 test-all-false-equality = {!!} 
+

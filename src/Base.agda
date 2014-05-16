@@ -80,3 +80,10 @@ run : Testable -> Set
 run (Test u on input by k) with test u k input
 run (Test u on input by k) | Yes = Pass
 run (Test u on input by k) | No = ⊥       -- TODO collect input
+
+data Skip : Set where
+  Skipped : Skip
+
+-- Used to skip a test
+skip : Testable -> Set
+skip _ = Skip
