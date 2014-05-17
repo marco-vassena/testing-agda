@@ -21,4 +21,4 @@ Test_on_by_withℕ_ u input check n = B.Test u on (toInput n input) by check
 
 -- Provides default parameter (20)
 Test_on_by_ : ∀ {xs} -> (u : U xs) -> Input Stream xs -> ⟦ u ⟧ -> Testable
-Test_on_by_ u input check = Test u on input by check withℕ 20
+Test_on_by_ u input check = Test u on input by check withℕ 5
