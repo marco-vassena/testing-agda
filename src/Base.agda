@@ -40,6 +40,14 @@ syntax Forall (\x -> p) = Forall x ~ p
 ⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
 ⟦ Property P ⟧ = Dec P
 
+-- Returns the type of the function required to report the property being test
+<_> : ∀ {xs} -> U xs -> Set₁
+< Forall {A = A} p > = (a : A) → < p a >
+< Exists {A = A} p > = (a : A) → < p a >
+-- The problem here is that the user can put any set, instead I would like it to be the type of the property 
+-- being tested
+< Property P > = Set 
+
 -- Contains input values for testing a property
 data Input (F : Set -> Set) : (List Set) -> Set₁ where
   [] : Input F []
@@ -52,7 +60,7 @@ infixr 5 _∷_
 [ x ] = x ∷ []
 
 data Testable : Set₁ where
-  Test_on_by_ : ∀ {A} -> (u : U A) -> Input List A -> (k : ⟦ u ⟧) -> Testable
+  Test_on_by_and_ : ∀ {A} -> (u : U A) -> Input List A -> (k : ⟦ u ⟧) -> (prop : < u >) -> Testable
 
 data Result : Set₁ where
 -- The possible results for a lemma with the ∀ quantifier
@@ -66,30 +74,30 @@ data Result : Set₁ where
    Impossible : Result
 
 -- The possible results for a property    -- TODO better names
-   Hold : {P : Set} -> P -> Result
-   DoesNotHold : {P : Set} -> ¬ P -> Result
+   Hold : Set -> Result
+   DoesNotHold : Set -> Result
   -- ...
 
 open import Data.Sum
 
-test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> Result ⊎ Result
-test' : ∀ {xs} {A : Set} (u : U (A ∷ xs)) -> ⟦ u ⟧ -> List A -> Input List xs -> Result ⊎ Result
+test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> < u > -> Input List xs -> Result ⊎ Result
+test' : ∀ {xs} {A : Set} (u : U (A ∷ xs)) -> ⟦ u ⟧ -> < u > -> List A -> Input List xs -> Result ⊎ Result
 
-test' (Forall p) check [] input = inj₂ Trivial
-test' (Forall p) check (x ∷ xs) input with test (p x) (check x) input
-test' {A = A} (Forall p) check (x ∷ xs) input | inj₁ r = inj₁ (NotFor x r)
-test' {A = A} (Forall p) check (x ∷ []) input | inj₂ y = inj₂ (Forall A y)
-test' {A = A} (Forall p) check (x ∷ x₁ ∷ xs₁) input | inj₂ y = test' (Forall p) check (x₁ ∷ xs₁) input
-test' (Exists p) check [] input = inj₁ Impossible
-test' {A = A} (Exists p) check (x ∷ xs) input with test (p x) (check x) input 
-test' {A = A} (Exists p) check (x ∷ []) input | inj₁ r = inj₁ (NotExists A r)
-test' {A = A} (Exists p) check (x ∷ x₁ ∷ xs) input | inj₁ r = test' (Exists p) check (x₁ ∷ xs) input
-test' (Exists p) check (x ∷ xs) input | inj₂ r = inj₂ (Exists x r)
+test' (Forall p) check prop [] input = inj₂ Trivial
+test' (Forall p) check prop (x ∷ xs) input with test (p x) (check x) (prop x) input
+test' {A = A} (Forall p) check prop (x ∷ xs) input | inj₁ r = inj₁ (NotFor x r)
+test' {A = A} (Forall p) check prop (x ∷ []) input | inj₂ y = inj₂ (Forall A y)
+test' {A = A} (Forall p) check prop (x ∷ x₁ ∷ xs₁) input | inj₂ y = test' (Forall p) check prop (x₁ ∷ xs₁) input
+test' (Exists p) check prop [] input = inj₁ Impossible
+test' {A = A} (Exists p) check prop (x ∷ xs) input with test (p x) (check x) (prop x) input 
+test' {A = A} (Exists p) check prop (x ∷ []) input | inj₁ r = inj₁ (NotExists A r)
+test' {A = A} (Exists p) check prop (x ∷ x₁ ∷ xs) input | inj₁ r = test' (Exists p) check prop (x₁ ∷ xs) input
+test' (Exists p) check prop (x ∷ xs) input | inj₂ r = inj₂ (Exists x r)
 
-test (Forall p) check (x ∷ input) = test' (Forall p) check x input
-test (Exists p) check (x ∷ input) = test' (Exists p) check x input
-test (Property P) (yes p) [] = inj₂ (Hold p)
-test (Property P) (no ¬p) [] = inj₁ (DoesNotHold ¬p)
+test (Forall p) check prop (x ∷ input) = test' (Forall p) check prop x input
+test (Exists p) check prop (x ∷ input) = test' (Exists p) check prop x input
+test (Property P) (yes p) prop [] = inj₂ (Hold prop)
+test (Property P) (no ¬p) prop [] = inj₁ (DoesNotHold prop)
 
 open import Data.Empty
 
@@ -101,9 +109,9 @@ data Succeed : Result -> Set₁ where
 
 -- TODO give precise result inspecting the outer quantifier
 run : Testable -> Set₁
-run (Test u on input by k) with test u k input
-run (Test u on input by k) | inj₁ r = Fail r
-run (Test u on input by k) | inj₂ r = Succeed r       -- TODO collect input
+run (Test u on input by k and prop) with test u k prop input
+run (Test u on input by k and prop) | inj₁ r = Fail r
+run (Test u on input by k and prop) | inj₂ r = Succeed r       -- TODO collect input
 
 data Skip : Set where
   Skipped : Skip

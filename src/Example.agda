@@ -1,6 +1,6 @@
 module Example where
 
-open import Base hiding (Test_on_by_)
+open import Base hiding (Test_on_by_and_)
 import Base as B
 open import StreamGenerator 
 open import Coinduction
@@ -33,8 +33,8 @@ trivial = Property Unit
 dec-trivial : ⟦ trivial ⟧
 dec-trivial = yes unit
 
-test-trivial : run (Test trivial on [] by dec-trivial )
-test-trivial = Pass (Hold unit)
+test-trivial : run (Test trivial on [] by dec-trivial and Unit )
+test-trivial = Pass (Hold Unit)
 
 impossible : U []
 impossible = Property ⊥
@@ -42,10 +42,10 @@ impossible = Property ⊥
 dec-impossible : ⟦ impossible ⟧
 dec-impossible = no (λ z → z)
 
-test-impossible : run (Test impossible on [] by dec-impossible)
-test-impossible = Failed (DoesNotHold (λ z → z))
+test-impossible : run (Test impossible on [] by dec-impossible and ⊥)
+test-impossible = Failed (DoesNotHold ⊥)
 
-skip-impossible : skip (Test impossible on [] by dec-impossible)
+skip-impossible : skip (Test impossible on [] by dec-impossible and ⊥)
 skip-impossible = Skipped
 
 ex1 : U (ℕ ∷ []) 
@@ -54,8 +54,10 @@ ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
 dec-ex1 : ⟦ ex1 ⟧
 dec-ex1 = λ x -> Data.Nat._≟_ x x
 
-test-ex1 : run (B.Test ex1 on [ take 10 nats ] by dec-ex1 ) 
-test-ex1 = Pass (Forall ℕ (Hold refl))
+test-ex1 : run (B.Test ex1 on [ take 10 nats ] by dec-ex1 and (λ n → n ≡ n)) 
+test-ex1 = Pass (Forall ℕ (Hold (suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))) ≡
+                                   suc (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))  
+-- The result from the last case is returned
 
 ex : U (ℕ ∷ List ℕ ∷ [])
 ex =  (Forall (λ n -> Exists {List ℕ} (λ xs -> Property (n ≡ (length xs)))))
@@ -63,8 +65,8 @@ ex =  (Forall (λ n -> Exists {List ℕ} (λ xs -> Property (n ≡ (length xs)))
 dec-ex : ⟦ ex ⟧
 dec-ex = λ n xs → Data.Nat._≟_ n (length xs)
 
-test-ex : run (B.Test ex on ((take 2 nats) ∷ lists ∷ []) by dec-ex )
-test-ex = Pass (Forall ℕ (Exists (suc zero ∷ []) (Hold refl)))
+test-ex : run (B.Test ex on ((take 2 nats) ∷ lists ∷ []) by dec-ex and (λ n xs → n ≡ (length xs) ))
+test-ex = Pass (Forall ℕ (Exists (suc zero ∷ []) (Hold (suc zero ≡ suc zero))))
 
 --------------------------------------------------------------------------------
 -- Example definitions and lemmas
@@ -88,40 +90,41 @@ isEven? (suc (suc n)) | no ¬p = no ( \ p -> ¬p (unpack p) )
 -- Even properties
 --------------------------------------------------------------------------------
 
-test-even-double : run (Test Forall (λ n → Property (Even (n + n))) on [ nats ] by (λ n → isEven? (n + n)))
+test-even-double : run (Test Forall (λ n → Property (Even (n + n))) on [ nats ] by (λ n → isEven? (n + n)) and (λ n → Even (n + n)) )
 test-even-double = Pass
                      (Forall ℕ
-                      (Hold (isEven+2 (isEven+2 (isEven+2 (isEven+2 isEven0))))))
+                      (Hold (Even (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))
 
-test-all-even : run (Test (Forall (λ n → Property (Even n))) on [ nats ] by isEven?)
-test-all-even = Failed (NotFor (suc zero) (DoesNotHold _))
+test-all-even : run (Test (Forall (λ n → Property (Even n))) on [ nats ] by isEven? and (λ n → Even n))
+test-all-even = Failed (NotFor (suc zero) (DoesNotHold (Even (suc zero))))
 
-test-all-even-evens : run (Test Forall (λ n → Property (Even n)) on  [ evens nats ] by isEven?)
+test-all-even-evens : run (Test Forall (λ n → Property (Even n)) on  [ evens nats ] by isEven? and (λ n → Even n))
 test-all-even-evens = Pass
                         (Forall ℕ
-                         (Hold (isEven+2 (isEven+2 (isEven+2 (isEven+2 isEven0))))))
+                         (Hold (Even (suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))
 
-test-some-even : run (Test Exists (λ n → Property (Even n)) on [ nats ] by isEven?)
-test-some-even = Pass (Exists zero (Hold isEven0))
+test-some-even : run (Test Exists (λ n → Property (Even n)) on [ nats ] by isEven? and (λ n → Even n))
+test-some-even = Pass (Exists zero (Hold (Even zero)))
 
-test-some-even-odds : run (Test (Exists (λ n → Property (Even n))) on [ odds nats ] by isEven?)
+test-some-even-odds : run (Test (Exists (λ n → Property (Even n))) on [ odds nats ] by isEven? and (λ n → Even n))
 test-some-even-odds = Failed
                         (NotExists ℕ
-                         (DoesNotHold _))   -- TODO : the failure proof is completely dumped here as a huge lambda
+                         (DoesNotHold (Even (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))
 
 --------------------------------------------------------------------------------
 -- Arithmetics with naturals 
 --------------------------------------------------------------------------------
 
 test-all-sym-plus  : run (Test Forall (λ n → Forall (λ m → Property (n + m ≡ m + n))) on 
-                         (nats ∷ nats ∷ []) by (λ n m → (n + m) Data.Nat.≟ (m + n)))
-test-all-sym-plus = Pass (Forall ℕ (Forall ℕ (Hold refl)))
+                         (nats ∷ nats ∷ []) by (λ n m → (n + m) Data.Nat.≟ (m + n)) and (λ n m → n + m ≡ m + n) )
+test-all-sym-plus = Pass (Forall ℕ (Forall ℕ (Hold (suc (suc (suc (suc (suc (suc (suc (suc zero))))))) ≡
+                                                      suc (suc (suc (suc (suc (suc (suc (suc zero)))))))))))
 
 test-all-false-equality : run (Test (Forall (λ n → Forall (λ m → Property (n ≡ m)))) on 
-                              (nats ∷ nats ∷ []) by Data.Nat._≟_)
+                              (nats ∷ nats ∷ []) by Data.Nat._≟_ and (λ n m → n ≡ m))
 test-all-false-equality = Failed
                             (NotFor zero
-                             (NotFor (suc zero) (DoesNotHold _)))
+                             (NotFor (suc zero) (DoesNotHold (zero ≡ suc zero))))
 
 --------------------------------------------------------------------------------
 -- Pretty syntax
