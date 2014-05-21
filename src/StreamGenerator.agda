@@ -11,9 +11,10 @@ open import Function
 take : ∀ {a} -> ℕ -> Stream a -> List a
 take {a} n = toList ∘ (Data.Stream.take {a} n)
 
-toInput : {xs : List Set} -> ℕ -> Input Stream xs -> Input List xs
+toInput : {xs : BListTree Set} -> ℕ -> Input Stream xs -> Input List xs
 toInput n [] = []
 toInput n (x ∷ input) = (take n x) ∷ (toInput n input)
+toInput n (input1 , input2) = (toInput n input1) , (toInput n input2)
 
 -- Tests up to n input values for each input type
 Test_on_by_and_withℕ_ : ∀ {xs} -> (u : U xs) -> Input Stream xs -> ⟦ u ⟧ -> < u > -> ℕ -> Testable

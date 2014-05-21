@@ -172,3 +172,26 @@ unique-fail : run (Test Exists! n ~ Property (Even n) on [ nats ] by isEven? and
 unique-fail = Pass
                 (NotUnique zero ~ Hold (Even zero) & suc (suc zero) ~
                  Hold (Even (suc (suc zero))))
+
+
+disj1 : run (Test Forall n ~ (Property (Even n)) ∨ Not (Property (Even n)) on nats ∷ ([] , []) by (λ n → (isEven? n) , (isEven? n)) and (λ n → (Even n) , (Even n)))
+disj1 = Pass (Forall ℕ (Hold (Even (suc (suc (suc (suc zero)))))))
+
+disj2 : run (Test Forall n ~ (Property (Even n)) ∨ (Exists m ~ Property (Even (n + m))) 
+            on (odds nats) ∷ ([] , (nats ∷ [])) 
+            by (λ n → (isEven? n) , (λ m → isEven? (n + m)))
+            and (λ n → (Even n) , (λ m → Even (n + m)))) 
+disj2 = Pass
+          (Forall ℕ
+           (Exists (suc zero)
+            (Hold
+             (Even
+              (suc
+               (suc (suc (suc (suc (suc (suc (suc (suc (suc zero))))))))))))))
+
+
+disj3 : run (Test (Property (Even 1)) ∨ Not (Property (Even 0)) 
+        on [] , [] 
+        by (isEven? 1) , isEven? 0
+        and ((Even 1) , Even 0))
+disj3 = Failed (DoesNotHold (Even (suc zero)) And Hold (Even zero))

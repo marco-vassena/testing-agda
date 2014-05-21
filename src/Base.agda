@@ -3,19 +3,27 @@ module Base where
 open import Coinduction
 open import Data.Unit
 open import Data.Empty
-open import Data.Bool
+open import Data.Bool hiding (_∨_)
 open import Data.Nat
 open import Data.List hiding ( [_] )
+open import Data.Product
 open import Reflection
 open import Relation.Nullary
 open import Function
- 
+
+-- Collect types for 'U'
+data BListTree {a} (A : Set a) : Set a where 
+  [] : BListTree A
+  _∷_ : A -> BListTree A -> BListTree A
+  _,_ : BListTree A -> BListTree A -> BListTree A
+
 -- Universe
-data U : (List Set) -> Set₁ where
+data U : (BListTree Set) -> Set₁ where
   Forall : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
   Exists : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
   ExistsUnique : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
   Not : ∀ {xs} -> U xs -> U xs
+  _∨_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys) 
   Property : (P : Set) -> U []
 
 syntax Exists (\x -> p) = Exists x ~ p     -- TODO find nice symbol for such that ( "." and ":" are reserved)
@@ -29,6 +37,7 @@ syntax ExistsUnique (\x -> p) = Exists! x ~ p
 ⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
 ⟦ ExistsUnique {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
 ⟦ Not p ⟧ = ⟦ p ⟧
+⟦ p1 ∨ p2 ⟧ = ⟦ p1 ⟧ × ⟦ p2 ⟧
 ⟦ Property P ⟧ = Dec P
 
 is∀ : ∀ {xs} -> U xs -> Set
@@ -50,14 +59,16 @@ is∃! _ = ⊥
 < Exists {A = A} f > = (a : A) → < f a >
 < ExistsUnique {A = A} f > = (a : A) → < f a >
 < Not p > = < p >
+< p1 ∨ p2 > = < p1 > × < p2 >
 -- The problem here is that the user can put any set, instead I would like it to be the type of the property 
 -- being tested
 < Property P > = Set 
 
 -- Contains input values for testing a property
-data Input (F : Set -> Set) : (List Set) -> Set₁ where
+data Input (F : Set -> Set) : (BListTree Set) -> Set₁ where
   [] : Input F []
   _∷_ : ∀ {xs} {A : Set} -> F A -> Input F xs -> Input F (A ∷ xs)
+  _,_ : ∀ {xs ys} -> Input F xs -> Input F ys -> Input F (xs , ys)
 
 infixr 5 _∷_ 
 
@@ -66,7 +77,7 @@ infixr 5 _∷_
 [ x ] = x ∷ []
 
 data Testable : Set₁ where
-  Test_on_by_and_ : ∀ {A} -> (u : U A) -> Input List A -> (k : ⟦ u ⟧) -> (prop : < u >) -> Testable
+  Test_on_by_and_ : ∀ {xs} -> (u : U xs) -> Input List xs -> (k : ⟦ u ⟧) -> (prop : < u >) -> Testable
 
 data Result : Set₁ where
 -- The possible results for a lemma with the ∀ quantifier
@@ -79,13 +90,17 @@ data Result : Set₁ where
    NotExists : (A : Set) -> Result -> Result
    Impossible : Result
 
+-- The possible results for a lemma with the ∃! quantifier
+   ExistsUnique : {A : Set} -> A -> Result -> Result
+   NotUnique_~_&_~_ : {A : Set} -> A -> Result -> A -> Result -> Result
+
+-- Disjunction
+   _And_ : Result -> Result -> Result
+
 -- The possible results for a property    -- TODO better names
    Hold : Set -> Result
    DoesNotHold : Set -> Result
 
--- The possible results for a lemma with the ∃! quantifier
-   ExistsUnique : {A : Set} -> A -> Result -> Result
-   NotUnique_~_&_~_ : {A : Set} -> A -> Result -> A -> Result -> Result
 
 open import Data.Sum
 
@@ -134,8 +149,13 @@ test (Forall p) check prop (x ∷ input) = test∀ (Forall p) check prop x input
 test (Exists p) check prop (x ∷ input) = test∃ (Exists p) check prop x input
 test (ExistsUnique p) check prop (x ∷ input) = test∃! (ExistsUnique p) check prop x input
 test (Not p) check prop xs with test p check prop xs
-test (Not p) check prop xs₁ | inj₁ x = inj₂ x
-test (Not p) check prop xs₁ | inj₂ y = inj₁ y 
+test (Not p) check prop xs | inj₁ x = inj₂ x
+test (Not p) check prop xs | inj₂ y = inj₁ y 
+test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) with test p1 check1 prop1 input1
+test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₁ x with test p2 check2 prop2 input2
+test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₁ r1 | inj₁ r2 = inj₁ (r1 And r2)
+test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₁ x | inj₂ y = inj₂ y
+test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₂ y = inj₂ y
 test (Property P) (yes p) prop [] = inj₂ (Hold prop)
 test (Property P) (no ¬p) prop [] = inj₁ (DoesNotHold prop)
 
