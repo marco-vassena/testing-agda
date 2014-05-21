@@ -135,3 +135,28 @@ test-pretty = Forall n ~ (Property (n ≡ n))
 
 test-pretty2 : U (ℕ ∷ List ℕ ∷ [])
 test-pretty2 =  Forall n ~ Exists xs ~ (Property (n ≡ (length xs)))
+
+--------------------------------------------------------------------------------
+-- Testing new constructs
+--------------------------------------------------------------------------------
+
+test-Not-imp : run (Test_on_by_and_ (Not impossible) [] (no (λ z → z)) ⊥) 
+test-Not-imp = Pass (DoesNotHold ⊥)
+
+test-not-all-even : run (Test Not (Forall n ~ Property (Even n)) on [ nats ] by isEven? and Even)
+test-not-all-even = Pass (NotFor (suc zero) (DoesNotHold (Even (suc zero))))
+
+test-not-one-eq-zero : run (Test (Forall n ~ Not (Forall m ~ Property (n ≡ m))) on nats ∷ nats ∷ [] by Data.Nat._≟_ and _≡_)
+test-not-one-eq-zero = Pass
+                         (Forall ℕ
+                          (NotFor zero (DoesNotHold (suc (suc (suc (suc zero))) ≡ zero))))
+
+test-not-one-eq-zero' : run (Test (Forall n ~ (Forall m ~ (Not (Property (n ≡ m))))) on nats ∷ nats ∷ [] by Data.Nat._≟_ and _≡_)
+test-not-one-eq-zero' = Failed (NotFor zero (NotFor zero (Hold (zero ≡ zero))))
+
+test-not-one-eq-zero'' : run (Test (Not (Forall n ~ (Forall m ~ (Property (n ≡ m))))) on nats ∷ nats ∷ [] by Data.Nat._≟_ and _≡_)
+test-not-one-eq-zero'' = Pass
+                           (NotFor zero (NotFor (suc zero) (DoesNotHold (zero ≡ suc zero))))
+
+test-double-neg : run (Test (Not (Forall n ~ (Forall m ~ (Not (Property (n ≡ m)))))) on nats ∷ nats ∷ [] by Data.Nat._≟_ and _≡_)
+test-double-neg = Pass (NotFor zero (NotFor zero (Hold (zero ≡ zero))))
