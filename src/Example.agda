@@ -160,3 +160,15 @@ test-not-one-eq-zero'' = Pass
 
 test-double-neg : run (Test (Not (Forall n ~ (Forall m ~ (Not (Property (n ≡ m)))))) on nats ∷ nats ∷ [] by Data.Nat._≟_ and _≡_)
 test-double-neg = Pass (NotFor zero (NotFor zero (Hold (zero ≡ zero))))
+
+unique-pass : run (Test Exists! n ~ Forall m ~ Property (n + m ≡ m) on nats ∷ (nats ∷ []) 
+              by (\ x y -> Data.Nat._≟_ (x + y) y) and (\ n m -> n + m ≡ m))
+unique-pass = Pass
+                (ExistsUnique zero
+                 (Forall ℕ
+                  (Hold (suc (suc (suc (suc zero))) ≡ suc (suc (suc (suc zero)))))))
+
+unique-fail : run (Test Exists! n ~ Property (Even n) on [ nats ] by isEven? and Even)
+unique-fail = Pass
+                (NotUnique zero ~ Hold (Even zero) & suc (suc zero) ~
+                 Hold (Even (suc (suc zero))))
