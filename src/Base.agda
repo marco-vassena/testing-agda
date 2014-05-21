@@ -37,6 +37,8 @@ data U : (List Set) -> Set₁ where
 ⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
 ⟦ Property P ⟧ = Dec P
 
+syntax Exists (\x -> p) = Exists x ~ p     -- TODO find nice symbol for such that ( "." and ":" are reserved)
+syntax Forall (\x -> p) = Forall x ~ p
 
 -- Contains input values for testing a property
 data Input (F : Set -> Set) : (List Set) -> Set₁ where

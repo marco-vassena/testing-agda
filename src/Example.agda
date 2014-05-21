@@ -128,3 +128,13 @@ test-all-false-equality = Failed
                              (NotFor zero
                               (RA
                                (NotFor (suc zero) (RP (DoesNotHold _)))))) 
+
+--------------------------------------------------------------------------------
+-- Pretty syntax
+--------------------------------------------------------------------------------
+
+test-pretty : U (ℕ ∷ [])
+test-pretty = Forall n ~ (Property (n ≡ n))
+
+test-pretty2 : U (ℕ ∷ List ℕ ∷ [])
+test-pretty2 =  Forall n ~ Exists xs ~ (Property (n ≡ (length xs)))
