@@ -34,7 +34,7 @@ dec-trivial : ⟦ trivial ⟧
 dec-trivial = yes unit
 
 test-trivial : run (Test trivial on [] by dec-trivial )
-test-trivial = Pass (RP (Hold unit))
+test-trivial = Pass (Hold unit)
 
 impossible : U []
 impossible = Property ⊥
@@ -43,7 +43,7 @@ dec-impossible : ⟦ impossible ⟧
 dec-impossible = no (λ z → z)
 
 test-impossible : run (Test impossible on [] by dec-impossible)
-test-impossible = Failed (RP (DoesNotHold (λ z → z)))
+test-impossible = Failed (DoesNotHold (λ z → z))
 
 skip-impossible : skip (Test impossible on [] by dec-impossible)
 skip-impossible = Skipped
@@ -55,7 +55,7 @@ dec-ex1 : ⟦ ex1 ⟧
 dec-ex1 = λ x -> Data.Nat._≟_ x x
 
 test-ex1 : run (B.Test ex1 on [ take 10 nats ] by dec-ex1 ) 
-test-ex1 = Pass (RA (Forall ℕ (RP (Hold refl))))
+test-ex1 = Pass (Forall ℕ (Hold refl))
 
 ex : U (ℕ ∷ List ℕ ∷ [])
 ex =  (Forall (λ n -> Exists {List ℕ} (λ xs -> Property (n ≡ (length xs)))))
@@ -64,7 +64,7 @@ dec-ex : ⟦ ex ⟧
 dec-ex = λ n xs → Data.Nat._≟_ n (length xs)
 
 test-ex : run (B.Test ex on ((take 2 nats) ∷ lists ∷ []) by dec-ex )
-test-ex = Pass (RA (Forall ℕ (RE (Exists (suc zero ∷ []) (RP (Hold refl))))))
+test-ex = Pass (Forall ℕ (Exists (suc zero ∷ []) (Hold refl)))
 
 --------------------------------------------------------------------------------
 -- Example definitions and lemmas
@@ -90,28 +90,24 @@ isEven? (suc (suc n)) | no ¬p = no ( \ p -> ¬p (unpack p) )
 
 test-even-double : run (Test Forall (λ n → Property (Even (n + n))) on [ nats ] by (λ n → isEven? (n + n)))
 test-even-double = Pass
-                     (RA
-                      (Forall ℕ
-                       (RP (Hold (isEven+2 (isEven+2 (isEven+2 (isEven+2 isEven0))))))))
+                     (Forall ℕ
+                      (Hold (isEven+2 (isEven+2 (isEven+2 (isEven+2 isEven0))))))
 
 test-all-even : run (Test (Forall (λ n → Property (Even n))) on [ nats ] by isEven?)
-test-all-even = Failed (RA (NotFor (suc zero) (RP (DoesNotHold _))))
+test-all-even = Failed (NotFor (suc zero) (DoesNotHold _))
 
 test-all-even-evens : run (Test Forall (λ n → Property (Even n)) on  [ evens nats ] by isEven?)
 test-all-even-evens = Pass
-                        (RA
-                         (Forall ℕ
-                          (RP (Hold (isEven+2 (isEven+2 (isEven+2 (isEven+2 isEven0))))))))
+                        (Forall ℕ
+                         (Hold (isEven+2 (isEven+2 (isEven+2 (isEven+2 isEven0))))))
 
 test-some-even : run (Test Exists (λ n → Property (Even n)) on [ nats ] by isEven?)
-test-some-even = Pass (RE (Exists zero (RP (Hold isEven0))))
+test-some-even = Pass (Exists zero (Hold isEven0))
 
 test-some-even-odds : run (Test (Exists (λ n → Property (Even n))) on [ odds nats ] by isEven?)
 test-some-even-odds = Failed
-                        (RE
-                         (NotExists ℕ
-                          (RP
-                           (DoesNotHold _ ))))  -- TODO : the failure proof is completely dumped here as a huge lambda
+                        (NotExists ℕ
+                         (DoesNotHold _))   -- TODO : the failure proof is completely dumped here as a huge lambda
 
 --------------------------------------------------------------------------------
 -- Arithmetics with naturals 
@@ -119,15 +115,13 @@ test-some-even-odds = Failed
 
 test-all-sym-plus  : run (Test Forall (λ n → Forall (λ m → Property (n + m ≡ m + n))) on 
                          (nats ∷ nats ∷ []) by (λ n m → (n + m) Data.Nat.≟ (m + n)))
-test-all-sym-plus = Pass (RA (Forall ℕ (RA (Forall ℕ (RP (Hold refl))))))
+test-all-sym-plus = Pass (Forall ℕ (Forall ℕ (Hold refl)))
 
 test-all-false-equality : run (Test (Forall (λ n → Forall (λ m → Property (n ≡ m)))) on 
                               (nats ∷ nats ∷ []) by Data.Nat._≟_)
 test-all-false-equality = Failed
-                            (RA
-                             (NotFor zero
-                              (RA
-                               (NotFor (suc zero) (RP (DoesNotHold _)))))) 
+                            (NotFor zero
+                             (NotFor (suc zero) (DoesNotHold _)))
 
 --------------------------------------------------------------------------------
 -- Pretty syntax
