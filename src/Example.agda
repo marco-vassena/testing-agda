@@ -195,3 +195,11 @@ disj3 : run (Test (Property (Even 1)) ∨ Not (Property (Even 0))
         by (isEven? 1) , isEven? 0
         and ((Even 1) , Even 0))
 disj3 = Failed (DoesNotHold (Even (suc zero)) And Hold (Even zero))
+
+impl1 : run (Test Forall n ~ (Property (Even n)) ⇒ Property (Even (n + 2))
+        on nats ∷ ([] , [])
+        by (λ n → (isEven? n) , (isEven? (n + 2)))
+        and (λ n → (Even n) , (Even (n + 2))))
+impl1 = Pass
+          (Forall ℕ (Hold (Even (suc (suc (suc (suc (suc (suc zero)))))))))
+

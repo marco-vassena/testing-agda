@@ -26,6 +26,10 @@ data U : (BListTree Set) -> Set₁ where
   _∨_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys) 
   Property : (P : Set) -> U []
 
+-- Implication
+_⇒_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
+p1 ⇒ p2 = (Not p1) ∨ p2
+
 syntax Exists (\x -> p) = Exists x ~ p     -- TODO find nice symbol for such that ( "." and ":" are reserved)
 syntax Forall (\x -> p) = Forall x ~ p
 syntax ExistsUnique (\x -> p) = Exists! x ~ p
