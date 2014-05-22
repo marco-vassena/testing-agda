@@ -7,9 +7,14 @@ open import Data.Bool hiding (_∨_ ; _∧_)
 open import Data.Nat
 open import Data.List hiding ( [_] )
 open import Data.Product
+open import Data.Sum
 open import Reflection
 open import Relation.Nullary
 open import Function
+
+--------------------------------------------------------------------------------
+-- Definition of theorems and properties
+--------------------------------------------------------------------------------
 
 -- Collect types for 'U'
 data BListTree {a} (A : Set a) : Set a where 
@@ -45,16 +50,6 @@ syntax Exists (\x -> p) = Exists x ~ p     -- TODO find nice symbol for such tha
 syntax Forall (\x -> p) = Forall x ~ p
 syntax ExistsUnique (\x -> p) = Exists! x ~ p
 
--- Returns the type of the view function required to check if 
--- the given property holds for some input values. 
-⟦_⟧ : ∀ {xs} -> U xs -> Set
-⟦ Forall {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
-⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
-⟦ ExistsUnique {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
-⟦ Not p ⟧ = ⟦ p ⟧
-⟦ p1 ∨ p2 ⟧ = ⟦ p1 ⟧ × ⟦ p2 ⟧
-⟦ Property P ⟧ = Dec P
-
 is∀ : ∀ {xs} -> U xs -> Set
 is∀ (Forall p) = ⊤
 is∀ _ = ⊥
@@ -67,6 +62,19 @@ is∃! : ∀ {xs} -> U xs -> Set
 is∃! (ExistsUnique p) = ⊤
 is∃! _ = ⊥
 
+--------------------------------------------------------------------------------
+-- Testing framework
+--------------------------------------------------------------------------------
+
+-- Returns the type of the view function required to check if 
+-- the given property holds for some input values. 
+⟦_⟧ : ∀ {xs} -> U xs -> Set
+⟦ Forall {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ ExistsUnique {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ Not p ⟧ = ⟦ p ⟧
+⟦ p1 ∨ p2 ⟧ = ⟦ p1 ⟧ × ⟦ p2 ⟧
+⟦ Property P ⟧ = Dec P
 
 -- Returns the type of the function required to report the property being test
 <_> : ∀ {xs} -> U xs -> Set₁
@@ -116,8 +124,6 @@ data Result : Set₁ where
    Hold : Set -> Result
    DoesNotHold : Set -> Result
 
-
-open import Data.Sum
 
 test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> < u > -> Input List xs -> Result ⊎ Result
 test∀ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> < u > -> List A -> Input List xs -> Result ⊎ Result
