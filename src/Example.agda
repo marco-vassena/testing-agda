@@ -246,3 +246,44 @@ iff2-fail : run (Test Forall n ~ (Property (Even n)) ⇔ (Property (Even (n + n)
 iff2-fail = Failed
               (NotFor (suc zero)
                (Hold (Even (suc (suc zero))) And DoesNotHold (Even (suc zero))))
+
+
+--------------------------------------------------------------------------------
+-- Shows the effects of good and bad choices of < u >
+--------------------------------------------------------------------------------
+
+u : U (ℕ ∷ ℕ ∷ [])
+u = Forall n ~ Forall m ~ Property (Even (n + m))
+
+good : < u > 
+good = λ n m → Even (n + m)
+
+bad1 : < u >
+bad1 = λ n m -> Even m
+
+bad2 : < u >
+bad2 = λ n m → ⊤
+
+test-u-good : run (B.Test u
+                on (1 ∷ 2 ∷ 3 ∷ []) ∷ (1 ∷ 2 ∷ 3 ∷ []) ∷ []
+                by (λ n m → isEven? (n + m))
+                and good )
+test-u-good = Failed
+                (NotFor (suc zero)
+                 (NotFor (suc (suc zero))
+                  (DoesNotHold (Even (suc (suc (suc zero)))))))
+
+test-u-bad1 : run (B.Test u
+                on (1 ∷ 2 ∷ 3 ∷ []) ∷ (1 ∷ 2 ∷ 3 ∷ []) ∷ []
+                by (λ n m → isEven? (n + m))
+                and bad1 )
+test-u-bad1 = Failed
+                (NotFor (suc zero)
+                 (NotFor (suc (suc zero)) (DoesNotHold (Even (suc (suc zero))))))
+
+test-u-bad2 : run (B.Test u
+                on (1 ∷ 2 ∷ 3 ∷ []) ∷ (1 ∷ 2 ∷ 3 ∷ []) ∷ []
+                by (λ n m → isEven? (n + m))
+                and bad2 )
+test-u-bad2 = Failed
+                (NotFor (suc zero) (NotFor (suc (suc zero)) (DoesNotHold ⊤)))

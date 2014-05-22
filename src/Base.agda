@@ -77,7 +77,7 @@ is∃! _ = ⊥
 < p1 ∨ p2 > = < p1 > × < p2 >
 -- The problem here is that the user can put any set, instead I would like it to be the type of the property 
 -- being tested
-< Property P > = Set 
+< Property P > = Set
 
 -- Contains input values for testing a property
 data Input (F : Set -> Set) : (BListTree Set) -> Set₁ where
