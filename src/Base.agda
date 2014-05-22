@@ -3,7 +3,7 @@ module Base where
 open import Coinduction
 open import Data.Unit
 open import Data.Empty
-open import Data.Bool hiding (_∨_)
+open import Data.Bool hiding (_∨_ ; _∧_)
 open import Data.Nat
 open import Data.List hiding ( [_] )
 open import Data.Product
@@ -23,12 +23,23 @@ data U : (BListTree Set) -> Set₁ where
   Exists : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
   ExistsUnique : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
   Not : ∀ {xs} -> U xs -> U xs
-  _∨_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys) 
+  _∨_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
   Property : (P : Set) -> U []
 
 -- Implication
 _⇒_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
 p1 ⇒ p2 = (Not p1) ∨ p2
+
+-- Conjunction
+_∧_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
+p1 ∧ p2 = Not ((Not p1) ∨ (Not p2))
+
+-- Double implication
+-- TODO since it's not a primitive constructor I cannot help to repeat
+-- the same functions (prop and check) twice. However they should always
+-- be the same.
+_⇔_ : ∀ {xs ys} -> U xs -> U ys -> U ((xs , ys) , (ys , xs))
+p1 ⇔ p2 = (p1 ⇒ p2) ∧ (p2 ⇒ p1)
 
 syntax Exists (\x -> p) = Exists x ~ p     -- TODO find nice symbol for such that ( "." and ":" are reserved)
 syntax Forall (\x -> p) = Forall x ~ p

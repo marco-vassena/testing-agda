@@ -203,3 +203,46 @@ impl1 : run (Test Forall n ~ (Property (Even n)) ⇒ Property (Even (n + 2))
 impl1 = Pass
           (Forall ℕ (Hold (Even (suc (suc (suc (suc (suc (suc zero)))))))))
 
+conj1 : run (Test Exists! n ~ (Property (Even n)) ∧ Property (n + n ≡ n)
+        on nats ∷ ([] , [])
+        by (λ n → (isEven? n) , (n + n Data.Nat.≟ n))
+        and (λ n → (Even n) , (n + n ≡ n)))
+conj1 = Pass (ExistsUnique zero (Hold (Even zero) And Hold (zero ≡ zero)))
+
+conj2 : run (Test Exists n ~ (Property (Even n)) ∧ (Property (Even (n + 1)))
+        on nats ∷ ([] , [])
+        by (λ n → (isEven? n) , (isEven? (n + 1)))
+        and (λ n → (Even n) , (Even (n + 1))))
+conj2 = Failed
+          (NotExists ℕ
+           (DoesNotHold (Even (suc (suc (suc (suc (suc zero))))))))
+
+conj2' : run (Test Forall n ~ (Property (Even n)) ∧ (Property (Even (n + 1)))
+        on nats ∷ ([] , [])
+        by (λ n → (isEven? n) , (isEven? (n + 1)))
+        and (λ n → (Even n) , (Even (n + 1))))
+conj2' = Failed (NotFor zero (DoesNotHold (Even (suc zero))))
+
+conj2'' : run (Test Forall n ~ (Property (Even n)) ∨ (Property (Even (n + 1)))
+        on nats ∷ ([] , [])
+        by (λ n → (isEven? n) , (isEven? (n + 1)))
+        and (λ n → (Even n) , (Even (n + 1))))
+conj2'' = Pass (Forall ℕ (Hold (Even (suc (suc (suc (suc zero)))))))
+
+-- Because of the multiple abstractions it becomes difficult to interpret the result
+iff1 : run (Test Forall n ~ (Property (Even n)) ⇔ (Not (Property (Even (n + 1))))
+           on nats ∷ (([] , []) , ([] , []))
+           by (λ n → ((isEven? n) , (isEven? (n + 1))) , ((isEven? (n + 1)) , isEven? n))
+           and (λ n → ((Even n) , (Even (n + 1))) , ((Even (n + 1)) , (Even n))))
+iff1 = Pass
+         (Forall ℕ
+          (DoesNotHold (Even (suc (suc (suc (suc (suc zero)))))) And
+           Hold (Even (suc (suc (suc (suc zero)))))))
+
+iff2-fail : run (Test Forall n ~ (Property (Even n)) ⇔ (Property (Even (n + n)))
+                on nats ∷ (([] , []) , ([] , []))
+                by (λ n → ((isEven? n) , (isEven? (n + n))) , ((isEven? (n + n)) , (isEven? n)))
+                and (λ n → ((Even n) , (Even (n + n))) , ((Even (n + n)) , (Even n))))
+iff2-fail = Failed
+              (NotFor (suc zero)
+               (Hold (Even (suc (suc zero))) And DoesNotHold (Even (suc zero))))
