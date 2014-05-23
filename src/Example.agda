@@ -228,6 +228,18 @@ iff2-fail = Failed
 
 
 --------------------------------------------------------------------------------
+-- Examples using different test runners
+--------------------------------------------------------------------------------
+
+double-even : pass (Test Forall n ~ Property (Even (n + n)) on nats ∷ [] 
+                   by (λ n → isEven? (n + n)) and (λ n → Even (n + n)))
+double-even = Pass
+
+next-even : fail (Test Forall n ~ Property (Even (n + 1)) on nats ∷ [] 
+                 by (λ n → isEven? (n + 1)) and (λ n → Even (n + 1)))
+next-even = Pass
+
+--------------------------------------------------------------------------------
 -- Shows the effects of good and bad choices of < u >
 --------------------------------------------------------------------------------
 

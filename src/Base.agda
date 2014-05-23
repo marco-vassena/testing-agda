@@ -7,7 +7,7 @@ open import Data.Bool hiding (_∨_ ; _∧_)
 open import Data.Nat
 open import Data.List hiding ( [_] )
 open import Data.Product
-open import Reflection
+open import Data.Sum
 open import Relation.Nullary
 open import Function
 
@@ -92,7 +92,7 @@ infixr 5 _∷_
 [ x ] = x ∷ []
 
 data Testable : Set₁ where
-  Test_on_by_and_ : ∀ {xs} -> (u : U xs) -> Input List xs -> (k : ⟦ u ⟧) -> (prop : < u >) -> Testable
+  Test_on_by_and_ : ∀ {xs} -> (u : U xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> (prop : < u >) -> Testable
 
 data Result : Set₁ where
 -- The possible results for a lemma with the ∀ quantifier
@@ -115,9 +115,6 @@ data Result : Set₁ where
 -- The possible results for a property    -- TODO better names
    Hold : Set -> Result
    DoesNotHold : Set -> Result
-
-
-open import Data.Sum
 
 test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> < u > -> Input List xs -> Result ⊎ Result
 test∀ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> < u > -> List A -> Input List xs -> Result ⊎ Result
@@ -198,16 +195,38 @@ data Skip : Set where
 
 -- TODO give precise result inspecting the outer quantifier
 runVerbose : Testable -> Set₁
-runVerbose (Test u on input by k and prop) with test u k prop input
-runVerbose (Test u on input by k and prop) | inj₁ r = Fail: r
-runVerbose (Test u on input by k and prop) | inj₂ r = Succeed: r
+runVerbose (Test u on input by check and prop) with test u check prop input
+runVerbose (Test u on input by check and prop) | inj₁ r = Fail: r
+runVerbose (Test u on input by check and prop) | inj₂ r = Succeed: r
 
 -- Returns only either passed or failed
 run : Testable -> Set₁
-run (Test u on input by k and prop) with test u k prop input
-run (Test u on input by k and prop) | inj₁ _ = Fail
-run (Test u on input by k and prop) | inj₂ _ = Succeed
+run (Test u on input by check and prop) with test u check prop input
+run (Test u on input by check and prop) | inj₁ _ = Fail
+run (Test u on input by check and prop) | inj₂ _ = Succeed
 
 -- Used to skip a test
 skip : Testable -> Set
 skip _ = Skip
+
+-- The test is expected to succeed
+pass : Testable -> Set₁
+pass (Test u on input by check and prop) with test u check prop input
+pass (Test u on input by check and prop) | inj₁ x = Fail
+pass (Test u on input by check and prop) | inj₂ y = Succeed
+
+-- The test is expected to fail
+fail : Testable -> Set₁
+fail (Test u on input by check and prop) with test u check prop input
+fail (Test u on input by check and prop) | inj₁ x = Succeed
+fail (Test u on input by check and prop) | inj₂ y = Fail
+
+
+-- TODO Is there some workaround to this?
+-- I would like to write these runner in which the user not only specifies
+-- whether the property should pass or fail, but also why, i.e. the expected
+-- Result.
+-- This requires decidable equality (≟) over Result
+-- but since they it contains arbitrary Sets I don't think I can define that.
+
+-- fail_With_ pass_With_ : Testable -> Result -> Set₁
