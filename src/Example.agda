@@ -158,12 +158,10 @@ unique-pass : run (Test Exists! n ~ Forall m ~ Property (n + m ≡ m) on nats �
               by (\ x y -> Data.Nat._≟_ (x + y) y) and (\ n m -> n + m ≡ m))
 unique-pass = Pass
 
--- TODO wrong result
 unique-fail : runVerbose (Test Exists! n ~ Property (Even n) on [ nats ] by isEven? and Even)
-unique-fail = Pass
+unique-fail = Failed
                 (NotUnique zero ~ Hold (Even zero) & suc (suc zero) ~
                  Hold (Even (suc (suc zero))))
-
 
 disj1 : run (Test Forall n ~ (Property (Even n)) ∨ Not (Property (Even n)) 
         on nats ∷ ([] , []) by (λ n → (isEven? n) , (isEven? n)) 

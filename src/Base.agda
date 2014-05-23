@@ -145,7 +145,7 @@ unique : ∀ {A xs} -> (p : A -> U xs) -> A -> Result -> ⟦ ExistsUnique p ⟧ 
 unique p x r check prop [] input = inj₂ (ExistsUnique x r)
 unique p x r check prop (x₁ ∷ xs) input with test (p x₁) (check x₁) (prop x₁) input
 unique p x r check prop (x₁ ∷ xs) input | inj₁ r2 = unique p x r check prop xs input
-unique p x r check prop (x₂ ∷ xs) input | inj₂ r2 = inj₂ (NotUnique x ~ r & x₂ ~ r2)
+unique p x r check prop (x₂ ∷ xs) input | inj₂ r2 = inj₁ (NotUnique x ~ r & x₂ ~ r2)
 
 
 test∃! (ExistsUnique p) {tt} check prop [] input = inj₁ Impossible
