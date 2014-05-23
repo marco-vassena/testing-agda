@@ -174,20 +174,39 @@ test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₂ y 
 test (Property P) (yes p) prop [] = inj₂ (Hold prop)
 test (Property P) (no ¬p) prop [] = inj₁ (DoesNotHold prop)
 
-data Fail : Result -> Set₁ where
-  Failed : (r : Result) -> Fail r
+--------------------------------------------------------------------------------
+-- Test case results
+--------------------------------------------------------------------------------
 
-data Succeed : Result -> Set₁ where
-  Pass : (r : Result) -> Succeed r
+-- Plain version
+data Fail : Set₁ where
+  Failed : Fail
 
--- TODO give precise result inspecting the outer quantifier
-run : Testable -> Set₁
-run (Test u on input by k and prop) with test u k prop input
-run (Test u on input by k and prop) | inj₁ r = Fail r
-run (Test u on input by k and prop) | inj₂ r = Succeed r
+data Succeed : Set₁ where
+  Pass : Succeed
+
+-- Verbose version
+data Fail: : Result -> Set₁ where
+  Failed : (r : Result) -> Fail: r
+
+data Succeed: : Result -> Set₁ where
+  Pass : (r : Result) -> Succeed: r
 
 data Skip : Set where
   Skipped : Skip
+--------------------------------------------------------------------------------
+
+-- TODO give precise result inspecting the outer quantifier
+runVerbose : Testable -> Set₁
+runVerbose (Test u on input by k and prop) with test u k prop input
+runVerbose (Test u on input by k and prop) | inj₁ r = Fail: r
+runVerbose (Test u on input by k and prop) | inj₂ r = Succeed: r
+
+-- Returns only either passed or failed
+run : Testable -> Set₁
+run (Test u on input by k and prop) with test u k prop input
+run (Test u on input by k and prop) | inj₁ _ = Fail
+run (Test u on input by k and prop) | inj₂ _ = Succeed
 
 -- Used to skip a test
 skip : Testable -> Set
