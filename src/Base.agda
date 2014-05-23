@@ -8,7 +8,6 @@ open import Data.Nat
 open import Data.List hiding ( [_] )
 open import Data.Product
 open import Data.Sum
-open import Reflection
 open import Relation.Nullary
 open import Function
 
@@ -85,7 +84,7 @@ is∃! _ = ⊥
 < p1 ∨ p2 > = < p1 > × < p2 >
 -- The problem here is that the user can put any set, instead I would like it to be the type of the property 
 -- being tested
-< Property P > = Set 
+< Property P > = Set
 
 -- Contains input values for testing a property
 data Input (F : Set -> Set) : (BListTree Set) -> Set₁ where
@@ -100,7 +99,7 @@ infixr 5 _∷_
 [ x ] = x ∷ []
 
 data Testable : Set₁ where
-  Test_on_by_and_ : ∀ {xs} -> (u : U xs) -> Input List xs -> (k : ⟦ u ⟧) -> (prop : < u >) -> Testable
+  Test_on_by_and_ : ∀ {xs} -> (u : U xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> (prop : < u >) -> Testable
 
 data Result : Set₁ where
 -- The possible results for a lemma with the ∀ quantifier
@@ -123,7 +122,6 @@ data Result : Set₁ where
 -- The possible results for a property    -- TODO better names
    Hold : Set -> Result
    DoesNotHold : Set -> Result
-
 
 test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> < u > -> Input List xs -> Result ⊎ Result
 test∀ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> < u > -> List A -> Input List xs -> Result ⊎ Result
@@ -154,7 +152,7 @@ unique : ∀ {A xs} -> (p : A -> U xs) -> A -> Result -> ⟦ ExistsUnique p ⟧ 
 unique p x r check prop [] input = inj₂ (ExistsUnique x r)
 unique p x r check prop (x₁ ∷ xs) input with test (p x₁) (check x₁) (prop x₁) input
 unique p x r check prop (x₁ ∷ xs) input | inj₁ r2 = unique p x r check prop xs input
-unique p x r check prop (x₂ ∷ xs) input | inj₂ r2 = inj₂ (NotUnique x ~ r & x₂ ~ r2)
+unique p x r check prop (x₂ ∷ xs) input | inj₂ r2 = inj₁ (NotUnique x ~ r & x₂ ~ r2)
 
 
 test∃! (ExistsUnique p) {tt} check prop [] input = inj₁ Impossible
@@ -180,21 +178,62 @@ test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₂ y 
 test (Property P) (yes p) prop [] = inj₂ (Hold prop)
 test (Property P) (no ¬p) prop [] = inj₁ (DoesNotHold prop)
 
-data Fail : Result -> Set₁ where
-  Failed : (r : Result) -> Fail r
+--------------------------------------------------------------------------------
+-- Test case results
+--------------------------------------------------------------------------------
 
-data Succeed : Result -> Set₁ where
-  Pass : (r : Result) -> Succeed r
+-- Plain version
+data Fail : Set₁ where
+  Failed : Fail
 
--- TODO give precise result inspecting the outer quantifier
-run : Testable -> Set₁
-run (Test u on input by k and prop) with test u k prop input
-run (Test u on input by k and prop) | inj₁ r = Fail r
-run (Test u on input by k and prop) | inj₂ r = Succeed r
+data Succeed : Set₁ where
+  Pass : Succeed
+
+-- Verbose version
+data Fail: : Result -> Set₁ where
+  Failed : (r : Result) -> Fail: r
+
+data Succeed: : Result -> Set₁ where
+  Pass : (r : Result) -> Succeed: r
 
 data Skip : Set where
   Skipped : Skip
+--------------------------------------------------------------------------------
+
+-- TODO give precise result inspecting the outer quantifier
+runVerbose : Testable -> Set₁
+runVerbose (Test u on input by check and prop) with test u check prop input
+runVerbose (Test u on input by check and prop) | inj₁ r = Fail: r
+runVerbose (Test u on input by check and prop) | inj₂ r = Succeed: r
+
+-- Returns only either passed or failed
+run : Testable -> Set₁
+run (Test u on input by check and prop) with test u check prop input
+run (Test u on input by check and prop) | inj₁ _ = Fail
+run (Test u on input by check and prop) | inj₂ _ = Succeed
 
 -- Used to skip a test
 skip : Testable -> Set
 skip _ = Skip
+
+-- The test is expected to succeed
+pass : Testable -> Set₁
+pass (Test u on input by check and prop) with test u check prop input
+pass (Test u on input by check and prop) | inj₁ x = Fail
+pass (Test u on input by check and prop) | inj₂ y = Succeed
+
+-- The test is expected to fail
+fail : Testable -> Set₁
+fail (Test u on input by check and prop) with test u check prop input
+fail (Test u on input by check and prop) | inj₁ x = Succeed
+fail (Test u on input by check and prop) | inj₂ y = Fail
+
+
+-- TODO Is there some workaround to this?
+-- I would like to write these runner in which the user not only specifies
+-- whether the property should pass or fail, but also why, i.e. the expected
+-- Result.
+-- This requires decidable equality (≟) over Result
+-- but since they it contains arbitrary Sets I don't think I can define that.
+
+-- fail_With_ pass_With_ : Testable -> Result -> Set₁
