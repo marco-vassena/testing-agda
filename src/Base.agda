@@ -41,7 +41,7 @@ p1 ∧ p2 = Not ((Not p1) ∨ (Not p2))
 _⇔_ : ∀ {xs ys} -> U xs -> U ys -> U ((xs , ys) , (ys , xs))
 p1 ⇔ p2 = (p1 ⇒ p2) ∧ (p2 ⇒ p1)
 
-syntax Exists (\x -> p) = Exists x ~ p     -- TODO find nice symbol for such that ( "." and ":" are reserved)
+syntax Exists (\x -> p) = Exists x ~ p
 syntax Forall (\x -> p) = Forall x ~ p
 syntax ExistsUnique (\x -> p) = Exists! x ~ p
 
@@ -164,10 +164,10 @@ test (Property P) (no ¬p) [] = inj₁ (DoesNotHold P)
 --------------------------------------------------------------------------------
 
 -- Plain version
-data Fail : Set₁ where
+data Fail : Set where
   Failed : Fail
 
-data Succeed : Set₁ where
+data Succeed : Set where
   Pass : Succeed
 
 -- Verbose version
@@ -188,7 +188,7 @@ runVerbose (Test u on input by check) | inj₁ r = Fail: r
 runVerbose (Test u on input by check) | inj₂ r = Succeed: r
 
 -- Returns only either passed or failed
-run : Testable -> Set₁
+run : Testable -> Set
 run (Test u on input by check) with test u check input
 run (Test u on input by check) | inj₁ _ = Fail
 run (Test u on input by check) | inj₂ _ = Succeed
@@ -198,13 +198,13 @@ skip : Testable -> Set
 skip _ = Skip
 
 -- The test is expected to succeed
-pass : Testable -> Set₁
+pass : Testable -> Set
 pass (Test u on input by check) with test u check input
 pass (Test u on input by check) | inj₁ x = Fail
 pass (Test u on input by check) | inj₂ y = Succeed
 
 -- The test is expected to fail
-fail : Testable -> Set₁
+fail : Testable -> Set
 fail (Test u on input by check) with test u check input
 fail (Test u on input by check) | inj₁ x = Succeed
 fail (Test u on input by check) | inj₂ y = Fail
