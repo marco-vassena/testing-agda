@@ -67,19 +67,6 @@ is∃! : ∀ {xs} -> U xs -> Set
 is∃! (ExistsUnique p) = ⊤
 is∃! _ = ⊥
 
-
-
--- Returns the type of the function required to report the property being test
-<_> : ∀ {xs} -> U xs -> Set₁
-< Forall {A = A} f > = (a : A) → < f a >
-< Exists {A = A} f > = (a : A) → < f a >
-< ExistsUnique {A = A} f > = (a : A) → < f a >
-< Not p > = < p >
-< p1 ∨ p2 > = < p1 > × < p2 >
--- The problem here is that the user can put any set, instead I would like it to be the type of the property 
--- being tested
-< Property P > = Set
-
 -- Contains input values for testing a property
 data Input (F : Set -> Set) : (BListTree Set) -> Set₁ where
   [] : Input F []
@@ -93,7 +80,7 @@ infixr 5 _∷_
 [ x ] = x ∷ []
 
 data Testable : Set₁ where
-  Test_on_by_and_ : ∀ {xs} -> (u : U xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> (prop : < u >) -> Testable
+  Test_on_by_ : ∀ {xs} -> (u : U xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> Testable
 
 data Result : Set₁ where
 -- The possible results for a lemma with the ∀ quantifier
@@ -117,60 +104,60 @@ data Result : Set₁ where
    Hold : Set -> Result
    DoesNotHold : Set -> Result
 
-test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> < u > -> Input List xs -> Result ⊎ Result
-test∀ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> < u > -> List A -> Input List xs -> Result ⊎ Result
-test∃ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃ u} -> ⟦ u ⟧ -> < u > -> List A -> Input List xs -> Result ⊎ Result
-test∃! : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃! u} -> ⟦ u ⟧ -> < u > -> List A -> Input List xs -> Result ⊎ Result
+test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> Result ⊎ Result
+test∀ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result ⊎ Result
+test∃ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result ⊎ Result
+test∃! : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃! u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result ⊎ Result
 
-test∀ (Forall p) check prop [] input = inj₂ Trivial
-test∀ (Forall p) check prop (x ∷ xs) input with test (p x) (check x) (prop x) input
-test∀ {A = A} (Forall p) check prop (x ∷ xs) input | inj₁ r = inj₁ (NotFor x r)
-test∀ {A = A} (Forall p) check prop (x ∷ []) input | inj₂ y = inj₂ (Forall A y)
-test∀ {A = A} (Forall p) check prop (x ∷ x₁ ∷ xs₁) input | inj₂ y = test∀ (Forall p) check prop (x₁ ∷ xs₁) input
-test∀ (Exists p) {()} check prop xs₁ input
-test∀ (ExistsUnique p) {()} check prop xs₁ input
-test∀ (Not u) {()} check prop xs₁ input
+test∀ (Forall p) check [] input = inj₂ Trivial
+test∀ (Forall p) check (x ∷ xs) input with test (p x) (check x) input
+test∀ {A = A} (Forall p) check (x ∷ xs) input | inj₁ r = inj₁ (NotFor x r)
+test∀ {A = A} (Forall p) check (x ∷ []) input | inj₂ y = inj₂ (Forall A y)
+test∀ {A = A} (Forall p) check (x ∷ x₁ ∷ xs₁) input | inj₂ y = test∀ (Forall p) check (x₁ ∷ xs₁) input
+test∀ (Exists p) {()} check xs₁ input
+test∀ (ExistsUnique p) {()} check xs₁ input
+test∀ (Not u) {()} check xs₁ input
 
-test∃ (Exists p) check prop [] input = inj₁ Impossible
-test∃ {A = A} (Exists p) check prop (x ∷ xs) input with test (p x) (check x) (prop x) input 
-test∃ {A = A} (Exists p) check prop (x ∷ []) input | inj₁ r = inj₁ (NotExists A r)
-test∃ {A = A} (Exists p) check prop (x ∷ x₁ ∷ xs) input | inj₁ r = test∃ (Exists p) check prop (x₁ ∷ xs) input
-test∃ (Exists p) check prop (x ∷ xs) input | inj₂ r = inj₂ (Exists x r)
-test∃ (ExistsUnique p) {()} check prop xs₁ input
-test∃ (Forall p) {()} check prop xs₁ input
-test∃ (Not u) {()} check prop xs₁ input
+test∃ (Exists p) check [] input = inj₁ Impossible
+test∃ {A = A} (Exists p) check (x ∷ xs) input with test (p x) (check x) input 
+test∃ {A = A} (Exists p) check (x ∷ []) input | inj₁ r = inj₁ (NotExists A r)
+test∃ {A = A} (Exists p) check (x ∷ x₁ ∷ xs) input | inj₁ r = test∃ (Exists p) check (x₁ ∷ xs) input
+test∃ (Exists p) check (x ∷ xs) input | inj₂ r = inj₂ (Exists x r)
+test∃ (ExistsUnique p) {()} check xs₁ input
+test∃ (Forall p) {()} check xs₁ input
+test∃ (Not u) {()} check xs₁ input
 
 
-unique : ∀ {A xs} -> (p : A -> U xs) -> A -> Result -> ⟦ ExistsUnique p ⟧ -> < ExistsUnique p > ->
+unique : ∀ {A xs} -> (p : A -> U xs) -> A -> Result -> ⟦ ExistsUnique p ⟧ ->
          List A -> Input List xs -> Result ⊎ Result
-unique p x r check prop [] input = inj₂ (ExistsUnique x r)
-unique p x r check prop (x₁ ∷ xs) input with test (p x₁) (check x₁) (prop x₁) input
-unique p x r check prop (x₁ ∷ xs) input | inj₁ r2 = unique p x r check prop xs input
-unique p x r check prop (x₂ ∷ xs) input | inj₂ r2 = inj₁ (NotUnique x ~ r & x₂ ~ r2)
+unique p x r check [] input = inj₂ (ExistsUnique x r)
+unique p x r check (x₁ ∷ xs) input with test (p x₁) (check x₁) input
+unique p x r check (x₁ ∷ xs) input | inj₁ r2 = unique p x r check xs input
+unique p x r check (x₂ ∷ xs) input | inj₂ r2 = inj₁ (NotUnique x ~ r & x₂ ~ r2)
 
 
-test∃! (ExistsUnique p) {tt} check prop [] input = inj₁ Impossible
-test∃! (ExistsUnique {A} p) {tt} check prop (x ∷ xs) input with test (p x) (check x) (prop x) input
-test∃! (ExistsUnique {A} p) {tt} check prop (x ∷ []) input | inj₁ r = inj₁ (NotExists A r)
-test∃! (ExistsUnique {A} p) {tt} check prop (x ∷ x₁ ∷ xs) input | inj₁ r = test∃! (ExistsUnique p) check prop (x₁ ∷ xs) input
-test∃! (ExistsUnique {A} p) {tt} check prop (x ∷ xs) input | inj₂ r = unique p x r check prop xs input
-test∃! (Forall p) {} check prop xs₁ input
-test∃! (Exists p) {} check prop xs₁ input
-test∃! (Not u) {} check prop xs₁ input
+test∃! (ExistsUnique p) {tt} check [] input = inj₁ Impossible
+test∃! (ExistsUnique {A} p) {tt} check (x ∷ xs) input with test (p x) (check x) input
+test∃! (ExistsUnique {A} p) {tt} check (x ∷ []) input | inj₁ r = inj₁ (NotExists A r)
+test∃! (ExistsUnique {A} p) {tt} check (x ∷ x₁ ∷ xs) input | inj₁ r = test∃! (ExistsUnique p) check (x₁ ∷ xs) input
+test∃! (ExistsUnique {A} p) {tt} check (x ∷ xs) input | inj₂ r = unique p x r check xs input
+test∃! (Forall p) {} check xs₁ input
+test∃! (Exists p) {} check xs₁ input
+test∃! (Not u) {} check xs₁ input
 
-test (Forall p) check prop (x ∷ input) = test∀ (Forall p) check prop x input
-test (Exists p) check prop (x ∷ input) = test∃ (Exists p) check prop x input
-test (ExistsUnique p) check prop (x ∷ input) = test∃! (ExistsUnique p) check prop x input
-test (Not p) check prop xs with test p check prop xs
-test (Not p) check prop xs | inj₁ x = inj₂ x
-test (Not p) check prop xs | inj₂ y = inj₁ y 
-test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) with test p1 check1 prop1 input1
-test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₁ x with test p2 check2 prop2 input2
-test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₁ r1 | inj₁ r2 = inj₁ (r1 And r2)
-test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₁ x | inj₂ y = inj₂ y
-test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₂ y = inj₂ y
-test (Property P) (yes p) prop [] = inj₂ (Hold P)
-test (Property P) (no ¬p) prop [] = inj₁ (DoesNotHold P)
+test (Forall p) check (x ∷ input) = test∀ (Forall p) check x input
+test (Exists p) check (x ∷ input) = test∃ (Exists p) check x input
+test (ExistsUnique p) check (x ∷ input) = test∃! (ExistsUnique p) check x input
+test (Not p) check xs with test p check xs
+test (Not p) check xs | inj₁ x = inj₂ x
+test (Not p) check xs | inj₂ y = inj₁ y 
+test (p1 ∨ p2) (check1 , check2) (input1 , input2) with test p1 check1 input1
+test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₁ x with test p2 check2 input2
+test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₁ r1 | inj₁ r2 = inj₁ (r1 And r2)
+test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₁ x | inj₂ y = inj₂ y
+test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₂ y = inj₂ y
+test (Property P) (yes p) [] = inj₂ (Hold P)
+test (Property P) (no ¬p) [] = inj₁ (DoesNotHold P)
 
 --------------------------------------------------------------------------------
 -- Test case results
@@ -196,15 +183,15 @@ data Skip : Set where
 
 -- TODO give precise result inspecting the outer quantifier
 runVerbose : Testable -> Set₁
-runVerbose (Test u on input by check and prop) with test u check prop input
-runVerbose (Test u on input by check and prop) | inj₁ r = Fail: r
-runVerbose (Test u on input by check and prop) | inj₂ r = Succeed: r
+runVerbose (Test u on input by check) with test u check input
+runVerbose (Test u on input by check) | inj₁ r = Fail: r
+runVerbose (Test u on input by check) | inj₂ r = Succeed: r
 
 -- Returns only either passed or failed
 run : Testable -> Set₁
-run (Test u on input by check and prop) with test u check prop input
-run (Test u on input by check and prop) | inj₁ _ = Fail
-run (Test u on input by check and prop) | inj₂ _ = Succeed
+run (Test u on input by check) with test u check input
+run (Test u on input by check) | inj₁ _ = Fail
+run (Test u on input by check) | inj₂ _ = Succeed
 
 -- Used to skip a test
 skip : Testable -> Set
@@ -212,15 +199,15 @@ skip _ = Skip
 
 -- The test is expected to succeed
 pass : Testable -> Set₁
-pass (Test u on input by check and prop) with test u check prop input
-pass (Test u on input by check and prop) | inj₁ x = Fail
-pass (Test u on input by check and prop) | inj₂ y = Succeed
+pass (Test u on input by check) with test u check input
+pass (Test u on input by check) | inj₁ x = Fail
+pass (Test u on input by check) | inj₂ y = Succeed
 
 -- The test is expected to fail
 fail : Testable -> Set₁
-fail (Test u on input by check and prop) with test u check prop input
-fail (Test u on input by check and prop) | inj₁ x = Succeed
-fail (Test u on input by check and prop) | inj₂ y = Fail
+fail (Test u on input by check) with test u check input
+fail (Test u on input by check) | inj₁ x = Succeed
+fail (Test u on input by check) | inj₂ y = Fail
 
 
 -- TODO Is there some workaround to this?
