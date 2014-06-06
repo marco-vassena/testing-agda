@@ -68,6 +68,7 @@ is∃! (ExistsUnique p) = ⊤
 is∃! _ = ⊥
 
 
+
 -- Returns the type of the function required to report the property being test
 <_> : ∀ {xs} -> U xs -> Set₁
 < Forall {A = A} f > = (a : A) → < f a >
@@ -168,8 +169,8 @@ test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₁ x 
 test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₁ r1 | inj₁ r2 = inj₁ (r1 And r2)
 test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₁ x | inj₂ y = inj₂ y
 test (p1 ∨ p2) (check1 , check2) (prop1 , prop2) (input1 , input2) | inj₂ y = inj₂ y
-test (Property P) (yes p) prop [] = inj₂ (Hold prop)
-test (Property P) (no ¬p) prop [] = inj₁ (DoesNotHold prop)
+test (Property P) (yes p) prop [] = inj₂ (Hold P)
+test (Property P) (no ¬p) prop [] = inj₁ (DoesNotHold P)
 
 --------------------------------------------------------------------------------
 -- Test case results

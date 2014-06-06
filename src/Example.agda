@@ -268,11 +268,14 @@ test-u-bad1 : runVerbose (B.Test u
                 and bad1 )
 test-u-bad1 = Failed
                 (NotFor (suc zero)
-                 (NotFor (suc (suc zero)) (DoesNotHold (Even (suc (suc zero))))))
+                 (NotFor (suc (suc zero))
+                  (DoesNotHold (Even (suc (suc (suc zero)))))))
 
 test-u-bad2 : runVerbose (B.Test u
                 on (1 ∷ 2 ∷ 3 ∷ []) ∷ (1 ∷ 2 ∷ 3 ∷ []) ∷ []
                 by (λ n m → isEven? (n + m))
                 and bad2 )
 test-u-bad2 = Failed
-                (NotFor (suc zero) (NotFor (suc (suc zero)) (DoesNotHold ⊤)))
+                (NotFor (suc zero)
+                 (NotFor (suc (suc zero))
+                  (DoesNotHold (Even (suc (suc (suc zero)))))))
