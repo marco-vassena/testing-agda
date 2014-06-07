@@ -4,6 +4,7 @@
 module Test.Tester where
 
 open import Test.Base
+open import Test.Result
 
 open import Data.List hiding ( [_] )
 open import Data.Product
@@ -35,28 +36,6 @@ infixr 5 _∷_
 -- | Collects what is needed to test a property
 data Testable : Set₁ where
   Test_on_by_ : ∀ {xs} -> (u : U xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> Testable
-
-data Result : Set₁ where
--- The possible results for a lemma with the ∀ quantifier
-   Forall : (A : Set) -> Result -> Result
-   NotFor : {A : Set} -> A -> Result -> Result
-   Trivial : Result -- Empty set
-
--- The possible results for a lemma with the ∃ quantifier
-   Exists : {A : Set} -> A -> Result -> Result
-   NotExists : (A : Set) -> Result -> Result
-   Impossible : Result
-
--- The possible results for a lemma with the ∃! quantifier
-   ExistsUnique : {A : Set} -> A -> Result -> Result
-   NotUnique_~_&_~_ : {A : Set} -> A -> Result -> A -> Result -> Result
-
--- Disjunction
-   _And_ : Result -> Result -> Result
-
--- The possible results for a property    -- TODO better names
-   Hold : Set -> Result
-   DoesNotHold : Set -> Result
 
 test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> Result ⊎ Result
 test∀ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result ⊎ Result

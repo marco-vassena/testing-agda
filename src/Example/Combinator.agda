@@ -2,6 +2,7 @@ module Example.Combinator where
 
 open import Test.Base
 open import Test.Runner
+open import Test.Result
 open import Test.Tester hiding (Test_on_by_)
 open import Test.StreamGenerator
 

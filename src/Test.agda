@@ -5,4 +5,5 @@ module Test where
 -- TODO does not seem to work
 open import Test.Base public 
 open import Test.Runner public 
+open import Test.Result public
 open import Test.Tester public

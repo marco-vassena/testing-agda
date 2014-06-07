@@ -3,6 +3,7 @@ module Test.Runner where
 
 open import Test.Base
 open import Test.Tester
+open import Test.Result
 
 open import Data.Sum
 
