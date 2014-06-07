@@ -7,7 +7,7 @@
 module Test.StreamGenerator where
 
 open import Test.Base
-open import Test.Tester hiding (Test_on_by_)
+open import Test.Tester using (Input ; [] ; _∷_ ; _,_ ; ⟦_⟧ ; Testable)
 import Test.Tester as T
 
 open import Data.List hiding ( take )
