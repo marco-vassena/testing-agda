@@ -1,71 +1,14 @@
-module Base where
+-- | This module contains functions to test properties and data types to 
+-- provide input values.
+  
+module Test.Tester where
 
-open import Coinduction
-open import Data.Unit
-open import Data.Empty
-open import Data.Bool hiding (_∨_ ; _∧_)
-open import Data.Nat
+open import Test.Base
+
 open import Data.List hiding ( [_] )
 open import Data.Product
 open import Data.Sum
 open import Relation.Nullary
-open import Function
-
--- Collect types for 'U'
-data BListTree {a} (A : Set a) : Set a where 
-  [] : BListTree A
-  _∷_ : A -> BListTree A -> BListTree A
-  _,_ : BListTree A -> BListTree A -> BListTree A
-
--- Universe
-data U : (BListTree Set) -> Set₁ where
-  Forall : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
-  Exists : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
-  ExistsUnique : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
-  Not : ∀ {xs} -> U xs -> U xs
-  _∨_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
-  Property : (P : Set) -> U []
-
--- Implication
-_⇒_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
-p1 ⇒ p2 = (Not p1) ∨ p2
-
--- Conjunction
-_∧_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
-p1 ∧ p2 = Not ((Not p1) ∨ (Not p2))
-
--- Double implication
--- TODO since it's not a primitive constructor I cannot help to repeat
--- the same functions (prop and check) twice. However they should always
--- be the same.
-_⇔_ : ∀ {xs ys} -> U xs -> U ys -> U ((xs , ys) , (ys , xs))
-p1 ⇔ p2 = (p1 ⇒ p2) ∧ (p2 ⇒ p1)
-
-syntax Exists (\x -> p) = Exists x ~ p
-syntax Forall (\x -> p) = Forall x ~ p
-syntax ExistsUnique (\x -> p) = Exists! x ~ p
-
--- Returns the type of the view function required to check if 
--- the given property holds for some input values. 
-⟦_⟧ : ∀ {xs} -> U xs -> Set
-⟦ Forall {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
-⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
-⟦ ExistsUnique {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
-⟦ Not p ⟧ = ⟦ p ⟧
-⟦ p1 ∨ p2 ⟧ = ⟦ p1 ⟧ × ⟦ p2 ⟧
-⟦ Property P ⟧ = Dec P
-
-is∀ : ∀ {xs} -> U xs -> Set
-is∀ (Forall p) = ⊤
-is∀ _ = ⊥
-
-is∃ : ∀ {xs} -> U xs -> Set
-is∃ (Exists p) = ⊤
-is∃ _ = ⊥
-
-is∃! : ∀ {xs} -> U xs -> Set
-is∃! (ExistsUnique p) = ⊤
-is∃! _ = ⊥
 
 -- Contains input values for testing a property
 data Input (F : Set -> Set) : (BListTree Set) -> Set₁ where
@@ -79,6 +22,17 @@ infixr 5 _∷_
 [_] : ∀ {F A} -> F A -> Input F (A ∷ [])
 [ x ] = x ∷ []
 
+-- Returns the type of the view function required to check if 
+-- the given property holds for some input values. 
+⟦_⟧ : ∀ {xs} -> U xs -> Set
+⟦ Forall {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ ExistsUnique {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ Not p ⟧ = ⟦ p ⟧
+⟦ p1 ∨ p2 ⟧ = ⟦ p1 ⟧ × ⟦ p2 ⟧
+⟦ Property P ⟧ = Dec P
+
+-- | Collects what is needed to test a property
 data Testable : Set₁ where
   Test_on_by_ : ∀ {xs} -> (u : U xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> Testable
 
@@ -158,63 +112,3 @@ test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₁ x | inj₂ y = inj
 test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₂ y = inj₂ y
 test (Property P) (yes p) [] = inj₂ (Hold P)
 test (Property P) (no ¬p) [] = inj₁ (DoesNotHold P)
-
---------------------------------------------------------------------------------
--- Test case results
---------------------------------------------------------------------------------
-
--- Plain version
-data Fail : Set where
-  Failed : Fail
-
-data Succeed : Set where
-  Pass : Succeed
-
--- Verbose version
-data Fail: : Result -> Set₁ where
-  Failed : (r : Result) -> Fail: r
-
-data Succeed: : Result -> Set₁ where
-  Pass : (r : Result) -> Succeed: r
-
-data Skip : Set where
-  Skipped : Skip
---------------------------------------------------------------------------------
-
--- TODO give precise result inspecting the outer quantifier
-runVerbose : Testable -> Set₁
-runVerbose (Test u on input by check) with test u check input
-runVerbose (Test u on input by check) | inj₁ r = Fail: r
-runVerbose (Test u on input by check) | inj₂ r = Succeed: r
-
--- Returns only either passed or failed
-run : Testable -> Set
-run (Test u on input by check) with test u check input
-run (Test u on input by check) | inj₁ _ = Fail
-run (Test u on input by check) | inj₂ _ = Succeed
-
--- Used to skip a test
-skip : Testable -> Set
-skip _ = Skip
-
--- The test is expected to succeed
-pass : Testable -> Set
-pass (Test u on input by check) with test u check input
-pass (Test u on input by check) | inj₁ x = Fail
-pass (Test u on input by check) | inj₂ y = Succeed
-
--- The test is expected to fail
-fail : Testable -> Set
-fail (Test u on input by check) with test u check input
-fail (Test u on input by check) | inj₁ x = Succeed
-fail (Test u on input by check) | inj₂ y = Fail
-
-
--- TODO Is there some workaround to this?
--- I would like to write these runner in which the user not only specifies
--- whether the property should pass or fail, but also why, i.e. the expected
--- Result.
--- This requires decidable equality (≟) over Result
--- but since they it contains arbitrary Sets I don't think I can define that.
-
--- fail_With_ pass_With_ : Testable -> Result -> Set₁

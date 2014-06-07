@@ -1,10 +1,18 @@
-module StreamGenerator where
+-- TODO module Test.Generator ?
+-- TODO name InputStream
 
-open import Base hiding (Test_on_by_)
-import Base as B
+-- | This module allows to test properties using
+-- Streams as source of input values.
+
+module Test.StreamGenerator where
+
+open import Test.Base
+open import Test.Tester hiding (Test_on_by_)
+import Test.Tester as T
+
 open import Data.List hiding ( take )
 open import Data.Stream hiding ( take )
-open import Data.Vec hiding (take)
+open import Data.Vec hiding ( take )
 open import Data.Nat
 open import Function
 
@@ -18,8 +26,8 @@ toInput n (input1 , input2) = (toInput n input1) , (toInput n input2)
 
 -- Tests up to n input values for each input type
 Test_on_by_withℕ_ : ∀ {xs} -> (u : U xs) -> Input Stream xs -> ⟦ u ⟧ -> ℕ -> Testable
-Test_on_by_withℕ_ u input check n = B.Test u on (toInput n input) by check
+Test_on_by_withℕ_ u input check n = T.Test u on (toInput n input) by check
 
--- Provides default parameter (20)
+-- Provides default parameter (5)
 Test_on_by_ : ∀ {xs} -> (u : U xs) -> Input Stream xs -> ⟦ u ⟧ -> Testable
 Test_on_by_ u input check = Test u on input by check withℕ 5

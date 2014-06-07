@@ -1,8 +1,10 @@
 module Example where
 
-open import Base hiding (Test_on_by_)
-import Base as B
-open import StreamGenerator 
+open import Test.Base
+open import Test.Runner
+open import Test.Tester hiding (Test_on_by_)
+open import Test.StreamGenerator
+
 open import Coinduction
 open import Data.Nat
 open import Data.Stream hiding (take)
@@ -54,7 +56,7 @@ ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
 dec-ex1 : ⟦ ex1 ⟧
 dec-ex1 = λ x -> Data.Nat._≟_ x x
 
-test-ex1 : run (B.Test ex1 on [ take 10 nats ] by dec-ex1) 
+test-ex1 : run (Test.Tester.Test ex1 on [ take 10 nats ] by dec-ex1) 
 test-ex1 = Pass
 
 ex : U (ℕ ∷ List ℕ ∷ [])
@@ -63,7 +65,7 @@ ex =  (Forall (λ n -> Exists {List ℕ} (λ xs -> Property (n ≡ (length xs)))
 dec-ex : ⟦ ex ⟧
 dec-ex = λ n xs → Data.Nat._≟_ n (length xs)
 
-test-ex : runVerbose (B.Test ex on ((take 2 nats) ∷ lists ∷ []) by dec-ex)
+test-ex : runVerbose (Test.Tester.Test ex on ((take 2 nats) ∷ lists ∷ []) by dec-ex)
 test-ex = Pass (Forall ℕ (Exists (suc zero ∷ []) (Hold (suc zero ≡ suc zero))))
 
 --------------------------------------------------------------------------------
@@ -126,6 +128,9 @@ test-pretty = Forall n ~ (Property (n ≡ n))
 
 test-pretty2 : U (ℕ ∷ List ℕ ∷ [])
 test-pretty2 =  Forall n ~ Exists xs ~ (Property (n ≡ (length xs)))
+
+ex-pretty : runVerbose (test-pretty on [ nats ] by ?)
+ex-pretty = ?
 
 --------------------------------------------------------------------------------
 -- Testing new constructs
