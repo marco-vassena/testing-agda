@@ -112,12 +112,24 @@ f1 = Forall n ~ Property (Even n)
 --     .Data.List.List.[]))))
 
 open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary
+open import Data.Sum
+open import Data.Product
 
 lemma1 : (n : ℕ) -> Even n
 lemma1 = {!!}
 
 lemma2 : (n : ℕ) -> (m : ℕ) -> Even (n + m)
 lemma2 = {!!}
+
+lemma3 : (n : ℕ) -> ¬ (Even n)
+lemma3 = {!!}
+
+lemma4 : (n : ℕ) -> (Even n) ⊎ (¬ (Even n))
+lemma4 = {!!}
+
+lemma5 : ∃ (λ n → Even n)
+lemma5 = {!!}
 
 test1 : unquote (convert (type (quote lemma1))) ≡ (Forall n ~ Property (Even n))
 test1 = refl
