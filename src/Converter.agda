@@ -52,14 +52,6 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Data.Nat
 open import Data.Empty
 
-
--- | TODO I have not found nothing like this in the standard library.
-lookup : {A B : Set} -> {dec : Decidable {A = A} _≡_} -> A -> List (A × B) -> Maybe B
-lookup a [] = nothing
-lookup {dec = eq} a ((a' , b) ∷ xs) with eq a a'
-lookup {dec = eq} .a ((a , b) ∷ xs) | yes refl = just b
-lookup {dec = eq} a ((a' , b) ∷ xs) | no ¬p = lookup {dec = eq} a xs
-
 -- | I don't know when should I stop checking
 supportedTerm : Term -> Set
 supportedTerm (var x args) = NotSupported (var x args)
@@ -85,33 +77,11 @@ computeBListTree (pi (arg v r (el s t)) (el s₁ t₁)) {isS} = bListTreeCons t 
 computeBListTree (sort x) {}
 computeBListTree unknown {}
 
+
 convertTerm : (t : Term) -> {isSup : supportedTerm t} -> Term
-
-SpecialConverter : Set
-SpecialConverter = (List (Arg Term)) -> Term
-
-convert¬ : SpecialConverter
-convert¬ (_ ∷ arg visible relevant x ∷ []) = not (convertTerm x)
-convert¬ args = property (def (quote ¬_) args)
-
-convert∃ : SpecialConverter
-convert∃ args = {!!}
-
-convert∧ : SpecialConverter
-convert∧ args = {!!}
-
-convert∨ : SpecialConverter
-convert∨ args = {!!}
-
--- TODO ∃!
-special-converter : List (Name × SpecialConverter)
-special-converter = ((quote ¬_) , convert¬) ∷ (quote ∃ , convert∃) ∷ ((quote _×_) , convert∧) ∷ (quote _⊎_ , convert∨) ∷ []
-
 convertTerm (var x args) {}
 convertTerm (con c args) {}
-convertTerm (def f args) {isS} with lookup {dec = _≟-Name_} f special-converter
-convertTerm (def f args) | just converter = converter args
-convertTerm (def f args) | nothing = property (def f args)
+convertTerm (def f args) {isS} = property (def f args)
 convertTerm (lam v t) {}
 convertTerm (pi (arg v r (el s ty)) (el s₁ t)) {isS} = forall' ty (computeBListTree t {isS}) (convertTerm t {isS})
 convertTerm (sort x) {}
