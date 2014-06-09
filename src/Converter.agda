@@ -16,12 +16,16 @@ data NotSupported : Term -> Set where
 data UnsupportedSort : Sort -> Set where
 data DontKnowRightNow : Term -> Set where
 
--- Constructor on the term level
+-- Constructors on the term level
 property : Term -> Term
-property p = con (quote Property) [ (arg visible relevant p) ]
+property p = con (quote Property) [ argp ]
+  where argp = arg visible relevant p
 
 forall' : Term -> Term -> Term -> Term
-forall' ty blist next = con (quote Base.U.Forall) ((arg hidden relevant ty) ∷ (arg hidden relevant blist) ∷ ((arg visible relevant (lam visible next)) ∷ []))
+forall' ty blist next = con (quote Base.U.Forall) (argTy ∷ argBList ∷ argNext ∷ [])
+  where argTy = arg hidden relevant ty
+        argBList = arg hidden relevant blist
+        argNext = arg visible relevant (lam visible next)
 
 bListTree[] : Term
 bListTree[] = con (quote Base.BListTree.[]) []
@@ -30,22 +34,22 @@ bListTreeCons : Term -> Term -> Term
 bListTreeCons x xs = con (quote Base.BListTree._∷_) ((arg visible relevant x) ∷ ((arg visible relevant xs) ∷ []))
 
 -- | I don't know when should I stop checking
-supportedT : Term -> Set
-supportedT (var x args) = NotSupported (var x args)
-supportedT (con c args) = DontKnowRightNow (con c args)
-supportedT (def f args) = ⊤    -- Should I inspect args ?
-supportedT (lam v t) = DontKnowRightNow (lam v t)
-supportedT (pi t₁ (el s t)) = supportedT t
-supportedT (sort x) = NotSupported (sort x)
-supportedT unknown = NotSupported unknown
+supportedTerm : Term -> Set
+supportedTerm (var x args) = NotSupported (var x args)
+supportedTerm (con c args) = DontKnowRightNow (con c args)
+supportedTerm (def f args) = ⊤    -- Should I inspect args ?
+supportedTerm (lam v t) = DontKnowRightNow (lam v t)
+supportedTerm (pi t₁ (el s t)) = supportedTerm t  -- Should I call support (el s t) here ? 
+supportedTerm (sort x) = NotSupported (sort x)
+supportedTerm unknown = NotSupported unknown
 
 supported : Type -> Set
 supported (el (set t) t₁) = UnsupportedSort (set t)
-supported (el (lit zero) t) = supportedT t
+supported (el (lit zero) t) = supportedTerm t
 supported (el (lit (suc n)) t) = UnsupportedSort (lit (suc n))
 supported (el unknown t) = UnsupportedSort unknown
 
-computeBListTree : (t : Term) -> {isSup : supportedT t} -> Term
+computeBListTree : (t : Term) -> {isSup : supportedTerm t} -> Term
 computeBListTree (var x args) {}
 computeBListTree (con c args) {}
 computeBListTree (def f args) = bListTree[]
@@ -54,24 +58,24 @@ computeBListTree (pi (arg v r (el s t)) (el s₁ t₁)) {isS} = bListTreeCons t 
 computeBListTree (sort x) {}
 computeBListTree unknown {}
 
--- TODO compute the index
-convert : (t : Type) -> {isSup : supported t} -> Term
-convertT : (t : Term) -> {isSup : supportedT t} -> Term
+convertTerm : (t : Term) -> {isSup : supportedTerm t} -> Term
 
-convertT (var x args) {}
+convertTerm (var x args) {}
 -- Here I should check if c is ∃ (Exists) or ⊎ (∨) or (,) (∧) using primQNameEquality
 -- In all the other cases it should fail (properties are types not values)
-convertT (con c args) {}
-convertT (def f args) = property (def f args) -- Property
-convertT (lam v t) {}
-convertT (pi (arg v r (el s ty)) (el s₁ t)) {isS} = forall' ty (computeBListTree t {isS}) (convertT t {isS})
-convertT (sort x) {}
-convertT unknown {}
+convertTerm (con c args) {}
+convertTerm (def f args) = property (def f args)
+convertTerm (lam v t) {}
+convertTerm (pi (arg v r (el s ty)) (el s₁ t)) {isS} = forall' ty (computeBListTree t {isS}) (convertTerm t {isS})
+convertTerm (sort x) {}
+convertTerm unknown {}
 
-convert (el (set t) t₁) {}
-convert (el (lit zero) t) {isS} = convertT t {isS}
-convert (el (lit (suc n)) t) {}
-convert (el unknown t) {}
+convert : (name : Name) -> {isSup : supported (type name)} -> Term
+convert n {isSup} with type n
+convert n {} | el (set t) t₁
+convert n {isSup} | el (lit zero) t = convertTerm t {isSup}
+convert n {} | el (lit (suc n₁)) t 
+convert n {} | el unknown t 
 
 --------------------------------------------------------------------------------
 -- Examples
@@ -131,8 +135,8 @@ lemma4 = {!!}
 lemma5 : ∃ (λ n → Even n)
 lemma5 = {!!}
 
-test1 : unquote (convert (type (quote lemma1))) ≡ (Forall n ~ Property (Even n))
+test1 : unquote (convert (quote lemma1)) ≡ (Forall n ~ Property (Even n))
 test1 = refl
 
-test2 : unquote (convert (type (quote lemma2))) ≡ (Forall n ~ Forall m ~ (Property (Even (n + m))))
+test2 : unquote (convert (quote lemma2)) ≡ (Forall n ~ Forall m ~ (Property (Even (n + m))))
 test2 = refl
