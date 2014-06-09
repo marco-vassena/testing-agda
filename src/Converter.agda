@@ -15,21 +15,14 @@ property : Term -> Term
 property p = con (quote Property) [ argp ]
   where argp = arg visible relevant p
 
-forall' : Term -> Term -> Term -> Term
-forall' ty blist next = con (quote Base.U.Forall) (argTy ∷ argBList ∷ argNext ∷ [])
+forall' : Term -> Term -> Term
+forall' ty next = con (quote Base.U.Forall) (argTy ∷ argNext ∷ [])
   where argTy = arg hidden relevant ty
-        argBList = arg hidden relevant blist
         argNext = arg visible relevant (lam visible next)
 
 not : Term -> Term
 not next = con (quote Base.U.Not) (argNext ∷ [])
   where argNext = arg visible relevant next
-
-bListTree[] : Term
-bListTree[] = con (quote Base.BListTree.[]) []
-
-bListTreeCons : Term -> Term -> Term
-bListTreeCons x xs = con (quote Base.BListTree._∷_) ((arg visible relevant x) ∷ ((arg visible relevant xs) ∷ []))
 
 --------------------------------------------------------------------------------
 -- -- Conversion error messages
@@ -68,22 +61,12 @@ supported (el (lit zero) t) = supportedTerm t
 supported (el (lit (suc n)) t) = UnsupportedSort (lit (suc n))
 supported (el unknown t) = UnsupportedSort unknown
 
-computeBListTree : (t : Term) -> {isSup : supportedTerm t} -> Term
-computeBListTree (var x args) {}
-computeBListTree (con c args) {}
-computeBListTree (def f args) = bListTree[]
-computeBListTree (lam v t) {}
-computeBListTree (pi (arg v r (el s t)) (el s₁ t₁)) {isS} = bListTreeCons t (computeBListTree t₁ {isS})
-computeBListTree (sort x) {}
-computeBListTree unknown {}
-
-
 convertTerm : (t : Term) -> {isSup : supportedTerm t} -> Term
 convertTerm (var x args) {}
 convertTerm (con c args) {}
 convertTerm (def f args) {isS} = property (def f args)
 convertTerm (lam v t) {}
-convertTerm (pi (arg v r (el s ty)) (el s₁ t)) {isS} = forall' ty (computeBListTree t {isS}) (convertTerm t {isS})
+convertTerm (pi (arg v r (el s ty)) (el s₁ t)) {isS} = forall' ty (convertTerm t {isS})
 convertTerm (sort x) {}
 convertTerm unknown {}
 
