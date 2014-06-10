@@ -34,13 +34,13 @@ infixr 5 _∷_
 ⟦ Property P ⟧ = Dec P
 
 -- | Collects what is needed to test a property
-data Testable : Set₁ where
-  Test_on_by_ : ∀ {xs} -> (u : U xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> Testable
+data Testable : (BListTree Set) -> Set₁ where
+  Test_on_by_ : ∀ {xs} -> (u : U xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> Testable xs
 
-test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> Result ⊎ Result
-test∀ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result ⊎ Result
-test∃ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result ⊎ Result
-test∃! : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃! u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result ⊎ Result
+test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> Result xs ⊎ Result xs
+test∀ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
+test∃ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
+test∃! : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃! u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
 
 test∀ (Forall p) check [] input = inj₂ Trivial
 test∀ (Forall p) check (x ∷ xs) input with test (p x) (check x) input
@@ -61,8 +61,8 @@ test∃ (Forall p) {()} check xs₁ input
 test∃ (Not u) {()} check xs₁ input
 
 
-unique : ∀ {A xs} -> (p : A -> U xs) -> A -> Result -> ⟦ ExistsUnique p ⟧ ->
-         List A -> Input List xs -> Result ⊎ Result
+unique : ∀ {A xs} -> (p : A -> U xs) -> A -> Result xs -> ⟦ ExistsUnique p ⟧ ->
+         List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
 unique p x r check [] input = inj₂ (ExistsUnique x r)
 unique p x r check (x₁ ∷ xs) input with test (p x₁) (check x₁) input
 unique p x r check (x₁ ∷ xs) input | inj₁ r2 = unique p x r check xs input
@@ -87,7 +87,7 @@ test (Not p) check xs | inj₂ y = inj₁ y
 test (p1 ∨ p2) (check1 , check2) (input1 , input2) with test p1 check1 input1
 test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₁ x with test p2 check2 input2
 test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₁ r1 | inj₁ r2 = inj₁ (r1 And r2)
-test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₁ x | inj₂ y = inj₂ y
-test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₂ y = inj₂ y
+test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₁ x | inj₂ y = inj₂ (Snd y)
+test (p1 ∨ p2) (check1 , check2) (input1 , input2) | inj₂ y = inj₂ (Fst y)
 test (Property P) (yes p) [] = inj₂ (Hold P)
 test (Property P) (no ¬p) [] = inj₁ (DoesNotHold P)

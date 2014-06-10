@@ -3,24 +3,28 @@
 
 module Test.Result where
 
-data Result : Set₁ where
+open import Test.Base
+
+data Result : BListTree Set -> Set₁ where
 -- The possible results for a lemma with the ∀ quantifier
-   Forall : (A : Set) -> Result -> Result
-   NotFor : {A : Set} -> A -> Result -> Result
-   Trivial : Result -- Empty set
+   Forall : ∀ {xs} (A : Set) -> Result xs -> Result (A ∷ xs)
+   NotFor : ∀ {xs} {A : Set} -> A -> Result xs -> Result (A ∷ xs)
+   Trivial : ∀ {xs} -> Result xs -- Empty set
 
 -- The possible results for a lemma with the ∃ quantifier
-   Exists : {A : Set} -> A -> Result -> Result
-   NotExists : (A : Set) -> Result -> Result
-   Impossible : Result
+   Exists : ∀ {xs} {A : Set} -> A -> Result xs -> Result (A ∷ xs)
+   NotExists : ∀ {xs} (A : Set) -> Result xs -> Result (A ∷ xs)
+   Impossible : ∀ {xs} -> Result xs
 
 -- The possible results for a lemma with the ∃! quantifier
-   ExistsUnique : {A : Set} -> A -> Result -> Result
-   NotUnique_~_&_~_ : {A : Set} -> A -> Result -> A -> Result -> Result
+   ExistsUnique : ∀ {xs} {A : Set} -> A -> Result xs -> Result (A ∷ xs)
+   NotUnique_~_&_~_ : ∀ {xs} {A : Set} -> A -> Result xs -> A -> Result xs -> Result (A ∷ xs)
 
 -- Disjunction
-   _And_ : Result -> Result -> Result
+   _And_ : ∀ {xs ys} -> Result xs -> Result ys -> Result (xs , ys)
+   Fst : ∀ {xs ys} -> Result xs -> Result (xs , ys)
+   Snd : ∀ {xs ys} -> Result ys -> Result (xs , ys)
 
 -- The possible results for a property    -- TODO better names
-   Hold : Set -> Result
-   DoesNotHold : Set -> Result
+   Hold : Set -> Result []
+   DoesNotHold : Set -> Result []
