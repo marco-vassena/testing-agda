@@ -83,13 +83,15 @@ toBool : ∀ {p} {P : Set p} -> Dec P -> Bool
 toBool (yes p₁) = true
 toBool (no ¬p) = false
 
+-- | Compares two 'Result's.
+-- At the moment comparing the final property is a problem because there we have just a Set.
 _==_by_ : ∀ {xs} -> (r1 : Result xs) -> (r2 : Result xs) -> Comparator xs -> Bool
 Forall A r1 == Forall .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
 NotFor x r1 == NotFor y r2 by (_≟_ ∷ comp) = (toBool (x ≟ y)) B.∧ r1 == r2 by comp
-Trivial == Trivial by comp = true -- TODO this could be actually false, but we cannot distinguish it
+Trivial == Trivial by comp = true
 Exists x r1 == Exists y r2 by (_≟_ ∷ comp) = (toBool (x ≟ y)) B.∧ (r1 == r2 by comp)
 NotExists A r1 == NotExists .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
-Impossible == Impossible by comp = true -- TODO this could be actually false, but we cannot distinguish it
+Impossible == Impossible by comp = true
 ExistsUnique x r1 == ExistsUnique y r2 by (_≟_ ∷ comp) = (toBool (x ≟ y)) B.∧ (r1 == r2 by comp)
 (NotUnique x1 ~ r1 & x2 ~ r2) == NotUnique y1 ~ r1' & y2 ~ r2' by (_≟_ ∷ comp) = values B.∧ results
   where values = toBool (x1 ≟ y1) B.∧ toBool (x2 ≟ y2)
@@ -107,3 +109,10 @@ fail Test u on input by check With expected Using comp | inj₁ actual with actu
 fail Test u on input by check With expected Using comp | inj₁ actual | true = Succeed₁ 
 fail Test u on input by check With expected Using comp | inj₁ actual | false = Expected expected Found actual
 fail Test u on input by check With expected Using comp | inj₂ y = Fail: y
+
+pass_With_Using_ : ∀ {xs} -> Testable xs -> Result xs -> Comparator xs -> Set₁
+pass Test u on input by check With expected Using comp with test u check input 
+pass Test u on input by check With expected Using comp | inj₂ actual with actual == expected by comp
+pass Test u on input by check With expected Using comp | inj₂ actual | true = Succeed₁ 
+pass Test u on input by check With expected Using comp | inj₂ actual | false = Expected expected Found actual
+pass Test u on input by check With expected Using comp | inj₁ y = Fail: y
