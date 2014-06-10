@@ -9,12 +9,12 @@ data Result : BListTree Set -> Set₁ where
 -- The possible results for a lemma with the ∀ quantifier
    Forall : ∀ {xs} (A : Set) -> Result xs -> Result (A ∷ xs)
    NotFor : ∀ {xs} {A : Set} -> A -> Result xs -> Result (A ∷ xs)
-   Trivial : ∀ {xs} -> Result xs -- Empty set
+   Trivial : ∀ {xs} {A : Set} -> Result (A ∷ xs) -- Empty set
 
 -- The possible results for a lemma with the ∃ quantifier
    Exists : ∀ {xs} {A : Set} -> A -> Result xs -> Result (A ∷ xs)
    NotExists : ∀ {xs} (A : Set) -> Result xs -> Result (A ∷ xs)
-   Impossible : ∀ {xs} -> Result xs
+   Impossible : ∀ {xs} {A : Set} -> Result (A ∷ xs)
 
 -- The possible results for a lemma with the ∃! quantifier
    ExistsUnique : ∀ {xs} {A : Set} -> A -> Result xs -> Result (A ∷ xs)

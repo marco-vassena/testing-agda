@@ -12,7 +12,6 @@ open import Example.Even
 open import Data.Empty
 open import Relation.Nullary
 
-
 test-Not-imp : runVerbose (Test (Not impossible) on [] by (no (λ z → z))) 
 test-Not-imp = Pass (DoesNotHold ⊥)
 
@@ -20,7 +19,8 @@ test-not-all-even : runVerbose (Test Not (Forall n ~ Property (Even n)) on [ nat
 test-not-all-even = Pass (NotFor (suc zero) (DoesNotHold (Even (suc zero))))
 
 test-not-one-eq-zero : run (Test (Forall n ~ Not (Forall m ~ Property (n ≡ m))) 
-                       on nats ∷ nats ∷ [] by Data.Nat._≟_)
+                       on nats ∷ nats ∷ [] 
+                       by Data.Nat._≟_)
 test-not-one-eq-zero = Pass
 
 test-not-one-eq-zero' : runVerbose (Test (Forall n ~ (Forall m ~ (Not (Property (n ≡ m))))) 

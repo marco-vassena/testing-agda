@@ -2,7 +2,6 @@ module Test.Base where
 
 open import Data.Unit
 open import Data.Empty
-open import Data.Bool hiding (_∨_ ; _∧_)
 
 -- Collect types for 'U'
 data BListTree {a} (A : Set a) : Set a where 

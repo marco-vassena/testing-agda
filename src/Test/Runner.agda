@@ -30,7 +30,7 @@ data Skip : Set where
 
 -- | Expected / Actual result
 data Expected_Found_ : ∀ {xs ys} -> Result xs -> Result ys -> Set₁ where
-  Failed : ∀ {xs ys} -> (exp : Result xs) -> (act : Result ys) -> Expected exp Found act 
+  Expected_Got : ∀ {xs ys} -> (exp : Result xs) -> (act : Result ys) -> Expected exp Found act 
 
 data Succeed₁ : Set₁ where
   Pass : Succeed₁
@@ -64,14 +64,6 @@ fail : ∀ {xs} -> Testable xs -> Set
 fail (Test u on input by check) with test u check input
 fail (Test u on input by check) | inj₁ x = Succeed
 fail (Test u on input by check) | inj₂ y = Fail
-
-
--- TODO Is there some workaround to this?
--- I would like to write these runner in which the user not only specifies
--- whether the property should pass or fail, but also why, i.e. the expected
--- Result.
--- This requires decidable equality (≟) over Result
--- but since they it contains arbitrary Sets I don't think I can define that.
 
 open import Data.Bool
 open import Data.Bool as B using ( _∧_ ; _∨_ )
