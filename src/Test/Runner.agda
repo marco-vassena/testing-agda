@@ -65,12 +65,12 @@ fail (Test u on input by check) with test u check input
 fail (Test u on input by check) | inj₁ x = Succeed
 fail (Test u on input by check) | inj₂ y = Fail
 
-open import Data.Bool
+open import Data.Bool hiding (_≟_)
 open import Data.Bool as B using ( _∧_ ; _∨_ )
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary
-open import Level
+open import Reflection
 
 data Comparator : BListTree Set -> Set₁ where
   [] : Comparator []
@@ -99,7 +99,11 @@ ExistsUnique x r1 == ExistsUnique y r2 by (_≟_ ∷ comp) = (toBool (x ≟ y)) 
 (r1 And r2) == r1' And r2' by (comp1 , comp2) = (r1 == r1' by comp1 ) Data.Bool.∧ (r2 == r2' by comp2)
 Fst r1 == Fst r2 by (comp , comp₁) = r1 == r2 by comp
 Snd r1 == Snd r2 by (comp , comp₁) = r1 == r2 by comp₁
-Hold x == Hold x₁ by comp = true -- TODO how do I enforce x and x₁ to be the same
+Hold x == Hold x₁ by comp = true
+-- TODO quoting does not work in this case
+-- with quoteTerm x ≟ quoteTerm x₁
+-- Hold x == Hold x₁ by comp | yes p = {!!}
+-- Hold x == Hold x₁ by comp | no ¬p = {!!}
 DoesNotHold x == DoesNotHold x₁ by comp = true -- TODO idem
 _ == _ by _ = false
 
