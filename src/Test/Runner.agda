@@ -74,26 +74,44 @@ fail (Test u on input by check) | inj₂ y = Fail
 -- but since they it contains arbitrary Sets I don't think I can define that.
 
 open import Data.Bool
+open import Data.Bool as B using ( _∧_ ; _∨_ )
+open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality
+open import Relation.Binary
+open import Level
 
-_==_ : ∀ {xs} -> (r1 : Result xs) -> (r2 : Result xs) -> Bool
-Forall A r1 == Forall .A r2 = r1 == r2
-NotFor x r1 == NotFor y r2 = {!!} -- equality on x y
-Trivial == Trivial = true -- TODO this could be actually false, but we cannot distinguish it
-Exists x r1 == Exists y r2 = {!!} -- equality on x y
-NotExists A r1 == NotExists .A r2 = r1 == r2
-Impossible == Impossible = {!!} -- TODO this could be actually false, but we cannot distinguish it
-ExistsUnique x r1 == ExistsUnique x₁ r2 = {!!} -- equality
-(NotUnique x ~ r1 & x₁ ~ r2) == (NotUnique x₂ ~ r3 & x₃ ~ r4) = {!!}
-(r1 And r2) == (r1' And r2') = (r1 == r1') Data.Bool.∧ (r2 == r2')
-Fst r1 == Fst r2 = r1 == r2
-Snd r1 == Snd r2 = r1 == r2
-Hold x == Hold x₁ = {!!}  -- TODO how do I enforce x and x₁ to be the same
-DoesNotHold x == DoesNotHold x₁ = {!!} -- TODO idem
-_ == _ = false
+data Comparator : BListTree Set -> Set₁ where
+  [] : Comparator []
+  _∷_ : ∀ {xs} {A : Set} -> ( _≟_ : Decidable (_≡_ {A = A}))  -> Comparator xs -> Comparator (A ∷ xs)
+  _,_ : ∀ {xs ys} -> Comparator xs -> Comparator ys -> Comparator (xs , ys)
 
-fail_With_ : ∀ {xs} -> Testable xs -> Result xs -> Set₁
-fail Test u on input by check With expected with test u check input 
-fail Test u on input by check With expected | inj₁ actual with actual == expected
-fail Test u on input by check With expected | inj₁ actual | true = Succeed₁ 
-fail Test u on input by check With expected | inj₁ actual | false = Expected expected Found actual
-fail Test u on input by check With expected | inj₂ y = Fail: y
+
+-- TODO is there something in the standard library for this ?
+toBool : ∀ {p} {P : Set p} -> Dec P -> Bool
+toBool (yes p₁) = true
+toBool (no ¬p) = false
+
+_==_by_ : ∀ {xs} -> (r1 : Result xs) -> (r2 : Result xs) -> Comparator xs -> Bool
+Forall A r1 == Forall .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
+NotFor x r1 == NotFor y r2 by (_≟_ ∷ comp) = (toBool (x ≟ y)) B.∧ r1 == r2 by comp
+Trivial == Trivial by comp = true -- TODO this could be actually false, but we cannot distinguish it
+Exists x r1 == Exists y r2 by (_≟_ ∷ comp) = (toBool (x ≟ y)) B.∧ (r1 == r2 by comp)
+NotExists A r1 == NotExists .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
+Impossible == Impossible by comp = true -- TODO this could be actually false, but we cannot distinguish it
+ExistsUnique x r1 == ExistsUnique y r2 by (_≟_ ∷ comp) = (toBool (x ≟ y)) B.∧ (r1 == r2 by comp)
+(NotUnique x1 ~ r1 & x2 ~ r2) == NotUnique y1 ~ r1' & y2 ~ r2' by (_≟_ ∷ comp) = values B.∧ results
+  where values = toBool (x1 ≟ y1) B.∧ toBool (x2 ≟ y2)
+        results = r1 == r1' by comp B.∧ r2 == r2' by comp
+(r1 And r2) == r1' And r2' by (comp1 , comp2) = (r1 == r1' by comp1 ) Data.Bool.∧ (r2 == r2' by comp2)
+Fst r1 == Fst r2 by (comp , comp₁) = r1 == r2 by comp
+Snd r1 == Snd r2 by (comp , comp₁) = r1 == r2 by comp₁
+Hold x == Hold x₁ by comp = true -- TODO how do I enforce x and x₁ to be the same
+DoesNotHold x == DoesNotHold x₁ by comp = true -- TODO idem
+_ == _ by _ = false
+
+fail_With_Using_ : ∀ {xs} -> Testable xs -> Result xs -> Comparator xs -> Set₁
+fail Test u on input by check With expected Using comp with test u check input 
+fail Test u on input by check With expected Using comp | inj₁ actual with actual == expected by comp
+fail Test u on input by check With expected Using comp | inj₁ actual | true = Succeed₁ 
+fail Test u on input by check With expected Using comp | inj₁ actual | false = Expected expected Found actual
+fail Test u on input by check With expected Using comp | inj₂ y = Fail: y
