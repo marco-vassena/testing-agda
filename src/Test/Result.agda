@@ -24,3 +24,5 @@ data Result : Set₁ where
 -- The possible results for a property    -- TODO better names
    Hold : Set -> Result
    DoesNotHold : Set -> Result
+   ✓ : Result
+   ✗ : Result

@@ -78,9 +78,31 @@ test∃! (Forall p) {} check xs₁ input
 test∃! (Exists p) {} check xs₁ input
 test∃! (Not u) {} check xs₁ input
 
-test (Forall p) check (x ∷ input) = test∀ (Forall p) check x input
-test (Exists p) check (x ∷ input) = test∃ (Exists p) check x input
-test (ExistsUnique p) check (x ∷ input) = test∃! (ExistsUnique p) check x input
+hide : Result -> Result
+hide (Forall A r) = Forall A (hide r)
+hide (NotFor x r) = NotFor x (hide r)
+hide Trivial = Trivial
+hide (Exists x r) = Exists x (hide r)
+hide (NotExists A r) = NotExists A (hide r)
+hide Impossible = Impossible
+hide (ExistsUnique x r) = ExistsUnique x (hide r)
+hide (NotUnique x ~ r & x₁ ~ r₁) = NotUnique x ~ hide r & x₁ ~ hide r₁
+hide (r And r₁) = (hide r) And (hide r₁)
+hide (Hold x) = ✓
+hide (DoesNotHold x) = ✗
+hide ✓ = ✓
+hide ✗ = ✗
+
+test (Forall p) check (x ∷ input) with test∀ (Forall p) check x input
+test (Forall p) check (x ∷ input) | inj₁ r = inj₁ r
+test (Forall p) check (x ∷ input) | inj₂ r = inj₂ (hide r)
+test (Exists p) check (x ∷ input) with test∃ (Exists p) check x input
+test (Exists p) check (x ∷ input) | inj₁ r = inj₁ (hide r)
+test (Exists p) check (x ∷ input) | inj₂ r = inj₂ r
+test (ExistsUnique p) check (x ∷ input) with test∃! (ExistsUnique p) check x input
+test (ExistsUnique p) check (x ∷ input) | inj₁ (NotUnique x₁ ~ x₂ & x₃ ~ x₄) = inj₁ (NotUnique x₁ ~ x₂ & x₃ ~ x₄)
+test (ExistsUnique p) check (x ∷ input) | inj₁ r = inj₁ (hide r)
+test (ExistsUnique p) check (x ∷ input) | inj₂ r = inj₂ r
 test (Not p) check xs with test p check xs
 test (Not p) check xs | inj₁ x = inj₂ x
 test (Not p) check xs | inj₂ y = inj₁ y 
