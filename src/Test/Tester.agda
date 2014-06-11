@@ -80,12 +80,14 @@ test∃! (Not u) {} check xs₁ input
 
 hide : Result -> Result
 hide (Forall A r) = Forall A (hide r)
-hide (NotFor x r) = NotFor x (hide r)
+hide (NotFor {A} x r) = NotForall A (hide r)
+hide (NotForall A r) = NotForall A (hide r)
 hide Trivial = Trivial
-hide (Exists x r) = Exists x (hide r)
+hide (Exists {A} x r) = Exists' A (hide r)
+hide (Exists' A r) = Exists' A (hide r)
 hide (NotExists A r) = NotExists A (hide r)
 hide Impossible = Impossible
-hide (ExistsUnique x r) = ExistsUnique x (hide r)
+hide (ExistsUnique x r) = ExistsUnique x (hide r)  -- Probably I need an ExistsUnique' also here
 hide (NotUnique x ~ r & x₁ ~ r₁) = NotUnique x ~ hide r & x₁ ~ hide r₁
 hide (r And r₁) = (hide r) And (hide r₁)
 hide (Hold x) = ✓

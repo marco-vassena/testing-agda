@@ -50,3 +50,6 @@ test-some-even = Pass (Exists zero (Hold (Even zero)))
 
 test-some-even-odds : run (Test (Exists (λ n → Property (Even n))) on [ odds nats ] by isEven?)
 test-some-even-odds = Failed
+
+test-idem : runVerbose (Test Exists (λ n → Forall (λ m -> Property (Even (n + m)))) on nats ∷ (nats ∷ []) by (λ n m → isEven? (n + m)))
+test-idem = Failed (NotExists ℕ (NotForall ℕ ✗))

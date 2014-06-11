@@ -56,4 +56,4 @@ dec-ex : ⟦ ex ⟧
 dec-ex = λ n xs → Data.Nat._≟_ n (length xs)
 
 test-ex : runVerbose (Test ex on ((take 2 nats) ∷ lists ∷ []) by dec-ex)
-test-ex = Pass (Forall ℕ (Exists (zero ∷ []) ✓))
+test-ex = Pass (Forall ℕ (Exists' (List ℕ) ✓))
