@@ -73,10 +73,15 @@ data Special : Set where
 name2Special : List (Name × Special)
 name2Special = ((quote ¬_) , Not) ∷ (quote ∃ , Exists) ∷ ((quote _×_) , And) ∷ (quote _⊎_ , Or) ∷ []
 
-
 supportedTerm : Term -> Set
 supportedSpecial : Special -> List (Arg Term) -> Set
-supportedSpecial Not (_ ∷ arg visible relevant x ∷ []) = supportedTerm x
+_is_And_ : Arg Term -> Visibility -> Relevance -> Set
+arg v r t is v₁ And r₁ with v ≟-Visibility v₁ | r ≟-Relevance r₁
+arg v r t is v₁ And r₁ | yes p | yes p₁ = supportedTerm t
+arg v r t is v₁ And r₁ | yes p | no ¬p = ⊥
+arg v r t is v₁ And r₁ | no ¬p | p2 = ⊥  
+
+supportedSpecial Not (_ ∷ x ∷ []) = x is visible And relevant
 supportedSpecial Not _ = ⊥
 supportedSpecial Or args = {!!}
 supportedSpecial And args = {!!}
@@ -108,21 +113,18 @@ computeBListTree (sort x) {}
 computeBListTree unknown {}
 
 convertTerm : (t : Term) -> {isSup : supportedTerm t} -> Term
-
 convertSpecial : (s : Special) -> (args : List (Arg Term)) -> {isS : supportedSpecial s args} -> Term
--- convertSpecial Not (_ ∷ arg visible relevant x ∷ []) {isS} = not (convertTerm x {isS})
--- convertSpecial Not _ {isS} = {!!} -- Here an absurd pattern is rejected
+convertArg : (a : Arg Term) -> (v : Visibility) -> (r : Relevance) -> {isS : a is v And r} -> Term
 
--- Even trying to be more explicit doesn't work:
+convertArg (arg v r t) v₁ r₁ {isS} with v ≟-Visibility v₁ | r ≟-Relevance r₁
+convertArg (arg v r t) v₁ r₁ {isS} | yes p | yes p₁ = convertTerm t {isS}
+convertArg (arg v r t) v₁ r₁ {} | yes p | no ¬p
+convertArg (arg v r t) v₁ r₁ {} | no ¬p | p2
+
 convertSpecial Not [] {}
 convertSpecial Not (x ∷ []) {}
-convertSpecial Not (_ ∷ arg visible relevant x ∷ []) {isS} = convertTerm x {isS}
-convertSpecial Not (x ∷ arg visible irrelevant x₁ ∷ []) {}
-convertSpecial Not (x ∷ arg hidden r x₁ ∷ []) {}
-convertSpecial Not (x ∷ arg instance r x₁ ∷ []) {}
-convertSpecial Not (x ∷ (arg visible relevant _) ∷ _ ∷ []) {}
-convertSpecial Not (x ∷ x₁ ∷ x₂ ∷ args) {isS} = {!!} -- Here it should be obvious that isS is empty because of the number of arguments
-                                                     -- But unfortunately it isn't
+convertSpecial Not (_ ∷ a ∷ []) {isS} = convertArg a visible relevant {isS}
+convertSpecial Not (x ∷ x1 ∷ x₁ ∷ args) {} 
 
 convertSpecial Or args = {!!}
 convertSpecial And args = {!!}
