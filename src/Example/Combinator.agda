@@ -2,7 +2,6 @@ module Example.Combinator where
 
 open import Test.Base
 open import Test.Runner
-open import Test.Result
 open import Test.Tester hiding (Test_on_by_)
 open import Test.StreamGenerator
 
@@ -10,7 +9,12 @@ open import Example.Simple
 open import Example.Even
 
 open import Data.Empty
+open import Data.Nat
+open import Data.Stream
+open import Data.Product
+open import Function
 open import Relation.Nullary
+open import Relation.Binary.PropositionalEquality hiding ([_])
 
 test-Not-imp : runVerbose (Test (Not impossible) on [] by (no (λ z → z))) 
 test-Not-imp = Pass (DoesNotHold ⊥)
@@ -46,53 +50,55 @@ unique-fail = Failed
                  Hold (Even (suc (suc zero))))
 
 
+-- shorthand 
+<_> : ∀ {a b} {A : Set a} {P : A -> Set b} -> (f : (x : A) -> P x) -> ((x : A) -> Σ (P x) (λ _ → P x))
+< f > = <_,_> f f
+
 disj1 : run (Test Forall n ~ (Property (Even n)) ∨ Not (Property (Even n)) 
-        on nats ∷ ([] , []) by (λ n → (isEven? n) , (isEven? n)))
+        on nats ∷ ([] , []) by < isEven? >)
 disj1 = Pass
 
 disj2 : run (Test Forall n ~ (Property (Even n)) ∨ (Exists m ~ Property (Even (n + m))) 
             on (odds nats) ∷ ([] , (nats ∷ [])) 
-            by (λ n → (isEven? n) , (λ m → isEven? (n + m))))
+            by <_,_> isEven? (λ n m -> isEven? (n + m)))
 disj2 = Pass
 
 disj3 : runVerbose (Test (Property (Even 1)) ∨ Not (Property (Even 0)) 
         on ([] , [])
-        by ((isEven? 1) , isEven? 0))
+        by (isEven? 1 , isEven? 0) )
 disj3 = Failed (DoesNotHold (Even (suc zero)) And Hold (Even zero))
 
 impl1 : run (Test Forall n ~ (Property (Even n)) ⇒ Property (Even (n + 2))
         on nats ∷ ([] , [])
-        by (λ n → (isEven? n) , (isEven? (n + 2))))
+        by <_,_> isEven? (λ n -> isEven? (n + 2)))
 impl1 = Pass
 
 conj1 : runVerbose (Test Exists! n ~ (Property (Even n)) ∧ Property (n + n ≡ n)
         on nats ∷ ([] , [])
-        by (λ n → (isEven? n) , (n + n Data.Nat.≟ n)))
+        by ( <_,_> isEven? (λ n → n + n ‌≟ n)))
 conj1 = Pass (ExistsUnique zero (Hold (Even zero) And Hold (zero ≡ zero)))
 
-conj2 : run (Test Exists n ~ (Property (Even n)) ∧ (Property (Even (n + 1)))
+conj2 : run (Test Exists n ~ (Property (Even n)) ∧ (Property (Even (1 + n)))
         on nats ∷ ([] , [])
-        by (λ n → (isEven? n) , (isEven? (n + 1))))
+        by <_,_> isEven? (isEven? ∘ suc))
 conj2 = Failed
 
-conj2' : runVerbose (Test Forall n ~ (Property (Even n)) ∧ (Property (Even (n + 1)))
+conj2' : runVerbose (Test Forall n ~ (Property (Even n)) ∧ (Property (Even (1 + n)))
         on nats ∷ ([] , [])
-        by (λ n → (isEven? n) , (isEven? (n + 1))))
-conj2' = Failed (NotFor zero (DoesNotHold (Even (suc zero))))
+        by <_,_> isEven? (isEven? ∘ suc))
+conj2' = Failed (NotFor 0 (Snd (DoesNotHold (Even 1))))
 
-conj2'' : run (Test Forall n ~ (Property (Even n)) ∨ (Property (Even (n + 1)))
+conj2'' : run (Test Forall n ~ (Property (Even n)) ∨ (Property (Even (1 + n)))
         on nats ∷ ([] , [])
-        by (λ n → (isEven? n) , (isEven? (n + 1))))
+        by  <_,_> isEven? (isEven? ∘ suc))
 conj2'' = Pass
 
-iff1 : run (Test Forall n ~ (Property (Even n)) ⇔ (Not (Property (Even (n + 1))))
+iff1 : run (Test Forall n ~ (Property (Even n)) ⇔ (Not (Property (Even (1 + n))))
            on nats ∷ (([] , []) , ([] , []))
-           by (λ n → ((isEven? n) , (isEven? (n + 1))) , ((isEven? (n + 1)) , isEven? n)))
+           by <_,_> (<_,_> isEven? (isEven? ∘ suc)) ((<_,_> (isEven? ∘ suc) isEven?)) )
 iff1 = Pass
 
 iff2-fail : runVerbose (Test Forall n ~ (Property (Even n)) ⇔ (Property (Even (n + n)))
                 on nats ∷ (([] , []) , ([] , []))
-                by (λ n → ((isEven? n) , (isEven? (n + n))) , ((isEven? (n + n)) , (isEven? n))))
-iff2-fail = Failed
-              (NotFor (suc zero)
-               (Hold (Even (suc (suc zero))) And DoesNotHold (Even (suc zero))))
+                by <_,_> (<_,_> isEven? (λ n -> isEven? (n + n))) (<_,_> (λ n -> isEven? (n + n)) isEven?) )
+iff2-fail = Failed (NotFor 1 (Snd (Hold (Even 2) And DoesNotHold (Even 1))))

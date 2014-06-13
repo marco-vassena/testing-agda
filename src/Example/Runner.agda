@@ -5,7 +5,6 @@ module Example.Runner where
 open import Test.Base
 open import Test.StreamGenerator
 open import Test.Runner
-open import Test.Result using ( DoesNotHold ; NotFor )
 open import Test.Tester using (Input ; [_] ; Testable)
 open import Example.Even using (Even ; isEven? ; nats)
 open import Example.Simple using (impossible ; dec-impossible)
@@ -45,9 +44,9 @@ all-even-pass = Pass
 all-even-fail : fail (test-all-even nats)
                  With NotFor 2 (DoesNotHold (Even 2)) 
                  Using (_≟_ ∷ [])
-all-even-fail = {!!}
+all-even-fail = Expected (NotFor 2 (DoesNotHold (Even 2))) Got (NotFor 1 (DoesNotHold (Even 1)))
 
 all-even-fail2 : fail (test-all-even (evens nats))
                  With NotFor 1 (DoesNotHold (Even 1)) 
                  Using (_≟_ ∷ [])
-all-even-fail2 = {!!}
+all-even-fail2 = Failed ((Forall ℕ (Hold (Even 8))))

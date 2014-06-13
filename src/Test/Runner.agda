@@ -3,7 +3,6 @@ module Test.Runner where
 
 open import Test.Base
 open import Test.Tester
-open import Test.Result
 
 open import Data.Sum
 
@@ -30,7 +29,7 @@ data Skip : Set where
 
 -- | Expected / Actual result
 data Expected_Found_ : ∀ {xs ys} -> Result xs -> Result ys -> Set₁ where
-  Expected_Got : ∀ {xs ys} -> (exp : Result xs) -> (act : Result ys) -> Expected exp Found act 
+  Expected_Got_ : ∀ {xs ys} -> (exp : Result xs) -> (act : Result ys) -> Expected exp Found act 
 
 data Succeed₁ : Set₁ where
   Pass : Succeed₁

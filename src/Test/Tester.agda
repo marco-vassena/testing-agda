@@ -4,7 +4,6 @@
 module Test.Tester where
 
 open import Test.Base
-open import Test.Result
 
 open import Data.List hiding ( [_] )
 open import Data.Product
