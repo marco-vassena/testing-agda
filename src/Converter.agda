@@ -3,7 +3,7 @@ module Converter where
 open import Base hiding ([_])
 
 open import Reflection
-open import Data.List
+open import Data.List hiding (or)
 open import Data.Nat
 open import Data.Unit
 
@@ -24,6 +24,11 @@ forall' ty blist next = con (quote Base.U.Forall) (argTy ∷ argBList ∷ argNex
 not : Term -> Term
 not next = con (quote Base.U.Not) (argNext ∷ [])
   where argNext = arg visible relevant next
+
+or : Term -> Term -> Term
+or t1 t2 = con (quote _∨_) (arg1 ∷ arg2 ∷ [])
+  where arg1 = arg visible relevant t1
+        arg2 = arg visible relevant t2
 
 bListTree[] : Term
 bListTree[] = con (quote Base.BListTree.[]) []
@@ -84,7 +89,8 @@ arg v r t is v₁ And r₁ | no ¬p | p2 = ⊥
 
 supportedSpecial Not (_ ∷ x ∷ []) = x is visible And relevant
 supportedSpecial Not _ = ⊥
-supportedSpecial Or args = ⊥
+supportedSpecial Or (_ ∷ _ ∷ x₁ ∷ x₂ ∷ []) = x₁ is visible And relevant × x₂ is visible And relevant
+supportedSpecial Or _ = ⊥
 supportedSpecial And args = ⊥
 supportedSpecial Exists args = ⊥
 
@@ -123,11 +129,17 @@ convertArg (arg v r t) v₁ r₁ {} | yes p | no ¬p
 convertArg (arg v r t) v₁ r₁ {} | no ¬p | p2
 
 convertSpecial Not [] {}
-convertSpecial Not (x ∷ []) {}
+convertSpecial Not (_ ∷ []) {}
 convertSpecial Not (_ ∷ a ∷ []) {isS} = not (convertArg a visible relevant {isS})
-convertSpecial Not (x ∷ x1 ∷ x₁ ∷ args) {} 
-
-convertSpecial Or args {} -- = {!!}
+convertSpecial Not (_ ∷ _ ∷ _ ∷ args) {} 
+convertSpecial Or [] {}
+convertSpecial Or (_ ∷ []) {}
+convertSpecial Or (_ ∷ _ ∷ []) {}
+convertSpecial Or (_ ∷ _ ∷ _ ∷ []) {}
+convertSpecial Or (_ ∷ _ ∷ a₁ ∷ a₂ ∷ []) {isS₁ , isS₂} = or arg1 arg2
+  where arg1 = convertArg a₁ visible relevant {isS₁}
+        arg2 = convertArg a₂ visible relevant {isS₂}
+convertSpecial Or (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ args) {}
 convertSpecial And args {} -- = {!!}
 convertSpecial Exists args {} -- = {!!}
 

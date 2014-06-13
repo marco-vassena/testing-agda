@@ -15,30 +15,6 @@ data Even  : ℕ → Set where
 f1 : U (ℕ ∷ [])
 f1 = Forall n ~ Property (Even n)
 
--- quoteTerm f1
--- con Base.U.Forall
--- (arg hidden relevant (def Data.Nat.ℕ []) ∷
---  arg hidden relevant (con Base.BListTree.[] []) ∷
---  arg visible relevant
---  (lam visible
---   (con Base.U.Property
---    (arg visible relevant
---     (def Converter.Even (arg visible relevant (var 0 []) ∷ []))
---     ∷ [])))
---  ∷ [])
-
--- What I want (the signature of lemma) can be retrieved using 
---     type (quote lemma)
--- which produces 
--- el (lit 0)
--- (pi
---  (arg visible relevant
---   (el (lit 0) (def Data.Nat.ℕ .Data.List.List.[])))
---  (el (lit 0)
---   (def Converter.Even
---    (arg visible relevant (var 0 .Data.List.List.[]) .Data.List.List.∷
---     .Data.List.List.[]))))
-
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 open import Data.Sum
@@ -52,15 +28,6 @@ lemma2 = {!!}
 
 lemma3 : (n : ℕ) -> ¬ (Even n)
 lemma3 = {!!}
-
--- el (lit 0)
--- (pi (arg visible relevant (el (lit 0) (def Data.Nat.ℕ [])))
---  (el (lit 0)
---   (def Relation.Nullary.Core.¬_
---    (arg hidden relevant unknown ∷
---     arg visible relevant
---     (def Example.Converter.Even (arg visible relevant (var 0 []) ∷ []))
---     ∷ []))))
 
 lemma4 : (n : ℕ) -> (Even n) ⊎ (¬ (Even n))
 lemma4 = {!!}
@@ -79,3 +46,6 @@ test2 = refl
 
 test3 : unquote (convert (quote lemma3)) ≡ (Forall n ~ Not (Property (Even n)))
 test3 = refl
+
+test4 : unquote (convert (quote lemma4)) ≡ (Forall n ~ (Property (Even n)) ∨ Not (Property (Even n)))
+test4 = refl
