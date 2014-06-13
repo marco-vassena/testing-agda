@@ -76,3 +76,6 @@ test1 = refl
 
 test2 : unquote (convert (quote lemma2)) ≡ (Forall n ~ Forall m ~ (Property (Even (n + m))))
 test2 = refl
+
+test3 : unquote (convert (quote lemma3)) ≡ (Forall n ~ Not (Property (Even n)))
+test3 = refl

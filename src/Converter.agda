@@ -75,6 +75,7 @@ name2Special = ((quote ¬_) , Not) ∷ (quote ∃ , Exists) ∷ ((quote _×_) , 
 
 supportedTerm : Term -> Set
 supportedSpecial : Special -> List (Arg Term) -> Set
+
 _is_And_ : Arg Term -> Visibility -> Relevance -> Set
 arg v r t is v₁ And r₁ with v ≟-Visibility v₁ | r ≟-Relevance r₁
 arg v r t is v₁ And r₁ | yes p | yes p₁ = supportedTerm t
@@ -83,9 +84,9 @@ arg v r t is v₁ And r₁ | no ¬p | p2 = ⊥
 
 supportedSpecial Not (_ ∷ x ∷ []) = x is visible And relevant
 supportedSpecial Not _ = ⊥
-supportedSpecial Or args = {!!}
-supportedSpecial And args = {!!}
-supportedSpecial Exists args = {!!}
+supportedSpecial Or args = ⊥
+supportedSpecial And args = ⊥
+supportedSpecial Exists args = ⊥
 
 supportedTerm (var x args) = NotSupported (var x args)
 supportedTerm (con c args) = DontKnowRightNow (con c args)
@@ -123,12 +124,12 @@ convertArg (arg v r t) v₁ r₁ {} | no ¬p | p2
 
 convertSpecial Not [] {}
 convertSpecial Not (x ∷ []) {}
-convertSpecial Not (_ ∷ a ∷ []) {isS} = convertArg a visible relevant {isS}
+convertSpecial Not (_ ∷ a ∷ []) {isS} = not (convertArg a visible relevant {isS})
 convertSpecial Not (x ∷ x1 ∷ x₁ ∷ args) {} 
 
-convertSpecial Or args = {!!}
-convertSpecial And args = {!!}
-convertSpecial Exists args = {!!}
+convertSpecial Or args {} -- = {!!}
+convertSpecial And args {} -- = {!!}
+convertSpecial Exists args {} -- = {!!}
 
 convertTerm (var x args) {}
 convertTerm (con c args) {}
