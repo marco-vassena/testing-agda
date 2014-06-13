@@ -104,7 +104,9 @@ Hold x == Hold x₁ by comp = true
 -- with quoteTerm x ≟ quoteTerm x₁
 -- Hold x == Hold x₁ by comp | yes p = {!!}
 -- Hold x == Hold x₁ by comp | no ¬p = {!!}
+-- TODO do not allow Hold / DoesNotHold here but only ✓ and X
 DoesNotHold x == DoesNotHold x₁ by comp = true -- TODO idem
+-- TODO add cases for ✓ and X
 _ == _ by _ = false
 
 fail_With_Using_ : ∀ {xs} -> Testable xs -> Result xs -> Comparator xs -> Set₁
