@@ -52,7 +52,6 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Data.Nat
 open import Data.Empty
 
-
 -- | TODO I have not found nothing like this in the standard library.
 lookup : {A B : Set} -> {dec : Decidable {A = A} _≡_} -> A -> List (A × B) -> Maybe B
 lookup a [] = nothing
@@ -60,11 +59,34 @@ lookup {dec = eq} a ((a' , b) ∷ xs) with eq a a'
 lookup {dec = eq} .a ((a , b) ∷ xs) | yes refl = just b
 lookup {dec = eq} a ((a' , b) ∷ xs) | no ¬p = lookup {dec = eq} a xs
 
--- | I don't know when should I stop checking
+-- | The supported special constructs.
+-- They have been defined explicitly as a data type because 
+-- it's not possible to pattern match over a 'Name'.
+data Special : Set where
+  -- TODO ∃!
+  Not : Special
+  Or : Special
+  And : Special
+  Exists : Special
+
+-- | Association list that maps specific 'Name's to their data type counterpart. 
+name2Special : List (Name × Special)
+name2Special = ((quote ¬_) , Not) ∷ (quote ∃ , Exists) ∷ ((quote _×_) , And) ∷ (quote _⊎_ , Or) ∷ []
+
+
 supportedTerm : Term -> Set
+supportedSpecial : Special -> List (Arg Term) -> Set
+supportedSpecial Not (_ ∷ arg visible relevant x ∷ []) = supportedTerm x
+supportedSpecial Not _ = ⊥
+supportedSpecial Or args = {!!}
+supportedSpecial And args = {!!}
+supportedSpecial Exists args = {!!}
+
 supportedTerm (var x args) = NotSupported (var x args)
 supportedTerm (con c args) = DontKnowRightNow (con c args)
-supportedTerm (def f args) = ⊤
+supportedTerm (def f args) with lookup {dec = _≟-Name_} f name2Special
+supportedTerm (def f args) | just x = supportedSpecial x args
+supportedTerm (def f args) | nothing = ⊤
 supportedTerm (lam v t) = DontKnowRightNow (lam v t)
 supportedTerm (pi t₁ (el s t)) = supportedTerm t  -- Should I call support (el s t) here ? 
 supportedTerm (sort x) = NotSupported (sort x)
@@ -87,30 +109,29 @@ computeBListTree unknown {}
 
 convertTerm : (t : Term) -> {isSup : supportedTerm t} -> Term
 
-SpecialConverter : Set
-SpecialConverter = (List (Arg Term)) -> Term
+convertSpecial : (s : Special) -> (args : List (Arg Term)) -> {isS : supportedSpecial s args} -> Term
+-- convertSpecial Not (_ ∷ arg visible relevant x ∷ []) {isS} = not (convertTerm x {isS})
+-- convertSpecial Not _ {isS} = {!!} -- Here an absurd pattern is rejected
 
-convert¬ : SpecialConverter
-convert¬ (_ ∷ arg visible relevant x ∷ []) = not (convertTerm x)
-convert¬ args = property (def (quote ¬_) args)
+-- Even trying to be more explicit doesn't work:
+convertSpecial Not [] {}
+convertSpecial Not (x ∷ []) {}
+convertSpecial Not (_ ∷ arg visible relevant x ∷ []) {isS} = convertTerm x {isS}
+convertSpecial Not (x ∷ arg visible irrelevant x₁ ∷ []) {}
+convertSpecial Not (x ∷ arg hidden r x₁ ∷ []) {}
+convertSpecial Not (x ∷ arg instance r x₁ ∷ []) {}
+convertSpecial Not (x ∷ (arg visible relevant _) ∷ _ ∷ []) {}
+convertSpecial Not (x ∷ x₁ ∷ x₂ ∷ args) {isS} = {!!} -- Here it should be obvious that isS is empty because of the number of arguments
+                                                     -- But unfortunately it isn't
 
-convert∃ : SpecialConverter
-convert∃ args = {!!}
-
-convert∧ : SpecialConverter
-convert∧ args = {!!}
-
-convert∨ : SpecialConverter
-convert∨ args = {!!}
-
--- TODO ∃!
-special-converter : List (Name × SpecialConverter)
-special-converter = ((quote ¬_) , convert¬) ∷ (quote ∃ , convert∃) ∷ ((quote _×_) , convert∧) ∷ (quote _⊎_ , convert∨) ∷ []
+convertSpecial Or args = {!!}
+convertSpecial And args = {!!}
+convertSpecial Exists args = {!!}
 
 convertTerm (var x args) {}
 convertTerm (con c args) {}
-convertTerm (def f args) {isS} with lookup {dec = _≟-Name_} f special-converter
-convertTerm (def f args) | just converter = converter args
+convertTerm (def f args) {isS} with lookup {dec = _≟-Name_} f name2Special
+convertTerm (def f args) {isS} | just x = convertSpecial x args {isS}
 convertTerm (def f args) | nothing = property (def f args)
 convertTerm (lam v t) {}
 convertTerm (pi (arg v r (el s ty)) (el s₁ t)) {isS} = forall' ty (computeBListTree t {isS}) (convertTerm t {isS})
