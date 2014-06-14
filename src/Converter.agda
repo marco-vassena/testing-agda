@@ -100,11 +100,7 @@ supportedSpecial Not _ = ⊥
 supportedSpecial Or (_ ∷ _ ∷ x₁ ∷ x₂ ∷ []) = x₁ is visible And relevant × x₂ is visible And relevant
 supportedSpecial Or _ = ⊥
 supportedSpecial And args = ⊥
-supportedSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) with a
--- TODO do I need the isLambda proof?
--- The signature of ∃ forces t to be a lambda.
--- That is if quoting is used t can only be a lambda. 
-supportedSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) | arg v r t =  (a is visible And relevant) × isLambda t
+supportedSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) = a is visible And relevant
 supportedSpecial Exists _ = ⊥
 
 supportedTerm (var x args) = NotSupported (var x args)
@@ -158,18 +154,7 @@ convertSpecial Exists [] {}
 convertSpecial Exists (_ ∷ []) {}
 convertSpecial Exists (_ ∷ _ ∷ []) {}
 convertSpecial Exists (_ ∷ _ ∷ _ ∷ []) {}
-convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS} with a
-convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r (var x args)
-convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r (con c args)
-convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r (def f args)
-convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , tt} | arg v r (lam v₁ x) = exists (convertArg (arg v r (lam v₁ x)) visible relevant {isS})
-convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r (pi t₁ t₂)
-convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r (sort x)
-convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r unknown
-
-
--- with a
--- convertSpecial Exists (x₁ ∷ x₂ ∷ x₃ ∷ a ∷ []) {isS , isλ} | arg v r x = exists (convertArg (arg v r x) visible relevant {isS})
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS} = exists (convertArg a visible relevant {isS})
 convertSpecial Exists (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ args) {} 
 
 convertTerm (var x args) {}
