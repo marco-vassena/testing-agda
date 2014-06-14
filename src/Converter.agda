@@ -31,10 +31,6 @@ or t1 t2 = con (quote _∨_) (arg1 ∷ arg2 ∷ [])
   where arg1 = arg visible relevant t1
         arg2 = arg visible relevant t2
 
-isLambda : Term -> Set
-isLambda (lam _ _) = ⊤
-isLambda _ = ⊥
-
 exists : (t : Term) -> Term
 exists t = con (quote Base.U.Exists) (arg1 ∷ [])
   where arg1 = arg visible relevant (lam visible t)
@@ -114,10 +110,7 @@ supportedTerm (sort x) = NotSupported (sort x)
 supportedTerm unknown = NotSupported unknown
 
 supported : Type -> Set
-supported (el (set t) t₁) = UnsupportedSort (set t)
-supported (el (lit zero) t) = supportedTerm t
-supported (el (lit (suc n)) t) = UnsupportedSort (lit (suc n))
-supported (el unknown t) = UnsupportedSort unknown
+supported (el s t) = supportedTerm t
 
 computeBListTree : (t : Term) -> {isSup : supportedTerm t} -> Term
 computeBListTree (var x args) {}
@@ -168,8 +161,5 @@ convertTerm (sort x) {}
 convertTerm unknown {}
 
 convert : (name : Name) -> {isSup : supported (type name)} -> Term
-convert n {isSup} with type n
-convert n {} | el (set t) t₁
-convert n {isSup} | el (lit zero) t = convertTerm t {isSup}
-convert n {} | el (lit (suc n₁)) t 
-convert n {} | el unknown t
+convert name {isS} with type name
+convert name {isS} | el s t = convertTerm t {isS}
