@@ -1,6 +1,6 @@
 module Converter where
 
-open import Base hiding ([_] ; Test_on_by_and_)
+open import Test.Base
 
 open import Reflection
 open import Data.List hiding (or ; and)
@@ -14,12 +14,12 @@ property p = con (quote Property) [ argp ]
   where argp = arg visible relevant p
 
 forall' : Term -> Term -> Term
-forall' ty next = con (quote Base.U.Forall) (argTy ∷ argNext ∷ [])
+forall' ty next = con (quote U.Forall) (argTy ∷ argNext ∷ [])
   where argTy = arg hidden relevant ty
         argNext = arg visible relevant (lam visible next)
 
 not : Term -> Term
-not next = con (quote Base.U.Not) [ argNext ]
+not next = con (quote Not) [ argNext ]
   where argNext = arg visible relevant next
 
 or : Term -> Term -> Term
@@ -33,7 +33,7 @@ and t1 t2 = def (quote _∧_) (arg1 ∷ arg2 ∷ [])
         arg2 = arg visible relevant t2
 
 exists : (t : Term) -> Term
-exists t = con (quote Base.U.Exists) [ arg1 ]
+exists t = con (quote U.Exists) [ arg1 ]
   where arg1 = arg visible relevant (lam visible t)
 
 --------------------------------------------------------------------------------

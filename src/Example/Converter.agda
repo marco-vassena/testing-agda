@@ -1,24 +1,16 @@
 module Example.Converter where
 
 open import Converter
-open import Base
+open import Test
+open import Example.Even
 
 open import Data.Nat
 open import Data.List
-open import Reflection
-
--- | TODO import from Example.Simple
-data Even  : ℕ → Set where
-  isEven0  : Even 0
-  isEven+2 : ∀ {n} → Even n → Even (suc (suc n))
-
-f1 : U (ℕ ∷ [])
-f1 = Forall n ~ Property (Even n)
-
-open import Relation.Binary.PropositionalEquality
-open import Relation.Nullary
 open import Data.Sum
 open import Data.Product
+open import Reflection
+open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary
 
 lemma1 : (n : ℕ) -> Even n
 lemma1 = {!!}

@@ -1,9 +1,5 @@
 module Example.Simple where
 
--- open import Test.Base
--- open import Test.Tester
--- open import Test.Runner
-
 open import Test
 
 open import Data.List hiding ([_])
@@ -45,6 +41,9 @@ skip-impossible = Skipped
 ex1 : U (ℕ ∷ []) 
 ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
 
+pretty-ex1 : U (ℕ ∷ [])
+pretty-ex1 = Forall n ~ (Property (n ≡ n))
+
 dec-ex1 : ⟦ ex1 ⟧
 dec-ex1 = λ x -> Data.Nat._≟_ x x
 
@@ -57,8 +56,13 @@ lists = [] ∷ (0 ∷ []) ∷ (0 ∷ 1 ∷ []) ∷ (0 ∷ 1 ∷ 2 ∷ []) ∷ []
 test-ex1 : run (Test ex1 on [ some-nats ] by dec-ex1) 
 test-ex1 = Pass
 
+--------------------------------------------------------------------------------
+
 ex2 : U (ℕ ∷ List ℕ ∷ [])
 ex2 =  (Forall (λ n -> Exists {List ℕ} (λ xs -> Property (n ≡ (length xs)))))
+
+pretty-ex2 : U (ℕ ∷ List ℕ ∷ [])
+pretty-ex2 =  Forall n ~ Exists xs ~ (Property (n ≡ (length xs)))
 
 dec-ex2 : ⟦ ex2 ⟧
 dec-ex2 = λ n xs → Data.Nat._≟_ n (length xs)
