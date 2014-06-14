@@ -32,8 +32,19 @@ lemma3 = {!!}
 lemma4 : (n : ℕ) -> (Even n) ⊎ (¬ (Even n))
 lemma4 = {!!}
 
-lemma5 : ∃ (λ n → Even n)
+lemma5 : ∃ {A = ℕ} (λ n → Even n)
 lemma5 = {!!}
+
+-- el unknown
+-- (def Data.Product.∃
+--  (arg hidden relevant unknown ∷
+--   arg hidden relevant unknown ∷
+--   arg hidden relevant unknown ∷
+--   arg visible relevant
+--   (lam visible
+--    (def Example.Converter.Even
+--     (arg visible relevant (var 0 []) ∷ [])))
+--   ∷ []))
 
 lemma6 : (n : ℕ) -> Even n × (¬ (Even n))
 lemma6 = {!!} 
@@ -49,3 +60,6 @@ test3 = refl
 
 test4 : unquote (convert (quote lemma4)) ≡ (Forall n ~ (Property (Even n)) ∨ Not (Property (Even n)))
 test4 = refl
+
+test5 : {!!} ≡ {!!}
+test5 = {!!}

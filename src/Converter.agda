@@ -6,6 +6,7 @@ open import Reflection
 open import Data.List hiding (or)
 open import Data.Nat
 open import Data.Unit
+open import Data.Empty
 
 --------------------------------------------------------------------------------
 -- Term level constructor
@@ -29,6 +30,14 @@ or : Term -> Term -> Term
 or t1 t2 = con (quote _∨_) (arg1 ∷ arg2 ∷ [])
   where arg1 = arg visible relevant t1
         arg2 = arg visible relevant t2
+
+isLambda : Term -> Set
+isLambda (lam _ _) = ⊤
+isLambda _ = ⊥
+
+exists : (t : Term) -> Term
+exists t = con (quote Base.U.Exists) (arg1 ∷ [])
+  where arg1 = arg visible relevant (lam visible t)
 
 bListTree[] : Term
 bListTree[] = con (quote Base.BListTree.[]) []
@@ -55,7 +64,6 @@ open import Data.Maybe
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Data.Nat
-open import Data.Empty
 
 -- | TODO I have not found nothing like this in the standard library.
 lookup : {A B : Set} -> {dec : Decidable {A = A} _≡_} -> A -> List (A × B) -> Maybe B
@@ -92,14 +100,19 @@ supportedSpecial Not _ = ⊥
 supportedSpecial Or (_ ∷ _ ∷ x₁ ∷ x₂ ∷ []) = x₁ is visible And relevant × x₂ is visible And relevant
 supportedSpecial Or _ = ⊥
 supportedSpecial And args = ⊥
-supportedSpecial Exists args = ⊥
+supportedSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) with a
+-- TODO do I need the isLambda proof?
+-- The signature of ∃ forces t to be a lambda.
+-- That is if quoting is used t can only be a lambda. 
+supportedSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) | arg v r t =  (a is visible And relevant) × isLambda t
+supportedSpecial Exists _ = ⊥
 
 supportedTerm (var x args) = NotSupported (var x args)
 supportedTerm (con c args) = DontKnowRightNow (con c args)
 supportedTerm (def f args) with lookup {dec = _≟-Name_} f name2Special
 supportedTerm (def f args) | just x = supportedSpecial x args
 supportedTerm (def f args) | nothing = ⊤
-supportedTerm (lam v t) = DontKnowRightNow (lam v t)
+supportedTerm (lam v t) = supportedTerm t
 supportedTerm (pi t₁ (el s t)) = supportedTerm t  -- Should I call support (el s t) here ? 
 supportedTerm (sort x) = NotSupported (sort x)
 supportedTerm unknown = NotSupported unknown
@@ -114,7 +127,7 @@ computeBListTree : (t : Term) -> {isSup : supportedTerm t} -> Term
 computeBListTree (var x args) {}
 computeBListTree (con c args) {}
 computeBListTree (def f args) = bListTree[]
-computeBListTree (lam v t) {}
+computeBListTree (lam v t) {isS} = computeBListTree t {isS}
 computeBListTree (pi (arg v r (el s t)) (el s₁ t₁)) {isS} = bListTreeCons t (computeBListTree t₁ {isS})
 computeBListTree (sort x) {}
 computeBListTree unknown {}
@@ -140,15 +153,31 @@ convertSpecial Or (_ ∷ _ ∷ a₁ ∷ a₂ ∷ []) {isS₁ , isS₂} = or arg1
   where arg1 = convertArg a₁ visible relevant {isS₁}
         arg2 = convertArg a₂ visible relevant {isS₂}
 convertSpecial Or (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ args) {}
-convertSpecial And args {} -- = {!!}
-convertSpecial Exists args {} -- = {!!}
+convertSpecial And args {}
+convertSpecial Exists [] {}
+convertSpecial Exists (_ ∷ []) {}
+convertSpecial Exists (_ ∷ _ ∷ []) {}
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ []) {}
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS} with a
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r (var x args)
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r (con c args)
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r (def f args)
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , tt} | arg v r (lam v₁ x) = exists (convertArg (arg v r (lam v₁ x)) visible relevant {isS})
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r (pi t₁ t₂)
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r (sort x)
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS , ()} | arg v r unknown
+
+
+-- with a
+-- convertSpecial Exists (x₁ ∷ x₂ ∷ x₃ ∷ a ∷ []) {isS , isλ} | arg v r x = exists (convertArg (arg v r x) visible relevant {isS})
+convertSpecial Exists (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ args) {} 
 
 convertTerm (var x args) {}
 convertTerm (con c args) {}
 convertTerm (def f args) {isS} with lookup {dec = _≟-Name_} f name2Special
 convertTerm (def f args) {isS} | just x = convertSpecial x args {isS}
 convertTerm (def f args) | nothing = property (def f args)
-convertTerm (lam v t) {}
+convertTerm (lam v t) {isS} = convertTerm t {isS}
 convertTerm (pi (arg v r (el s ty)) (el s₁ t)) {isS} = forall' ty (computeBListTree t {isS}) (convertTerm t {isS})
 convertTerm (sort x) {}
 convertTerm unknown {}
