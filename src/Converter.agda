@@ -16,14 +16,13 @@ property : Term -> Term
 property p = con (quote Property) [ argp ]
   where argp = arg visible relevant p
 
-forall' : Term -> Term -> Term -> Term
-forall' ty blist next = con (quote Base.U.Forall) (argTy ∷ argBList ∷ argNext ∷ [])
+forall' : Term -> Term -> Term
+forall' ty next = con (quote Base.U.Forall) (argTy ∷ argNext ∷ [])
   where argTy = arg hidden relevant ty
-        argBList = arg hidden relevant blist
         argNext = arg visible relevant (lam visible next)
 
 not : Term -> Term
-not next = con (quote Base.U.Not) (argNext ∷ [])
+not next = con (quote Base.U.Not) [ argNext ]
   where argNext = arg visible relevant next
 
 or : Term -> Term -> Term
@@ -37,14 +36,8 @@ and t1 t2 = def (quote _∧_) (arg1 ∷ arg2 ∷ [])
         arg2 = arg visible relevant t2
 
 exists : (t : Term) -> Term
-exists t = con (quote Base.U.Exists) (arg1 ∷ [])
+exists t = con (quote Base.U.Exists) [ arg1 ]
   where arg1 = arg visible relevant (lam visible t)
-
-bListTree[] : Term
-bListTree[] = con (quote Base.BListTree.[]) []
-
-bListTreeCons : Term -> Term -> Term
-bListTreeCons x xs = con (quote Base.BListTree._∷_) ((arg visible relevant x) ∷ ((arg visible relevant xs) ∷ []))
 
 --------------------------------------------------------------------------------
 -- -- Conversion error messages
@@ -111,21 +104,12 @@ supportedTerm (def f args) with lookup {dec = _≟-Name_} f name2Special
 supportedTerm (def f args) | just x = supportedSpecial x args
 supportedTerm (def f args) | nothing = ⊤
 supportedTerm (lam v t) = supportedTerm t
-supportedTerm (pi t₁ (el s t)) = supportedTerm t  -- Should I call support (el s t) here ? 
+supportedTerm (pi t₁ (el s t)) = supportedTerm t 
 supportedTerm (sort x) = NotSupported (sort x)
 supportedTerm unknown = NotSupported unknown
 
 supported : Type -> Set
 supported (el s t) = supportedTerm t
-
-computeBListTree : (t : Term) -> {isSup : supportedTerm t} -> Term
-computeBListTree (var x args) {}
-computeBListTree (con c args) {}
-computeBListTree (def f args) = bListTree[]
-computeBListTree (lam v t) {isS} = computeBListTree t {isS}
-computeBListTree (pi (arg v r (el s t)) (el s₁ t₁)) {isS} = bListTreeCons t (computeBListTree t₁ {isS})
-computeBListTree (sort x) {}
-computeBListTree unknown {}
 
 convertTerm : (t : Term) -> {isSup : supportedTerm t} -> Term
 convertSpecial : (s : Special) -> (args : List (Arg Term)) -> {isS : supportedSpecial s args} -> Term
@@ -169,7 +153,7 @@ convertTerm (def f args) {isS} with lookup {dec = _≟-Name_} f name2Special
 convertTerm (def f args) {isS} | just x = convertSpecial x args {isS}
 convertTerm (def f args) | nothing = property (def f args)
 convertTerm (lam v t) {isS} = convertTerm t {isS}
-convertTerm (pi (arg v r (el s ty)) (el s₁ t)) {isS} = forall' ty (computeBListTree t {isS}) (convertTerm t {isS})
+convertTerm (pi (arg v r (el s ty)) (el s₁ t)) {isS} = forall' ty (convertTerm t {isS})
 convertTerm (sort x) {}
 convertTerm unknown {}
 
