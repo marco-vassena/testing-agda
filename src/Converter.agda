@@ -1,9 +1,9 @@
 module Converter where
 
-open import Base hiding ([_])
+open import Base hiding ([_] ; Test_on_by_and_)
 
 open import Reflection
-open import Data.List hiding (or)
+open import Data.List hiding (or ; and)
 open import Data.Nat
 open import Data.Unit
 open import Data.Empty
@@ -28,6 +28,11 @@ not next = con (quote Base.U.Not) (argNext ∷ [])
 
 or : Term -> Term -> Term
 or t1 t2 = con (quote _∨_) (arg1 ∷ arg2 ∷ [])
+  where arg1 = arg visible relevant t1
+        arg2 = arg visible relevant t2
+
+and : Term -> Term -> Term
+and t1 t2 = def (quote _∧_) (arg1 ∷ arg2 ∷ [])
   where arg1 = arg visible relevant t1
         arg2 = arg visible relevant t2
 
@@ -95,8 +100,9 @@ supportedSpecial Not (_ ∷ x ∷ []) = x is visible And relevant
 supportedSpecial Not _ = ⊥
 supportedSpecial Or (_ ∷ _ ∷ x₁ ∷ x₂ ∷ []) = x₁ is visible And relevant × x₂ is visible And relevant
 supportedSpecial Or _ = ⊥
-supportedSpecial And args = ⊥
-supportedSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) = a is visible And relevant
+supportedSpecial And (_ ∷ _ ∷ x₁ ∷ x₂ ∷ []) = x₁ is visible And relevant × x₂ is visible And relevant
+supportedSpecial And _ = ⊥
+supportedSpecial Exists (_ ∷ _ ∷ _ ∷ x ∷ []) = x is visible And relevant
 supportedSpecial Exists _ = ⊥
 
 supportedTerm (var x args) = NotSupported (var x args)
@@ -142,7 +148,14 @@ convertSpecial Or (_ ∷ _ ∷ a₁ ∷ a₂ ∷ []) {isS₁ , isS₂} = or arg1
   where arg1 = convertArg a₁ visible relevant {isS₁}
         arg2 = convertArg a₂ visible relevant {isS₂}
 convertSpecial Or (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ args) {}
-convertSpecial And args {}
+convertSpecial And [] {}
+convertSpecial And (_ ∷ []) {}
+convertSpecial And (_ ∷ _ ∷ []) {}
+convertSpecial And (_ ∷ _ ∷ _ ∷ []) {}
+convertSpecial And (_ ∷ _ ∷ a₁ ∷ a₂ ∷ []) {isS₁ , isS₂} = and arg1 arg2
+  where arg1 = convertArg a₁ visible relevant {isS₁}
+        arg2 = convertArg a₂ visible relevant {isS₂}
+convertSpecial And (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ args) {}
 convertSpecial Exists [] {}
 convertSpecial Exists (_ ∷ []) {}
 convertSpecial Exists (_ ∷ _ ∷ []) {}
