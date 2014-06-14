@@ -4,9 +4,6 @@ open import Base hiding ([_] ; Test_on_by_and_)
 
 open import Reflection
 open import Data.List hiding (or ; and)
-open import Data.Nat
-open import Data.Unit
-open import Data.Empty
 
 --------------------------------------------------------------------------------
 -- Term level constructor
@@ -48,18 +45,15 @@ data UnsupportedSort : Sort -> Set where
 data DontKnowRightNow : Term -> Set where
 
 --------------------------------------------------------------------------------
--- Conversion of special constructs
---------------------------------------------------------------------------------
 
 open import Data.Product
-open import Relation.Nullary
-open import Data.Sum
 open import Data.Maybe
+open import Data.Sum
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality hiding ([_])
-open import Data.Nat
+open import Relation.Nullary
 
--- | TODO I have not found nothing like this in the standard library.
+-- | TODO I have not found anything like this in the standard library.
 lookup : {A B : Set} -> {dec : Decidable {A = A} _≡_} -> A -> List (A × B) -> Maybe B
 lookup a [] = nothing
 lookup {dec = eq} a ((a' , b) ∷ xs) with eq a a'
@@ -76,18 +70,47 @@ data Special : Set where
   And : Special
   Exists : Special
 
--- | Association list that maps specific 'Name's to their data type counterpart. 
-name2Special : List (Name × Special)
-name2Special = ((quote ¬_) , Not) ∷ (quote ∃ , Exists) ∷ ((quote _×_) , And) ∷ (quote _⊎_ , Or) ∷ []
+-- | Converts a given 'Name' to a 'Special' construct if it is one of the
+-- constructs specially handed during conversion.
+-- Otherwise return 'Nothing'.
+name2Special : Name -> Maybe Special
+name2Special name = lookup {dec = _≟-Name_} name special
+  where special = ((quote ¬_) , Not) ∷ (quote ∃ , Exists) ∷ 
+                  ((quote _×_) , And) ∷ (quote _⊎_ , Or) ∷ [] 
 
+--------------------------------------------------------------------------------
+-- Support functions
+-- Type level functions that determine whether automatic conversion is possible.
+--------------------------------------------------------------------------------
+
+open import Data.Empty
+open import Data.Nat
+open import Data.Unit
+
+-- | Checks if the given 'Term' can be automatically converted
 supportedTerm : Term -> Set
+
+-- | Checks if the special construct given can be automatically converted
+--  given the list of arguments to which it's applied.
 supportedSpecial : Special -> List (Arg Term) -> Set
 
+-- | Checks if an argument has the given 'Visibility' and 'Relevance' and
+-- if the wrapped 'Term' it's itself supported. 
 _is_And_ : Arg Term -> Visibility -> Relevance -> Set
 arg v r t is v₁ And r₁ with v ≟-Visibility v₁ | r ≟-Relevance r₁
 arg v r t is v₁ And r₁ | yes p | yes p₁ = supportedTerm t
 arg v r t is v₁ And r₁ | yes p | no ¬p = ⊥
 arg v r t is v₁ And r₁ | no ¬p | p2 = ⊥  
+
+supportedTerm (var x args) = NotSupported (var x args)
+supportedTerm (con c args) = DontKnowRightNow (con c args)
+supportedTerm (def f args) with name2Special f
+supportedTerm (def f args) | just x = supportedSpecial x args
+supportedTerm (def f args) | nothing = ⊤
+supportedTerm (lam v t) = supportedTerm t
+supportedTerm (pi t₁ (el s t)) = supportedTerm t 
+supportedTerm (sort x) = NotSupported (sort x)
+supportedTerm unknown = NotSupported unknown
 
 supportedSpecial Not (_ ∷ x ∷ []) = x is visible And relevant
 supportedSpecial Not _ = ⊥
@@ -98,18 +121,14 @@ supportedSpecial And _ = ⊥
 supportedSpecial Exists (_ ∷ _ ∷ _ ∷ x ∷ []) = x is visible And relevant
 supportedSpecial Exists _ = ⊥
 
-supportedTerm (var x args) = NotSupported (var x args)
-supportedTerm (con c args) = DontKnowRightNow (con c args)
-supportedTerm (def f args) with lookup {dec = _≟-Name_} f name2Special
-supportedTerm (def f args) | just x = supportedSpecial x args
-supportedTerm (def f args) | nothing = ⊤
-supportedTerm (lam v t) = supportedTerm t
-supportedTerm (pi t₁ (el s t)) = supportedTerm t 
-supportedTerm (sort x) = NotSupported (sort x)
-supportedTerm unknown = NotSupported unknown
-
 supported : Type -> Set
 supported (el s t) = supportedTerm t
+
+--------------------------------------------------------------------------------
+-- Conversion
+-- These functions produce a 'Term' that when unquoted gives the
+-- correspondent property.
+--------------------------------------------------------------------------------
 
 convertTerm : (t : Term) -> {isSup : supportedTerm t} -> Term
 convertSpecial : (s : Special) -> (args : List (Arg Term)) -> {isS : supportedSpecial s args} -> Term
@@ -149,7 +168,7 @@ convertSpecial Exists (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ args) {}
 
 convertTerm (var x args) {}
 convertTerm (con c args) {}
-convertTerm (def f args) {isS} with lookup {dec = _≟-Name_} f name2Special
+convertTerm (def f args) {isS} with name2Special f
 convertTerm (def f args) {isS} | just x = convertSpecial x args {isS}
 convertTerm (def f args) | nothing = property (def f args)
 convertTerm (lam v t) {isS} = convertTerm t {isS}
