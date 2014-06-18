@@ -51,16 +51,5 @@ test-some-even = Pass (Exists zero (Hold (Even zero)))
 test-some-even-odds : run (Test (Exists (λ n → Property (Even n))) on [ odds nats ] by isEven?)
 test-some-even-odds = Failed
 
---------------------------------------------------------------------------------
--- Arithmetics with naturals 
---------------------------------------------------------------------------------
-
-test-all-sym-plus  : run (Test Forall (λ n → Forall (λ m → Property (n + m ≡ m + n))) on 
-                         (nats ∷ nats ∷ []) by (λ n m → (n + m) Data.Nat.≟ (m + n)))
-test-all-sym-plus = Pass
-
-test-all-false-equality : runVerbose (Test (Forall (λ n → Forall (λ m → Property (n ≡ m)))) on 
-                              (nats ∷ nats ∷ []) by Data.Nat._≟_)
-test-all-false-equality = Failed
-                            (NotFor zero
-                             (NotFor (suc zero) (DoesNotHold (zero ≡ suc zero))))
+test-idem : runVerbose (Test Exists (λ n → Forall (λ m -> Property (Even (n + m)))) on nats ∷ (nats ∷ []) by (λ n m → isEven? (n + m)))
+test-idem = Failed (NotExists ℕ (NotForall ℕ ✗))
