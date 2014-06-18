@@ -36,6 +36,8 @@ infixr 5 _∷_
 data Testable : (BListTree Set) -> Set₁ where
   Test_on_by_ : ∀ {xs} -> (u : U xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> Testable xs
 
+open Internal
+
 test' : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> Result xs ⊎ Result xs
 test∀ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
 test∃ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)

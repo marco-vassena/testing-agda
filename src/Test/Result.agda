@@ -3,14 +3,14 @@
 
 module Test.Result where
 
-import Test.Base as B
-open import Test.Base using ( _∷_ ; _,_ ; [] )
+open import Test.Base
 
 data ValueOrSet : Set -> Set₁ where
+  ⟨_⟩ : {A : Set} -> A -> ValueOrSet A
+  -- TODO better symbol ?
   <_> : (A : Set) -> ValueOrSet A
-  [_] : ∀ {A : Set} -> A -> ValueOrSet A
 
-data Result : B.BListTree Set -> Set₁ where
+data Result : BListTree Set -> Set₁ where
 
    -- The possible results for a lemma with the ∀ quantifier  
    Forall : ∀ {xs} -> (A : Set) -> Result xs -> Result (A ∷ xs)
@@ -37,53 +37,51 @@ data Result : B.BListTree Set -> Set₁ where
    ✓ : Result []
    ✗ : Result []
 
-hide : ∀ {xs} -> B.Result xs -> Result xs
-hide (B.Forall A r) = Forall A (hide r)
-hide (B.NotFor x r) = Exists < _ > (hide r)
-hide B.Trivial = Trivial
-hide (B.Exists x r) = Exists < _ > (hide r)
-hide (B.NotExists A r) = NotExists A (hide r)
-hide B.Impossible = Impossible
-hide (B.ExistsUnique x r) = ExistsUnique < _ > (hide r)
-hide (B.NotUnique x ~ r1 & y ~ r2) = NotUnique < _ > ~ hide r1 & < _ > ~ hide r2
-hide (r1 B.And r2) = (hide r1) And (hide r2)
-hide (B.Fst r) = Fst (hide r)
-hide (B.Snd r) = Snd (hide r)
-hide (B.Hold x) = ✓
-hide (B.DoesNotHold x) = ✗
+hide : ∀ {xs} -> Internal.Result xs -> Result xs
+hide (Internal.Forall A r) = Forall A (hide r)
+hide (Internal.NotFor x r) = Exists < _ > (hide r)
+hide Internal.Trivial = Trivial
+hide (Internal.Exists x r) = Exists < _ > (hide r)
+hide (Internal.NotExists A r) = NotExists A (hide r)
+hide Internal.Impossible = Impossible
+hide (Internal.ExistsUnique x r) = ExistsUnique < _ > (hide r)
+hide (Internal.NotUnique x ~ r1 & y ~ r2) = NotUnique < _ > ~ hide r1 & < _ > ~ hide r2
+hide (r1 Internal.And r2) = (hide r1) And (hide r2)
+hide (Internal.Fst r) = Fst (hide r)
+hide (Internal.Snd r) = Snd (hide r)
+hide (Internal.Hold x) = ✓
+hide (Internal.DoesNotHold x) = ✗
 
-normalize : ∀ {xs} -> B.Result xs -> Result xs
-normalize (B.Forall A x) = hide (B.Forall A x)
-normalize (B.NotFor x r) = Exists [ x ] (normalize r)
-normalize B.Trivial = Trivial
-normalize (B.Exists x r) = Exists [ x ] (normalize r)
-normalize (B.NotExists A x) = hide (B.NotExists A x)
-normalize B.Impossible = Impossible
-normalize (B.ExistsUnique x r) = ExistsUnique [ x ] (normalize r)
-normalize (B.NotUnique x ~ r1 & y ~ r2) = NotUnique [ x ] ~ normalize r1 & [ y ] ~ normalize r2
-normalize (x B.And x₁) = normalize x And normalize x₁
-normalize (B.Fst x) = Fst (normalize x)
-normalize (B.Snd x) = Snd (normalize x)
-normalize (B.Hold x) = Hold x
-normalize (B.DoesNotHold x) = DoesNotHold x
+normalize : ∀ {xs} -> Internal.Result xs -> Result xs
+normalize (Internal.Forall A x) = hide (Internal.Forall A x)
+normalize (Internal.NotFor x r) = Exists ⟨ x ⟩ (normalize r)
+normalize Internal.Trivial = Trivial
+normalize (Internal.Exists x r) = Exists ⟨ x ⟩ (normalize r)
+normalize (Internal.NotExists A x) = hide (Internal.NotExists A x)
+normalize Internal.Impossible = Impossible
+normalize (Internal.ExistsUnique x r) = ExistsUnique ⟨ x ⟩ (normalize r)
+normalize (Internal.NotUnique x ~ r1 & y ~ r2) = NotUnique ⟨ x ⟩ ~ normalize r1 & ⟨ y ⟩ ~ normalize r2
+normalize (x Internal.And x₁) = normalize x And normalize x₁
+normalize (Internal.Fst x) = Fst (normalize x)
+normalize (Internal.Snd x) = Snd (normalize x)
+normalize (Internal.Hold x) = Hold x
+normalize (Internal.DoesNotHold x) = DoesNotHold x
 
 --------------------------------------------------------------------------------
--- Auxiliary functions
+-- Decidable equality over ValueOrSet
 --------------------------------------------------------------------------------
 
-open import Relation.Binary.PropositionalEquality hiding ( [_] )
+open import Relation.Binary.PropositionalEquality
 open import Relation.Binary
 open import Relation.Nullary
-open import Relation.Binary.HeterogeneousEquality
 open import Data.Empty
-
 
 _≟-ValueOrSet_ : {A : Set} {dec : Decidable (_≡_ {A = A}) } -> Decidable (_≡_ {A = ValueOrSet A})
 _≟-ValueOrSet_ {A} < .A > < .A > = yes refl
-_≟-ValueOrSet_ {A} < .A > ValueOrSet.[ x ] = no (λ ())
-_≟-ValueOrSet_ {A} ValueOrSet.[ x ] < .A > = no (λ ())
-_≟-ValueOrSet_ {dec = _≟_} ValueOrSet.[ x ] ValueOrSet.[ y ] with x ≟ y
-ValueOrSet.[ .y ] ≟-ValueOrSet ValueOrSet.[ y ] | yes refl = yes refl
-ValueOrSet.[ x ] ≟-ValueOrSet ValueOrSet.[ y ] | no ¬p = no (lemma ¬p)
-  where lemma : ∀ {A} -> {x y : A} -> ¬ (x ≡ y) -> (ValueOrSet.[ x ] ≡ ValueOrSet.[ y ]) -> ⊥
+_≟-ValueOrSet_ {A} < .A > ⟨ x ⟩ = no (λ ())
+_≟-ValueOrSet_ {A} ⟨ x ⟩ < .A > = no (λ ())
+_≟-ValueOrSet_ {dec = _≟_} ⟨ x ⟩ ⟨ y ⟩ with x ≟ y
+⟨ .y ⟩ ≟-ValueOrSet ⟨ y ⟩ | yes refl = yes refl
+⟨ x ⟩ ≟-ValueOrSet ⟨ y ⟩ | no ¬p = no (lemma ¬p)
+  where lemma : ∀ {A} -> {x y : A} -> ¬ (x ≡ y) -> (⟨ x ⟩ ≡ ⟨ y ⟩) -> ⊥
         lemma p1 refl = p1 refl
