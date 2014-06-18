@@ -65,8 +65,8 @@ fail (Test u on input by check) with test u check input
 fail (Test u on input by check) | inj₁ x = Succeed
 fail (Test u on input by check) | inj₂ y = Fail
 
-open import Data.Bool hiding (_≟_)
-open import Data.Bool as B using ( _∧_ ; _∨_ )
+open import Data.Bool hiding (_≟_ ; _∧_)
+import Data.Bool as B using ( _∧_ ; _∨_ )
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary
@@ -85,13 +85,13 @@ toBool (no ¬p) = false
 -- | Compares two 'Result's.
 -- At the moment comparing the final property is a problem because there we have just a Set.
 _==_by_ : ∀ {xs} -> (r1 : Result xs) -> (r2 : Result xs) -> Comparator xs -> Bool
-Forall A r1 == Forall .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
+ForAll A r1 == ForAll .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
 Trivial == Trivial by comp = true
-NotExists A r1 == NotExists .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
-Exists x r1 == Exists y r2 by (_≟_ ∷ comp) = x≟y B.∧ r1 == r2 by comp
+¬∃ A r1 == ¬∃ .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
+∃ x r1 == ∃ y r2 by (_≟_ ∷ comp) = x≟y B.∧ r1 == r2 by comp
   where x≟y = toBool (_≟-ValueOrSet_ {dec = _≟_} x y)
 Impossible == Impossible by comp = true
-ExistsUnique x r1 == ExistsUnique y r2 by (_≟_ ∷ comp) = x≟y B.∧ (r1 == r2 by comp) -- (toBool (x ≟ y))
+∃! x r1 == ∃! y r2 by (_≟_ ∷ comp) = x≟y B.∧ (r1 == r2 by comp) -- (toBool (x ≟ y))
   where x≟y = toBool (_≟-ValueOrSet_ {dec = _≟_} x y)
 (NotUnique x1 ~ r1 & x2 ~ r2) == NotUnique y1 ~ r1' & y2 ~ r2' by (_≟_ ∷ comp) = values B.∧ results
   where x1≟y1 = toBool (_≟-ValueOrSet_ {dec = _≟_} x1 y1)

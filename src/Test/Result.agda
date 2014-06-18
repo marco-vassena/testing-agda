@@ -13,16 +13,17 @@ data ValueOrSet : Set -> Set₁ where
 data Result : BListTree Set -> Set₁ where
 
    -- The possible results for a lemma with the ∀ quantifier  
-   Forall : ∀ {xs} -> (A : Set) -> Result xs -> Result (A ∷ xs)
+   ForAll : ∀ {xs} -> (A : Set) -> Result xs -> Result (A ∷ xs)
    Trivial : ∀ {xs} -> Result xs -- Empty set
 
    -- The possible results for a lemma with the ∃ quantifier
-   Exists : ∀ {xs A} -> ValueOrSet A -> Result xs -> Result (A ∷ xs)
-   NotExists : ∀ {xs} -> (A : Set) -> Result xs -> Result (A ∷ xs)
+   ∃ : ∀ {xs A} -> ValueOrSet A -> Result xs -> Result (A ∷ xs)
+   ¬∃ : ∀ {xs} -> (A : Set) -> Result xs -> Result (A ∷ xs)
    Impossible : ∀ {xs} -> Result xs
 
    -- The possible results for a lemma with the ∃! quantifier
-   ExistsUnique : ∀ {xs A} -> ValueOrSet A -> Result xs -> Result (A ∷ xs)
+   ∃! : ∀ {xs A} -> ValueOrSet A -> Result xs -> Result (A ∷ xs)
+   -- TODO is better the more verbose NotUnique or ∃ x ~ r1 And ∃ y ~ r2
    NotUnique_~_&_~_ : ∀ {xs A} -> ValueOrSet A -> Result xs -> ValueOrSet A -> Result xs -> Result (A ∷ xs)
 
    -- Conjunction
@@ -38,13 +39,13 @@ data Result : BListTree Set -> Set₁ where
    ✗ : Result []
 
 hide : ∀ {xs} -> Internal.Result xs -> Result xs
-hide (Internal.Forall A r) = Forall A (hide r)
-hide (Internal.NotFor x r) = Exists < _ > (hide r)
+hide (Internal.Forall A r) = ForAll A (hide r)
+hide (Internal.NotFor x r) = ∃ < _ > (hide r)
 hide Internal.Trivial = Trivial
-hide (Internal.Exists x r) = Exists < _ > (hide r)
-hide (Internal.NotExists A r) = NotExists A (hide r)
+hide (Internal.Exists x r) = ∃ < _ > (hide r)
+hide (Internal.NotExists A r) = ¬∃ A (hide r)
 hide Internal.Impossible = Impossible
-hide (Internal.ExistsUnique x r) = ExistsUnique < _ > (hide r)
+hide (Internal.ExistsUnique x r) = ∃! < _ > (hide r)
 hide (Internal.NotUnique x ~ r1 & y ~ r2) = NotUnique < _ > ~ hide r1 & < _ > ~ hide r2
 hide (r1 Internal.And r2) = (hide r1) And (hide r2)
 hide (Internal.Fst r) = Fst (hide r)
@@ -54,12 +55,12 @@ hide (Internal.DoesNotHold x) = ✗
 
 normalize : ∀ {xs} -> Internal.Result xs -> Result xs
 normalize (Internal.Forall A x) = hide (Internal.Forall A x)
-normalize (Internal.NotFor x r) = Exists ⟨ x ⟩ (normalize r)
+normalize (Internal.NotFor x r) = ∃ ⟨ x ⟩ (normalize r)
 normalize Internal.Trivial = Trivial
-normalize (Internal.Exists x r) = Exists ⟨ x ⟩ (normalize r)
+normalize (Internal.Exists x r) = ∃ ⟨ x ⟩ (normalize r)
 normalize (Internal.NotExists A x) = hide (Internal.NotExists A x)
 normalize Internal.Impossible = Impossible
-normalize (Internal.ExistsUnique x r) = ExistsUnique ⟨ x ⟩ (normalize r)
+normalize (Internal.ExistsUnique x r) = ∃! ⟨ x ⟩ (normalize r)
 normalize (Internal.NotUnique x ~ r1 & y ~ r2) = NotUnique ⟨ x ⟩ ~ normalize r1 & ⟨ y ⟩ ~ normalize r2
 normalize (x Internal.And x₁) = normalize x And normalize x₁
 normalize (Internal.Fst x) = Fst (normalize x)
