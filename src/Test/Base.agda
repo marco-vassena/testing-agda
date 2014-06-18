@@ -59,26 +59,30 @@ mutual
 
   data Result : BListTree Set -> Set₁ where
     -- The possible results for a lemma with the ∀ quantifier
-    Forall : ∀ {xs} (A : Set) -> TaggedResult xs -> Result (A ∷ xs)
-    NotFor : ∀ {xs} {A : Set} -> A -> TaggedResult xs -> Result (A ∷ xs)
+    Forall : ∀ {xs} (A : Set) -> Result xs -> Result (A ∷ xs)
+    NotFor : ∀ {xs} {A : Set} -> A -> Result xs -> Result (A ∷ xs)
     Trivial : ∀ {xs} {A : Set} -> Result (A ∷ xs) -- Empty set
 
     -- The possible results for a lemma with the ∃ quantifier
-    Exists : ∀ {xs} {A : Set} -> A -> TaggedResult xs -> Result (A ∷ xs)
-    NotExists : ∀ {xs} (A : Set) -> TaggedResult xs -> Result (A ∷ xs)
+    Exists : ∀ {xs} {A : Set} -> A -> Result xs -> Result (A ∷ xs)
+    NotExists : ∀ {xs} (A : Set) -> Result xs -> Result (A ∷ xs)
     Impossible : ∀ {xs} {A : Set} -> Result (A ∷ xs)
 
     -- The possible results for a lemma with the ∃! quantifier
-    ExistsUnique : ∀ {xs} {A : Set} -> A -> TaggedResult xs -> Result (A ∷ xs)
-    NotUnique_~_&_~_ : ∀ {xs} {A : Set} -> A -> TaggedResult xs -> A -> TaggedResult xs -> Result (A ∷ xs)
+    ExistsUnique : ∀ {xs} {A : Set} -> A -> Result xs -> Result (A ∷ xs)
+    NotUnique_~_&_~_ : ∀ {xs} {A : Set} -> A -> Result xs -> A -> Result xs -> Result (A ∷ xs)
 
     -- Disjunction
-    _And_ : ∀ {xs ys} -> TaggedResult xs -> TaggedResult ys -> Result (xs , ys)
+    _And_ : ∀ {xs ys} -> Result xs -> Result ys -> Result (xs , ys)
     -- TODO with these two constructors auto completion seems to get stuck
     -- finding the result in runVerbose ...
-    Fst : ∀ {xs ys} -> TaggedResult xs -> Result (xs , ys)
-    Snd : ∀ {xs ys} -> TaggedResult ys -> Result (xs , ys)
+    Fst : ∀ {xs ys} -> Result xs -> Result (xs , ys)
+    Snd : ∀ {xs ys} -> Result ys -> Result (xs , ys)
 
     -- The possible results for a property    -- TODO better names
     Hold : Set -> Result []
     DoesNotHold : Set -> Result []
+
+untag : ∀ {xs} -> TaggedResult xs -> Result xs
+untag (Pass x) = x
+untag (Fail x) = x
