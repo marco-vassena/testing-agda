@@ -4,7 +4,7 @@
 module Test.Result where
 
 import Test.Base as B
-open import Test.Base using ( _∷_ ; _,_ ; [] ; TaggedResult ; Pass ; Fail ; untag )
+open import Test.Base using ( _∷_ ; _,_ ; [] )
 
 data ValueOrSet : Set -> Set₁ where
   <_> : (A : Set) -> ValueOrSet A
@@ -66,3 +66,24 @@ normalize (B.Fst x) = Fst (normalize x)
 normalize (B.Snd x) = Snd (normalize x)
 normalize (B.Hold x) = Hold x
 normalize (B.DoesNotHold x) = DoesNotHold x
+
+--------------------------------------------------------------------------------
+-- Auxiliary functions
+--------------------------------------------------------------------------------
+
+open import Relation.Binary.PropositionalEquality hiding ( [_] )
+open import Relation.Binary
+open import Relation.Nullary
+open import Relation.Binary.HeterogeneousEquality
+open import Data.Empty
+
+
+_≟-ValueOrSet_ : {A : Set} {dec : Decidable (_≡_ {A = A}) } -> Decidable (_≡_ {A = ValueOrSet A})
+_≟-ValueOrSet_ {A} < .A > < .A > = yes refl
+_≟-ValueOrSet_ {A} < .A > ValueOrSet.[ x ] = no (λ ())
+_≟-ValueOrSet_ {A} ValueOrSet.[ x ] < .A > = no (λ ())
+_≟-ValueOrSet_ {dec = _≟_} ValueOrSet.[ x ] ValueOrSet.[ y ] with x ≟ y
+ValueOrSet.[ .y ] ≟-ValueOrSet ValueOrSet.[ y ] | yes refl = yes refl
+ValueOrSet.[ x ] ≟-ValueOrSet ValueOrSet.[ y ] | no ¬p = no (lemma ¬p)
+  where lemma : ∀ {A} -> {x y : A} -> ¬ (x ≡ y) -> (ValueOrSet.[ x ] ≡ ValueOrSet.[ y ]) -> ⊥
+        lemma p1 refl = p1 refl

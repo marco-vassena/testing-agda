@@ -1,7 +1,8 @@
 -- | 
 module Test.Runner where
 
-open import Test.Base
+open import Test.Base using (BListTree ; [] ; _∷_ ; _,_)
+open import Test.Result
 open import Test.Tester
 
 open import Data.Sum
@@ -76,7 +77,6 @@ data Comparator : BListTree Set -> Set₁ where
   _∷_ : ∀ {xs} {A : Set} -> ( _≟_ : Decidable (_≡_ {A = A}))  -> Comparator xs -> Comparator (A ∷ xs)
   _,_ : ∀ {xs ys} -> Comparator xs -> Comparator ys -> Comparator (xs , ys)
 
-
 -- TODO is there something in the standard library for this ?
 toBool : ∀ {p} {P : Set p} -> Dec P -> Bool
 toBool (yes p₁) = true
@@ -86,26 +86,26 @@ toBool (no ¬p) = false
 -- At the moment comparing the final property is a problem because there we have just a Set.
 _==_by_ : ∀ {xs} -> (r1 : Result xs) -> (r2 : Result xs) -> Comparator xs -> Bool
 Forall A r1 == Forall .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
-NotFor x r1 == NotFor y r2 by (_≟_ ∷ comp) = (toBool (x ≟ y)) B.∧ r1 == r2 by comp
 Trivial == Trivial by comp = true
-Exists x r1 == Exists y r2 by (_≟_ ∷ comp) = (toBool (x ≟ y)) B.∧ (r1 == r2 by comp)
 NotExists A r1 == NotExists .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
+Exists x r1 == Exists y r2 by (_≟_ ∷ comp) = x≟y B.∧ r1 == r2 by comp
+  where x≟y = toBool (_≟-ValueOrSet_ {dec = _≟_} x y)
 Impossible == Impossible by comp = true
-ExistsUnique x r1 == ExistsUnique y r2 by (_≟_ ∷ comp) = (toBool (x ≟ y)) B.∧ (r1 == r2 by comp)
+ExistsUnique x r1 == ExistsUnique y r2 by (_≟_ ∷ comp) = x≟y B.∧ (r1 == r2 by comp) -- (toBool (x ≟ y))
+  where x≟y = toBool (_≟-ValueOrSet_ {dec = _≟_} x y)
 (NotUnique x1 ~ r1 & x2 ~ r2) == NotUnique y1 ~ r1' & y2 ~ r2' by (_≟_ ∷ comp) = values B.∧ results
-  where values = toBool (x1 ≟ y1) B.∧ toBool (x2 ≟ y2)
-        results = r1 == r1' by comp B.∧ r2 == r2' by comp
-(r1 And r2) == r1' And r2' by (comp1 , comp2) = (r1 == r1' by comp1 ) Data.Bool.∧ (r2 == r2' by comp2)
+  where x1≟y1 = toBool (_≟-ValueOrSet_ {dec = _≟_} x1 y1)
+        x2≟y2 = toBool (_≟-ValueOrSet_ {dec = _≟_} x2 y2)
+        values = x1≟y1 B.∧ x2≟y2
+        results = r1 == r1' by comp B.∧ r2 == r2' by comp 
+(r1 And r2) == (r1' And r2') by (comp1 , comp2) = (r1 == r1' by comp1 ) Data.Bool.∧ (r2 == r2' by comp2)
 Fst r1 == Fst r2 by (comp , comp₁) = r1 == r2 by comp
 Snd r1 == Snd r2 by (comp , comp₁) = r1 == r2 by comp₁
 Hold x == Hold x₁ by comp = true
--- TODO quoting does not work in this case
--- with quoteTerm x ≟ quoteTerm x₁
--- Hold x == Hold x₁ by comp | yes p = {!!}
--- Hold x == Hold x₁ by comp | no ¬p = {!!}
 -- TODO do not allow Hold / DoesNotHold here but only ✓ and X
 DoesNotHold x == DoesNotHold x₁ by comp = true -- TODO idem
--- TODO add cases for ✓ and X
+✓ == ✓ by _ = true
+✗ == ✗ by _ = true
 _ == _ by _ = false
 
 fail_With_Using_ : ∀ {xs} -> Testable xs -> Result xs -> Comparator xs -> Set₁
