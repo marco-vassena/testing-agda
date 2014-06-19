@@ -6,6 +6,7 @@ open import Test.Base
 open import Test.StreamGenerator
 open import Test.Runner
 open import Test.Tester using (Input ; [_] ; Testable)
+open import Test.Result
 open import Example.Even using (Even ; isEven? ; nats)
 open import Example.Simple using (impossible ; dec-impossible)
 
@@ -37,16 +38,16 @@ test-all-even : Stream ℕ -> Testable (ℕ ∷ [])
 test-all-even xs = Test (Forall n ~ Property (Even n)) on [ xs ] by isEven?
 
 all-even-pass : fail (test-all-even nats)
-                 With NotFor 1 (DoesNotHold (Even 1)) 
+                 With ∃ ⟨ 1 ⟩ (DoesNotHold (Even 1)) 
                  Using (_≟_ ∷ [])
 all-even-pass = Pass
 
 all-even-fail : fail (test-all-even nats)
-                 With NotFor 2 (DoesNotHold (Even 2)) 
+                 With ∃ ⟨ 2 ⟩ (DoesNotHold (Even 2)) 
                  Using (_≟_ ∷ [])
-all-even-fail = Expected (NotFor 2 (DoesNotHold (Even 2))) Got (NotFor 1 (DoesNotHold (Even 1)))
+all-even-fail = Expected (∃ ⟨ 2 ⟩ (DoesNotHold (Even 2))) Got (∃ ⟨ 1 ⟩ (DoesNotHold (Even 1))) 
 
 all-even-fail2 : fail (test-all-even (evens nats))
-                 With NotFor 1 (DoesNotHold (Even 1)) 
+                 With ∃ ⟨ 1 ⟩ (DoesNotHold (Even 1)) 
                  Using (_≟_ ∷ [])
-all-even-fail2 = Failed ((Forall ℕ (Hold (Even 8))))
+all-even-fail2 = Failed (ForAll ℕ ✓)

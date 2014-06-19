@@ -40,16 +40,17 @@ test-even-double : run (Test Forall (λ n → Property (Even (n + n))) on [ nats
 test-even-double = Pass
 
 test-all-even : runVerbose (Test (Forall (λ n → Property (Even n))) on [ nats ] by isEven?)
-test-all-even = Failed (NotFor (suc zero) (DoesNotHold (Even (suc zero))))
+test-all-even = Failed (∃ ⟨ 1 ⟩ (DoesNotHold (Even 1)))
 
 test-all-even-evens : run (Test Forall (λ n → Property (Even n)) on  [ evens nats ] by isEven?)
 test-all-even-evens = Pass
 
 test-some-even : runVerbose (Test Exists (λ n → Property (Even n)) on [ nats ] by isEven?)
-test-some-even = Pass (Exists zero (Hold (Even zero)))
+test-some-even = Pass (∃ ⟨ 0 ⟩ (Hold (Even 0)))
 
 test-some-even-odds : run (Test (Exists (λ n → Property (Even n))) on [ odds nats ] by isEven?)
 test-some-even-odds = Failed
 
+-- TODO : wrong result we need the TaggedResult back
 test-idem : runVerbose (Test Exists (λ n → Forall (λ m -> Property (Even (n + m)))) on nats ∷ (nats ∷ []) by (λ n m → isEven? (n + m)))
-test-idem = Failed (NotExists ℕ (NotForall ℕ ✗))
+test-idem = Failed (¬∃ ℕ (∃ < ℕ > ✗))

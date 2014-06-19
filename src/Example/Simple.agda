@@ -68,4 +68,4 @@ dec-ex2 : ⟦ ex2 ⟧
 dec-ex2 = λ n xs → Data.Nat._≟_ n (length xs)
 
 test-ex2 : runVerbose (Test ex2 on ((take 2 some-nats) ∷ lists ∷ []) by dec-ex2)
-test-ex2 = Pass (Forall ℕ (Exists (zero ∷ []) (Hold (suc zero ≡ suc zero))))
+test-ex2 = Pass (ForAll ℕ (∃ < List ℕ > ✓))
