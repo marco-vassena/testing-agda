@@ -24,7 +24,7 @@ lemma3 = {!!}
 lemma4 : (n : ℕ) -> (Even n) ⊎ (¬ (Even n))
 lemma4 = {!!}
 
-lemma5 : ∃ (λ n → Even n)
+lemma5 : Data.Product.∃ (λ n → Even n)
 lemma5 = {!!}
 
 lemma6 : (n : ℕ) -> Even n × (¬ (Even n))
