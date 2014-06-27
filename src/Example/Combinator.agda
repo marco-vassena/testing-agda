@@ -113,6 +113,11 @@ iff1 : run (Test Forall n ~ (Property (Even n)) ⇔ (Not (Property (Even (1 + n)
            by <_,_> (<_,_> isEven? (isEven? ∘ suc)) ((<_,_> (isEven? ∘ suc) isEven?)) )
 iff1 = Pass
 
+iff1' : runVerbose (Test Forall n ~ (Property (Even n)) ⇔ (Not (Property (Even (1 + n))))
+           on nats ∷ (([] , []) , ([] , []))
+           by <_,_> (<_,_> isEven? (isEven? ∘ suc)) ((<_,_> (isEven? ∘ suc) isEven?)) )
+iff1' = Pass (ForAll ℕ (Snd ✗ And Snd ✓))
+
 iff2-fail : runVerbose (Test Forall n ~ (Property (Even n)) ⇔ (Property (Even (n + n)))
                 on nats ∷ (([] , []) , ([] , []))
                 by <_,_> (<_,_> isEven? (λ n -> isEven? (n + n))) (<_,_> (λ n -> isEven? (n + n)) isEven?) )
