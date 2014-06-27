@@ -52,6 +52,10 @@ disj1 : run (Test Forall n ~ (Property (Even n)) ∨ Not (Property (Even n))
         on nats ∷ ([] , []) by ⟪ isEven? ⟫)
 disj1 = Pass
 
+disj1' : runVerbose (Test Forall n ~ (Property (Even n)) ∨ Not (Property (Even n)) 
+        on nats ∷ ([] , []) by ⟪ isEven? ⟫)
+disj1' = Pass (ForAll ℕ (Fst ✓))
+
 disj2 : run (Test Forall n ~ (Property (Even n)) ∨ (Exists m ~ Property (Even (n + m))) 
             on (odds nats) ∷ ([] , (nats ∷ [])) 
             by <_,_> isEven? (λ n m -> isEven? (n + m)))
@@ -62,10 +66,25 @@ disj3 : runVerbose (Test (Property (Even 1)) ∨ Not (Property (Even 0))
         by (isEven? 1 , isEven? 0) )
 disj3 = Failed (DoesNotHold (Even (suc zero)) And Hold (Even zero))
 
-impl1 : run (Test Forall n ~ (Property (Even n)) ⇒ Property (Even (n + 2))
+impl0 : run (Test Forall n ~ (Property (Even n)) ⇒ Property (Even (n + 2))
         on nats ∷ ([] , [])
         by <_,_> isEven? (λ n -> isEven? (n + 2)))
-impl1 = Pass
+impl0 = Pass
+
+impl1 : runVerbose (Test Forall n ~ (Property (Even n)) ⇒ Property (Even (n + 2))
+        on nats ∷ ([] , [])
+        by <_,_> isEven? (λ n -> isEven? (n + 2)))
+impl1 = Pass (ForAll ℕ (Snd ✓))
+
+impl2 : runVerbose (Test Forall n ~ (Property (Even n)) ⇒ Property (Even (n + 1))
+        on nats ∷ ([] , [])
+        by <_,_> isEven? (λ n -> isEven? (n + 1)))
+impl2 = Failed (Test.∃ ⟨ 0 ⟩ (Hold (Even 0) And DoesNotHold (Even 1)))
+
+impl3 : runVerbose (Test Forall n ~ (Property (Even n)) ⇒ Property (Even (n + 2))
+        on (odds nats) ∷ ([] , [])
+        by <_,_> isEven? (λ n -> isEven? (n + 2)))
+impl3 = Pass (ForAll ℕ (Fst ✗))
 
 conj1 : runVerbose (Test Exists! n ~ (Property (Even n)) ∧ Property (n + n ≡ n)
         on nats ∷ ([] , [])
