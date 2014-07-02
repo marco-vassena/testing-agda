@@ -3,7 +3,7 @@
 module Example.Runner where
 
 open import Test.Base
-open import Test.StreamGenerator
+open import Test.Input.Stream
 open import Test.Runner
 open import Test.Tester using (Input ; [_] ; Testable)
 open import Test.Result

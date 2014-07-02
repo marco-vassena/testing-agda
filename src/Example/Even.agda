@@ -3,7 +3,7 @@
 module Example.Even where
 
 open import Test hiding (Test_on_by_)
-open import Test.StreamGenerator
+open import Test.Input.Stream
 
 open import Coinduction
 open import Data.Nat

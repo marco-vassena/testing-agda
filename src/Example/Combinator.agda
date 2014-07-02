@@ -1,7 +1,7 @@
 module Example.Combinator where
 
 open import Test hiding ( Test_on_by_ )
-open import Test.StreamGenerator
+open import Test.Input.Stream
 
 open import Example.Simple
 open import Example.Even
