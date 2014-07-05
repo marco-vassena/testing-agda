@@ -1,6 +1,8 @@
+-- | This module shows how to use the automatic conversion feature
+-- to produce directly a predicate from a lemma under analysis.
+
 module Example.Converter where
 
-open import Converter
 open import Test
 open import Example.Even
 
@@ -11,6 +13,10 @@ open import Data.Product
 open import Reflection
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
+
+--------------------------------------------------------------------------------
+-- Example lemmas
+--------------------------------------------------------------------------------
 
 lemma1 : (n : ℕ) -> Even n
 lemma1 = {!!}
@@ -29,6 +35,10 @@ lemma5 = {!!}
 
 lemma6 : (n : ℕ) -> Even n × (¬ (Even n))
 lemma6 = {!!} 
+
+--------------------------------------------------------------------------------
+-- Unit tests
+--------------------------------------------------------------------------------
 
 test1 : unquote (convert (quote lemma1)) ≡ (Forall n ~ Property (Even n))
 test1 = refl

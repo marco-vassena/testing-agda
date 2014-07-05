@@ -11,7 +11,7 @@ data BListTree {a} (A : Set a) : Set a where
 
 infixr 5 _∷_ 
 
--- Universe
+-- Predicate Universe
 data U : (BListTree Set) -> Set₁ where
   Forall : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
   Exists : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
@@ -29,9 +29,6 @@ _∧_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
 p1 ∧ p2 = Not ((Not p1) ∨ (Not p2))
 
 -- Double implication
--- TODO since it's not a primitive constructor I cannot help to repeat
--- the same functions (prop and check) twice. However they should always
--- be the same.
 _⇔_ : ∀ {xs ys} -> U xs -> U ys -> U ((xs , ys) , (ys , xs))
 p1 ⇔ p2 = (p1 ⇒ p2) ∧ (p2 ⇒ p1)
 
@@ -70,11 +67,9 @@ module Internal where
 
     -- Disjunction
     _And_ : ∀ {xs ys} -> Result xs -> Result ys -> Result (xs , ys)
-    -- TODO with these two constructors auto completion seems to get stuck
-    -- finding the result in runVerbose ...
     Fst : ∀ {xs ys} -> Result xs -> Result (xs , ys)
     Snd : ∀ {xs ys} -> Result ys -> Result (xs , ys)
 
-    -- The possible results for a property    -- TODO better names
+    -- The possible results for a property
     Hold : Set -> Result []
     DoesNotHold : Set -> Result []

@@ -1,4 +1,6 @@
--- | 
+-- | This modules defines different runners for 'Testable' objects and
+-- the correspondent result data type.
+
 module Test.Runner where
 
 open import Test.Base using (BListTree ; [] ; _∷_ ; _,_)
@@ -11,7 +13,7 @@ open import Data.Sum
 -- Test case results
 --------------------------------------------------------------------------------
 
--- Plain version
+-- Simple version
 data Fail : Set where
   Failed : Fail
 
@@ -37,13 +39,13 @@ data Succeed₁ : Set₁ where
 
 --------------------------------------------------------------------------------
 
--- TODO give precise result inspecting the outer quantifier
+-- | Returns a more informative description of the result of the test.
 runVerbose : ∀ {xs} -> Testable xs -> Set₁
 runVerbose (Test u on input by check) with test u check input
 runVerbose (Test u on input by check) | inj₁ r = Fail: r
 runVerbose (Test u on input by check) | inj₂ r = Succeed: r
 
--- Returns only either passed or failed
+-- Returns whether the test passed or failed
 run : ∀ {xs} -> Testable xs -> Set
 run (Test u on input by check) with test u check input
 run (Test u on input by check) | inj₁ _ = Fail
@@ -77,7 +79,6 @@ data Comparator : BListTree Set -> Set₁ where
   _∷_ : ∀ {xs} {A : Set} -> ( _≟_ : Decidable (_≡_ {A = A}))  -> Comparator xs -> Comparator (A ∷ xs)
   _,_ : ∀ {xs ys} -> Comparator xs -> Comparator ys -> Comparator (xs , ys)
 
--- TODO is there something in the standard library for this ?
 toBool : ∀ {p} {P : Set p} -> Dec P -> Bool
 toBool (yes p₁) = true
 toBool (no ¬p) = false
@@ -108,6 +109,7 @@ DoesNotHold x == DoesNotHold x₁ by comp = true -- TODO idem
 ✗ == ✗ by _ = true
 _ == _ by _ = false
 
+-- | The test will fail with the given result.
 fail_With_Using_ : ∀ {xs} -> Testable xs -> Result xs -> Comparator xs -> Set₁
 fail Test u on input by check With expected Using comp with test u check input 
 fail Test u on input by check With expected Using comp | inj₁ actual with actual == expected by comp
@@ -115,6 +117,7 @@ fail Test u on input by check With expected Using comp | inj₁ actual | true = 
 fail Test u on input by check With expected Using comp | inj₁ actual | false = Expected expected Found actual
 fail Test u on input by check With expected Using comp | inj₂ y = Fail: y
 
+-- | The test will pass with the given result.
 pass_With_Using_ : ∀ {xs} -> Testable xs -> Result xs -> Comparator xs -> Set₁
 pass Test u on input by check With expected Using comp with test u check input 
 pass Test u on input by check With expected Using comp | inj₂ actual with actual == expected by comp

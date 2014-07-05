@@ -1,3 +1,6 @@
+-- | This module defines an automatic converter able to 
+-- produce the correspondent 'Predicate' given a lemma's type.
+
 module Test.Converter where
 
 open import Test.Base
@@ -55,7 +58,6 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Relation.Nullary
 
 private
-  -- | TODO I have not found anything like this in the standard library.
   lookup : {A B : Set} -> {dec : Decidable {A = A} _≡_} -> A -> List (A × B) -> Maybe B
   lookup a [] = nothing
   lookup {dec = eq} a ((a' , b) ∷ xs) with eq a a'
@@ -66,7 +68,6 @@ private
   -- They have been defined explicitly as a data type because 
   -- it's not possible to pattern match over a 'Name'.
   data Special : Set where
-    -- TODO ∃!
     Not : Special
     Or : Special
     And : Special

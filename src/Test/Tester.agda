@@ -10,6 +10,7 @@ open import Data.Product
 open import Data.Sum
 open import Relation.Nullary
 
+-- TODO move to Input module
 -- Contains input values for testing a property
 data Input (F : Set -> Set) : (BListTree Set) -> Set₁ where
   [] : Input F []

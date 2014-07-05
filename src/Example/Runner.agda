@@ -1,4 +1,4 @@
--- Tests results using different runners
+-- | Tests results using different runners
 
 module Example.Runner where
 
@@ -30,7 +30,7 @@ next-even = Pass
 impossible-fail : fail (Test impossible on Test.Tester.[] by dec-impossible) With DoesNotHold ⊥ Using []
 impossible-fail = Pass
 
--- Unfortunately this is not what you might expect
+-- | The real type wrapped in DoesNotHold and Hold is not really checked, so this test succeeds.
 impossible-bug : fail (Test impossible on Test.Tester.[] by dec-impossible) With DoesNotHold (Even 2) Using []
 impossible-bug = Pass
 

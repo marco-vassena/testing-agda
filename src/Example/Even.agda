@@ -51,6 +51,16 @@ test-some-even = Pass (∃ ⟨ 0 ⟩ (Hold (Even 0)))
 test-some-even-odds : run (Test (Exists (λ n → Property (Even n))) on [ odds nats ] by isEven?)
 test-some-even-odds = Failed
 
--- TODO : wrong result we need the TaggedResult back
-test-idem : runVerbose (Test Exists (λ n → Forall (λ m -> Property (Even (n + m)))) on nats ∷ (nats ∷ []) by (λ n m → isEven? (n + m)))
+-- The order of the quantifiers is relevant:
+-- For some fixed n, does it hold for all m that Even (n + m) ?
+test-idem : runVerbose (Test Exists (λ n → Forall (λ m -> Property (Even (n + m)))) 
+                       on nats ∷ (nats ∷ [])
+                       by (λ n m → isEven? (n + m)))
 test-idem = Failed (¬∃ ℕ (∃ < ℕ > ✗))
+
+-- Changing the order instead the property holds.
+-- For all n, m can be found such that Even (n + m)
+test-idem2 : runVerbose (Test Forall n ~ Exists m ~ Property (Even (n + m)) 
+                        on nats ∷ (nats ∷ []) 
+                        by (λ n m → isEven? (n + m)))
+test-idem2 = Pass (ForAll ℕ (∃ < ℕ > ✓))

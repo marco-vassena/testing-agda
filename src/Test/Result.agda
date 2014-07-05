@@ -1,29 +1,29 @@
--- This module defines the data-type result, which describes the 
--- possible outcomes from testing a property
+-- This module defines the data-type Result, which describes the 
+-- possible outcomes of testing a property
 
 module Test.Result where
 
 open import Test.Base
 
+-- | Wrapper for either a value or a type.
 data ValueOrSet : Set -> Set₁ where
   ⟨_⟩ : {A : Set} -> A -> ValueOrSet A
-  -- TODO better symbol ?
   <_> : (A : Set) -> ValueOrSet A
 
+-- | User-exposed feedback for testing a predicate.
 data Result : BListTree Set -> Set₁ where
 
    -- The possible results for a lemma with the ∀ quantifier  
    ForAll : ∀ {xs} -> (A : Set) -> Result xs -> Result (A ∷ xs)
-   Trivial : ∀ {xs} -> Result xs -- Empty set
+   Trivial : ∀ {xs} -> Result xs -- Empty search space
 
    -- The possible results for a lemma with the ∃ quantifier
    ∃ : ∀ {xs A} -> ValueOrSet A -> Result xs -> Result (A ∷ xs)
    ¬∃ : ∀ {xs} -> (A : Set) -> Result xs -> Result (A ∷ xs)
-   Impossible : ∀ {xs} -> Result xs
+   Impossible : ∀ {xs} -> Result xs -- Empty search space
 
    -- The possible results for a lemma with the ∃! quantifier
    ∃! : ∀ {xs A} -> ValueOrSet A -> Result xs -> Result (A ∷ xs)
-   -- TODO is better the more verbose NotUnique or ∃ x ~ r1 And ∃ y ~ r2
    NotUnique_~_&_~_ : ∀ {xs A} -> ValueOrSet A -> Result xs -> ValueOrSet A -> Result xs -> Result (A ∷ xs)
 
    -- Conjunction
@@ -32,12 +32,13 @@ data Result : BListTree Set -> Set₁ where
    Snd : ∀ {xs ys} -> Result ys -> Result (xs , ys)
 
    -- The possible results for a property
-   -- TODO better names
    Hold : Set -> Result []
    DoesNotHold : Set -> Result []
    ✓ : Result []
    ✗ : Result []
 
+-- | Recursively hides specific partial results. It can be used to
+-- report sensible feedback when universal quantification is involved.
 hide : ∀ {xs} -> Internal.Result xs -> Result xs
 hide (Internal.Forall A r) = ForAll A (hide r)
 hide (Internal.NotFor x r) = ∃ < _ > (hide r)
@@ -53,6 +54,7 @@ hide (Internal.Snd r) = Snd (hide r)
 hide (Internal.Hold x) = ✓
 hide (Internal.DoesNotHold x) = ✗
 
+-- | Normalizes the result, hiding partial results when sensible.
 normalize : ∀ {xs} -> Internal.Result xs -> Result xs
 normalize (Internal.Forall A x) = hide (Internal.Forall A x)
 normalize (Internal.NotFor x r) = ∃ ⟨ x ⟩ (normalize r)

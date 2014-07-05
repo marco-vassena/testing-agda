@@ -1,3 +1,5 @@
+-- | Examples with different combinators
+
 module Example.Combinator where
 
 open import Test hiding ( Test_on_by_ )
