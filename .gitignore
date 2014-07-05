@@ -1,1 +1,4 @@
 *.agdai
+*.aux
+*.gz
+*.log
