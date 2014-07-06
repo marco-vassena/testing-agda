@@ -1,34 +1,35 @@
-\documentclass[10pt,a4paper]{report}
+\documentclass[10pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{stmaryrd}
+\usepackage{hyperref}
 \author{Marco Vassena - 4110161}
 \title{Testing Agda}
 \begin{document}
 \maketitle
 
-\section*{Introduction}
+\section{Introduction}
 Inspired by libraries like Quickcheck, Smallcheck and FEAT, the goal of this experimentation project is to design and implement a library for testing decidable properties for Agda, a total, dependently typed functional programming language.
 
-\subsection*{Motivation}
-Under the Curry-Howard correspondence, it is possible to use Agda to formally prove arbitrary properties. The reader might then wonder what would be the benefit of a testing library in such a setting. Proving properties is in general hard and time-consuming, therefore it could be useful, before undertaking this demanding task, to verify that the property at hand actually holds. This sanity-check can be achieved by means of this library and could quickly spot erroneous definitions and invalid or incomplete theorems.
+\subsection{Motivation}
+Under the Curry-Howard correspondence, it is possible to use Agda to formally prove arbitrary properties. The reader might then wonder what would be the benefit of a testing library in such a setting. Proving properties is in general hard and time-consuming, therefore it could be useful, before undertaking this demanding task, to verify that the property holds with concrete input values. This sanity-check can be achieved by means of this library and could quickly spot erroneous definitions and invalid or incomplete theorems.
 
-\section*{Library}
+\section{Library}
 
 The library is organized as follows:
 \begin{itemize}
 	\item \texttt{Test.Base}. Basic data-type definitions.
 	\item \texttt{Test.Result}. Provides feedback to the user.
-	\item \texttt{Test.Converter}. Automatic conversion from type signatures to predicates.
-	\item \texttt{Test.Input}. Provides input values to the framework.
-	\item \texttt{Test.Tester}. Tests properties.
+	\item \texttt{Test.Converter}. Automatic conversion from lemmas' type signature to predicate.
+	\item \texttt{Test.Input}. Provides input values to the testing framework.
+	\item \texttt{Test.Tester}. Testing framework.
 	\item \texttt{Test.Runner}. Different ways to run tests.
 	\item \texttt{Example} Contains several simple examples about how to use the library.
 	
-\subsection*{Predicate}
+\subsection{Predicate}
 The \texttt{Predicate} data-type represents a predicate in first order logic.
 It includes universal, existential and unique existential quantification, conjunction, disjunction, negation, implication and bi-implication.
 In other testing libraries predicates are limited to boolean formulas, in this setting instead, consistently with the Curry–Howard equivalence, types are the basic building block of a predicate, which are wrapped by the \texttt{Property} constructor.
@@ -42,7 +43,7 @@ Special syntax declarations hide the presence of the lambda abstractions and kee
 
 \end{itemize}
 
-\subsection*{Testing framework}
+\subsection{Testing framework}
 The data type \texttt{Testable} contains a predicate $p$ of type \texttt{Predicate xs}, a set of input values of type \texttt{Input List xs} and the testing function $\llbracket p \rrbracket$ and represent a minimal testable unit. The shared index \texttt{xs} guarantees that the collection of input values match the shape and the types contained in the predicate.
 The type level function $\llbracket \cdot \rrbracket$, given a predicate, returns the type of a decision procedure used to test the property.
 Such function takes as many arguments as variables quantified and returns a \texttt{Dec} relation over the final property. Due to this only decidable predicates can be tested, however further extensions might tackle the problem of testing undecidable or partially decidable properties.
@@ -58,12 +59,51 @@ The decision procedure $\llbracket \cdot \rrbracket$ is saturated passing an inp
 Since also the \texttt{Predicate} data-type relies on continuation input values are required to traverse a predicate and get to the next constructor.
 Note that this implies that in general is not possible to analyze a predicate for finding out information about its structure. This is one of the major drawback of this data structure.
 
-% Input
-% Runner
-% Conversion
-% Result
-\section*{Example}
+\subsection{Runner}
+The module \texttt{Test.Runner} defines different runners.
+A runner is a type level function that uses directly the underlying testing framework and after running a test returns a specific wrapper data-type that provides readable feedback to the user.
 
-\section*{Further Work}
+The simplest runner is \texttt{run}, which simply runs the test and reports whether it failed or not returning either the type \texttt{Fail} or \texttt{Succeed}. These types have only one inhabitant and then the result of running a test can be filled automatically with Agda's \texttt{auto} feature.
+
+The runner \texttt{runVerbose} additionally returns also the actual \texttt{Result} produced by the testing framework. This is either a witness of the correctness of the property or a counterexample.
+Special care have been put in making the feedback as useful and readable as possible for the user. This is discussed in more detail in section 	\ref{sec:Result}.
+
+% Example
+In both cases the \texttt{Result} is an index of the returned type and argument of the only constructor of this data-type. In previous version of this library 
+Agda's \texttt{auto} feature could infer the only inhabitant of the type.
+Unfortunately this turned out not to work anymore when the \texttt{BListTree} was added as an index to \texttt{Result}. Hopefully later version of agda will improve this feature, solving this issue. At the moment it's still possible to manually fill such holes copying the witness or counterexample from the environment.
+
+The runners \texttt{pass} and \texttt{fail} require the test to respectively pass and fail. The runner \texttt{skip} does not run the test at all.
+The runners \texttt{pass\_With\_Using} and \texttt{fail\_With\_Using} are variants of the runners \texttt{pass} and \texttt{fail} in which the user specifies not only whether the test will pass or not, but also with which outcome.
+These runners require decidable equality over the types involved in the property, which are contained in a \texttt{Comparator} object.
+The \texttt{Comparator} shares the same \texttt{BListTree} index  of the property  being tested, which guarantees that is contains the decidable equality functions for the correct types and that it has the same shape.
+The same overloaded constructors for a \texttt{BListTree} have been used to help the user's intuition, in the same way it has been done for the \texttt{Input} data type.
+The only flaw of this runner it's that it is not able to compare the expected and actual property. The problem is that these are types (\texttt{Set}) for which equality cannot be decided by the user, but only by the type checker.
+Therefore at the moment they are optimistically considered equal, even tough the actual set could be different from the expected one.
+
+\subsection{Result}
+\label{sec:Result}
+The module \texttt{Test.Result} defines the data-type \texttt{Result} which represents a normalized outcome of testing a predicate.
+There is also an internal version of this data-type in the module \texttt{Test.Base}.
+The latter is used in the testing framework, whereas the former is exposed to the final user. The exposed version has been added to provide sensible feedback to the user. The internal result cannot be used directly because it contains partial results of the testing process, which may not be sensible to show. For instance consider the predicate $\forall n \in \mathbb{N} : Even (n + 0)$. After testing the predicate for a subset of the natural numbers $n$ will be bound to the last number tested. This kind of information needs to be hidden and this is done converting the internal result in the exposed result by the functions \texttt{normalize} and \texttt{hide}.
+
+\subsection{Input}
+The module \texttt{Test.Input} defines the \texttt{Input} data type, which is used to provide input values to the testing framework.
+It is indexed over a \texttt{BListTree} which determine its shape and the type of the values contained and parametrized over a functor, which is the container of the values.
+The testing framework requires \texttt{Input List}, but following the example of \texttt{Test.Input.Stream} it's possible to use arbitrary containers as long as they can be internally converted to the \texttt{Input List} data type.
+
+% Example
+
+\section{Conversion}
+The library provides in the module \texttt{Test.Conversion} the function \texttt{convert} which automatically converts the signature of a lemma (yet to be proven) to the correspondent predicate. Dependent types are converted to universal quantification and standard library constructs such as $\neg$, $\exists$, $\biguplus$, $\times$ are recognized and mapped to their \texttt{Predicate} counterpart.
+In order to achieve its purpose this module relies on the \texttt{Reflection} module from the standard library.
+
+\section{Further Work}
+This project leaves room for further extension to the library.
+\begin{itemize}
+	\item The library currently supports only decidable properties. It would be useful handle also partially-decidable properties and investigate alternative approaches for undecidable properties.
+	\item The user needs to write custom generator for each data-type under testing. The library could give support in writing such generators, or even generate them using a generic approach. Particularly relevant in this setting is the generation of dependent values.
+	\item A crucial aspect of this library is giving precise, readable and informative feedback to the user. Adding more constructors to the \texttt{Predicate}, rather then just mapping them to basic constructors (as it happens for conjunction, implication and bi-implication, could certainly improve the quality of the results, because they could be tailored for each constructor. The normalization of the internal \texttt{Result} data type could also be improved further with this goal in mind.
+\end{itemize}
 
 \end{document}
