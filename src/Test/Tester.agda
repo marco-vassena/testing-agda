@@ -4,20 +4,12 @@
 module Test.Tester where
 
 open import Test.Base
+open import Test.Input.Base
 
 open import Data.List hiding ( [_] )
 open import Data.Product
 open import Data.Sum
 open import Relation.Nullary
-
--- TODO move to Input module
--- Contains input values for testing a property
-data Input (F : Set -> Set) : (BListTree Set) -> Set₁ where
-  [] : Input F []
-  _∷_ : ∀ {xs} {A : Set} -> F A -> Input F xs -> Input F (A ∷ xs)
-  _,_ : ∀ {xs ys} -> Input F xs -> Input F ys -> Input F (xs , ys)
-
-infixr 5 _∷_ 
 
 -- Shorthand
 [_] : ∀ {F A} -> F A -> Input F (A ∷ [])

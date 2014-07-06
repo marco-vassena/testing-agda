@@ -3,7 +3,8 @@
 module Test.Input.Stream where
 
 open import Test.Base
-open import Test.Tester using (Input ; [] ; _∷_ ; _,_ ; ⟦_⟧ ; Testable)
+open import Test.Tester using (⟦_⟧ ; Testable)
+open import Test.Input
 import Test.Tester as T
 
 open import Data.List hiding ( take )
