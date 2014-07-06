@@ -14,6 +14,5 @@ The library has been developed and tested using:
 An overview of the library is contained in the doc directory.
 
 # Authors
-Marco Vassena <m.vassena@students.uu.nl>
-Wouter Swierstra <W.S.Swierstra@uu.nl>
-
+* Marco Vassena <m.vassena@students.uu.nl>
+* Wouter Swierstra <W.S.Swierstra@uu.nl>
