@@ -47,7 +47,7 @@ Special syntax declarations hide the presence of the lambda abstractions and kee
 
 % Example of predicate and BListTree
 \paragraph{Example}
-The following is an example of the predicate $\forall n \in \mathbb{N} . \exists m \in \mathbb{N} . Even (n + m)$. The \texttt{BListTree} constructor $\_::\_$ (cons) fixes the type of the variables quantified.  
+The following is an example of the predicate $\forall n \in \mathbb{N} . \exists m \in \mathbb{N} . Even (n + m)$. The \texttt{BListTree} constructor \texttt{\_::\_} (cons) fixes the type of the variables quantified.  
 
 \begin{lstlisting}
 example1 : Predicate ($\mathbb{N}$ :: $\mathbb{N}$ :: [])
@@ -56,7 +56,7 @@ example1 = Forall ($\lambda$ n $\rightarrow$ (Exists $\lambda$ m $\rightarrow$
 \end{lstlisting}
 
 Another example showing additional constructs available in \texttt{Predicate}.
-The \texttt{BListTree} constructor $\_,\_$ is used for conjunction and disjunction.
+The \texttt{BListTree} constructor \texttt{\_,\_} is used for conjunction and disjunction.
 \begin{lstlisting}
 example2 : Predicate ($\mathbb{N}$ :: ([] , []))
 example2 = Forall ($\lambda$ n $\rightarrow$ 
@@ -74,7 +74,7 @@ example1-pretty = Forall n $\sim$ Exists m $\sim$
 \end{itemize}
 
 \subsection{Testing framework}
-The data type \texttt{Testable} contains a predicate $p$ of type \texttt{Predicate xs}, a set of input values of type \texttt{Input List xs} and the testing function $\llbracket p \rrbracket$ and represent a minimal testable unit. The shared index \texttt{xs} of type \texttt{BListTree} guarantees that the collection of input values match the shape and the types contained in the predicate.
+The data type \texttt{Testable} contains a predicate $p$ of type \texttt{Predicate xs}, a collection of input values of type \texttt{Input List xs} and the testing function $\llbracket p \rrbracket$ and represent a minimal testable unit. The shared index \texttt{xs} of type \texttt{BListTree} guarantees that the collection of input values match the shape and the types contained in the predicate.
 The type level function $\llbracket \cdot \rrbracket$, given a predicate, returns the type of a decision procedure used to test the property.
 Such function takes as many arguments as variables quantified and returns a \texttt{Dec} relation over the final property. Due to this only decidable predicates can be tested, however further extensions might tackle the problem of testing undecidable or partially decidable properties.
 
@@ -99,14 +99,11 @@ The module \texttt{Test.Runner} defines different runners.
 A runner is a type level function that uses directly the underlying testing framework and after running a test returns a specific wrapper data-type that provides readable feedback to the user.
 
 The simplest runner is \texttt{run}, which simply runs the test and reports whether it failed or not returning either the type \texttt{Fail} or \texttt{Succeed}. These types have only one inhabitant and then the result of running a test can be filled automatically with Agda's \texttt{auto} feature.
-
 The runner \texttt{runVerbose} additionally returns also the actual \texttt{Result} produced by the testing framework. This is either a witness of the correctness of the property or a counterexample.
 Special care have been put in making the feedback as useful and readable as possible for the user. This is discussed in more detail in section 	\ref{sec:Result}.
-
 In both cases the \texttt{Result} is an index of the returned type and argument of the only constructor of this data-type. In previous version of this library 
 Agda's \texttt{auto} feature could infer the only inhabitant of the type.
-Unfortunately this turned out not to work anymore when the \texttt{BListTree} was added as an index to \texttt{Result}. This is currently tracked as a \href{http://code.google.com/p/agda/issues/detail?id=1223}{bug}. Hopefully later version of agda will fix it, solving this issue. At the moment it's still possible to manually fill such holes copying the witness or counterexample from the environment.
-
+Unfortunately this turned out not to work anymore when the \texttt{BListTree} was added as an index to \texttt{Result}. This is currently tracked as a \href{http://code.google.com/p/agda/issues/detail?id=1223}{bug}. Hopefully later version of agda will fix it, solving this issue. At the moment it's still possible to manually fill such holes copying the witness or counterexample from the environment.	
 The runners \texttt{pass} and \texttt{fail} require the test to respectively pass and fail. The runner \texttt{skip} does not run the test at all.
 The runners \texttt{pass\_With\_Using} and \texttt{fail\_With\_Using} are variants of the runners \texttt{pass} and \texttt{fail} in which the user specifies not only whether the test should pass or not, but also with which outcome.
 These runners require decidable equality over the types involved in the property, which are contained in a \texttt{Comparator} object.
@@ -151,7 +148,7 @@ The library provides in the module \texttt{Test.Conversion} the function \texttt
 In order to achieve its purpose this module relies on the \texttt{Reflection} module from the standard library.
 
 \section{Further Work}
-This project leaves room for further extension to the library.
+This project leaves room for further extensions to the library.
 \begin{itemize}
 	\item The library currently supports only decidable properties. It would be useful handle also partially-decidable properties and investigate alternative approaches for undecidable properties.
 	\item The user needs to write custom generator for each data-type under testing. The library could give support in writing such generators, or even generate them using a generic approach. Particularly relevant in this setting is the generation of dependent values.
