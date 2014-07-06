@@ -52,7 +52,7 @@ test3 = refl
 test4 : unquote (convert (quote lemma4)) ≡ (Forall n ~ (Property (Even n)) ∨ Not (Property (Even n)))
 test4 = refl
 
-test5 : unquote (convert (quote lemma5)) ≡ (U.Exists n ~ Property (Even n))
+test5 : unquote (convert (quote lemma5)) ≡ (Predicate.Exists n ~ Property (Even n))
 test5 = refl
 
 test6 : unquote (convert (quote lemma6)) ≡ (Forall n ~ Property (Even n) ∧ Not (Property (Even n)))

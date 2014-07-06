@@ -3,7 +3,7 @@ module Test.Base where
 open import Data.Unit
 open import Data.Empty
 
--- Collect types for 'U'
+-- Collect types for a predicate
 data BListTree {a} (A : Set a) : Set a where 
   [] : BListTree A
   _∷_ : A -> BListTree A -> BListTree A
@@ -12,39 +12,39 @@ data BListTree {a} (A : Set a) : Set a where
 infixr 5 _∷_ 
 
 -- Predicate Universe
-data U : (BListTree Set) -> Set₁ where
-  Forall : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
-  Exists : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
-  ExistsUnique : {A : Set} -> ∀ {xs} -> (p : A -> U xs) -> U (A ∷ xs)
-  Not : ∀ {xs} -> U xs -> U xs
-  _∨_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
-  Property : (P : Set) -> U []
+data Predicate : (BListTree Set) -> Set₁ where
+  Forall : {A : Set} -> ∀ {xs} -> (p : A -> Predicate xs) -> Predicate (A ∷ xs)
+  Exists : {A : Set} -> ∀ {xs} -> (p : A -> Predicate xs) -> Predicate (A ∷ xs)
+  ExistsUnique : {A : Set} -> ∀ {xs} -> (p : A -> Predicate xs) -> Predicate (A ∷ xs)
+  Not : ∀ {xs} -> Predicate xs -> Predicate xs
+  _∨_ : ∀ {xs ys} -> Predicate xs -> Predicate ys -> Predicate (xs , ys)
+  Property : (P : Set) -> Predicate []
 
 -- Implication
-_⇒_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
+_⇒_ : ∀ {xs ys} -> Predicate xs -> Predicate ys -> Predicate (xs , ys)
 p1 ⇒ p2 = (Not p1) ∨ p2
 
 -- Conjunction
-_∧_ : ∀ {xs ys} -> U xs -> U ys -> U (xs , ys)
+_∧_ : ∀ {xs ys} -> Predicate xs -> Predicate ys -> Predicate (xs , ys)
 p1 ∧ p2 = Not ((Not p1) ∨ (Not p2))
 
 -- Double implication
-_⇔_ : ∀ {xs ys} -> U xs -> U ys -> U ((xs , ys) , (ys , xs))
+_⇔_ : ∀ {xs ys} -> Predicate xs -> Predicate ys -> Predicate ((xs , ys) , (ys , xs))
 p1 ⇔ p2 = (p1 ⇒ p2) ∧ (p2 ⇒ p1)
 
 syntax Exists (\x -> p) = Exists x ~ p
 syntax Forall (\x -> p) = Forall x ~ p
 syntax ExistsUnique (\x -> p) = Exists! x ~ p
 
-is∀ : ∀ {xs} -> U xs -> Set
+is∀ : ∀ {xs} -> Predicate xs -> Set
 is∀ (Forall p) = ⊤
 is∀ _ = ⊥
 
-is∃ : ∀ {xs} -> U xs -> Set
+is∃ : ∀ {xs} -> Predicate xs -> Set
 is∃ (Exists p) = ⊤
 is∃ _ = ⊥
 
-is∃! : ∀ {xs} -> U xs -> Set
+is∃! : ∀ {xs} -> Predicate xs -> Set
 is∃! (ExistsUnique p) = ⊤
 is∃! _ = ⊥
 

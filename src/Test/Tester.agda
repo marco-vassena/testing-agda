@@ -25,7 +25,7 @@ infixr 5 _∷_
 
 -- Returns the type of the view function required to check if 
 -- the given property holds for some input values. 
-⟦_⟧ : ∀ {xs} -> U xs -> Set
+⟦_⟧ : ∀ {xs} -> Predicate xs -> Set
 ⟦ Forall {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
 ⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
 ⟦ ExistsUnique {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
@@ -35,14 +35,14 @@ infixr 5 _∷_
 
 -- | Collects what is needed to test a property
 data Testable : (BListTree Set) -> Set₁ where
-  Test_on_by_ : ∀ {xs} -> (u : U xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> Testable xs
+  Test_on_by_ : ∀ {xs} -> (u : Predicate xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> Testable xs
 
 open Internal
 
-test' : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> Result xs ⊎ Result xs
-test∀ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
-test∃ : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
-test∃! : ∀ {xs} {A : Set} (u : U (A ∷ xs)) {p : is∃! u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
+test' : ∀ {xs} (u : Predicate xs) -> ⟦ u ⟧ -> Input List xs -> Result xs ⊎ Result xs
+test∀ : ∀ {xs} {A : Set} (u : Predicate (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
+test∃ : ∀ {xs} {A : Set} (u : Predicate (A ∷ xs)) {p : is∃ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
+test∃! : ∀ {xs} {A : Set} (u : Predicate (A ∷ xs)) {p : is∃! u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
 
 test∀ (Forall p) check [] input = inj₂ Trivial
 test∀ (Forall p) check (x ∷ xs) input with test' (p x) (check x) input
@@ -63,7 +63,7 @@ test∃ (Forall p) {()} check xs₁ input
 test∃ (Not u) {()} check xs₁ input
 
 
-unique : ∀ {A xs} -> (p : A -> U xs) -> A -> Result xs -> ⟦ ExistsUnique p ⟧ ->
+unique : ∀ {A xs} -> (p : A -> Predicate xs) -> A -> Result xs -> ⟦ ExistsUnique p ⟧ ->
          List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
 unique p x r check [] input = inj₂ (ExistsUnique x r)
 unique p x r check (x₁ ∷ xs) input with test' (p x₁) (check x₁) input
@@ -97,7 +97,7 @@ test' (Property P) (no ¬p) [] = inj₁ (DoesNotHold P)
 open import Test.Result using (normalize)
 import Test.Result as V
 
-test : ∀ {xs} (u : U xs) -> ⟦ u ⟧ -> Input List xs -> V.Result xs ⊎ V.Result xs
+test : ∀ {xs} (u : Predicate xs) -> ⟦ u ⟧ -> Input List xs -> V.Result xs ⊎ V.Result xs
 test p check input with test' p check input
 test p check input | inj₁ x = inj₁ (normalize x)
 test p check input | inj₂ y = inj₂ (normalize y)

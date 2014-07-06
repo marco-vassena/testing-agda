@@ -13,7 +13,7 @@ open import Relation.Binary.PropositionalEquality hiding ( [_] )
 -- Constant properties
 --------------------------------------------------------------------------------
 
-trivial : U []
+trivial : Predicate []
 trivial = Property Unit
 
 dec-trivial : ⟦ trivial ⟧
@@ -22,7 +22,7 @@ dec-trivial = yes unit
 test-trivial : runVerbose (Test trivial on [] by dec-trivial)
 test-trivial = Pass (Hold Unit)
 
-impossible : U []
+impossible : Predicate []
 impossible = Property ⊥
 
 dec-impossible : ⟦ impossible ⟧
@@ -38,10 +38,10 @@ skip-impossible = Skipped
 -- Miscellaneous examples
 --------------------------------------------------------------------------------
 
-ex1 : U (ℕ ∷ []) 
+ex1 : Predicate (ℕ ∷ []) 
 ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
 
-pretty-ex1 : U (ℕ ∷ [])
+pretty-ex1 : Predicate (ℕ ∷ [])
 pretty-ex1 = Forall n ~ (Property (n ≡ n))
 
 dec-ex1 : ⟦ ex1 ⟧
@@ -58,10 +58,10 @@ test-ex1 = Pass
 
 --------------------------------------------------------------------------------
 
-ex2 : U (ℕ ∷ List ℕ ∷ [])
+ex2 : Predicate (ℕ ∷ List ℕ ∷ [])
 ex2 =  (Forall (λ n -> Exists {List ℕ} (λ xs -> Property (n ≡ (length xs)))))
 
-pretty-ex2 : U (ℕ ∷ List ℕ ∷ [])
+pretty-ex2 : Predicate (ℕ ∷ List ℕ ∷ [])
 pretty-ex2 =  Forall n ~ Exists xs ~ (Property (n ≡ (length xs)))
 
 dec-ex2 : ⟦ ex2 ⟧

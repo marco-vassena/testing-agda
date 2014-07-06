@@ -23,9 +23,9 @@ toInput n (x ∷ input) = (take n x) ∷ (toInput n input)
 toInput n (input1 , input2) = (toInput n input1) , (toInput n input2)
 
 -- Tests up to a finite number of input values for each input type
-Test_on_by_withℕ_ : ∀ {xs} -> (u : U xs) -> Input Stream xs -> ⟦ u ⟧ -> ℕ -> Testable xs
+Test_on_by_withℕ_ : ∀ {xs} -> (u : Predicate xs) -> Input Stream xs -> ⟦ u ⟧ -> ℕ -> Testable xs
 Test_on_by_withℕ_ u input check n = T.Test u on (toInput n input) by check
 
 -- Tests a property using a default number of input values (5)
-Test_on_by_ : ∀ {xs} -> (u : U xs) -> Input Stream xs -> ⟦ u ⟧ -> Testable xs
+Test_on_by_ : ∀ {xs} -> (u : Predicate xs) -> Input Stream xs -> ⟦ u ⟧ -> Testable xs
 Test_on_by_ u input check = Test u on input by check withℕ 5

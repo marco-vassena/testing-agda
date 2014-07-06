@@ -18,7 +18,7 @@ private
     where argp = arg visible relevant p
 
   forall' : Term -> Term -> Term
-  forall' ty next = con (quote U.Forall) (argTy ∷ argNext ∷ [])
+  forall' ty next = con (quote Predicate.Forall) (argTy ∷ argNext ∷ [])
     where argTy = arg hidden relevant ty
           argNext = arg visible relevant (lam visible next)
 
@@ -37,7 +37,7 @@ private
           arg2 = arg visible relevant t2
 
   exists : (t : Term) -> Term
-  exists t = con (quote U.Exists) [ arg1 ]
+  exists t = con (quote Predicate.Exists) [ arg1 ]
     where arg1 = arg visible relevant (lam visible t)
 
 --------------------------------------------------------------------------------
