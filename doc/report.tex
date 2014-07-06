@@ -6,6 +6,13 @@
 \usepackage{amssymb}
 \usepackage{stmaryrd}
 \usepackage{hyperref}
+\usepackage{listings}
+
+\lstset{
+  basicstyle=\ttfamily,
+  mathescape
+}
+
 \author{Marco Vassena - 4110161}
 \title{Testing Agda}
 \begin{document}
@@ -39,18 +46,46 @@ Exploiting the underlying high-order language, the quantification is represented
 Special syntax declarations hide the presence of the lambda abstractions and keep the predicate readable.
 
 % Example of predicate and BListTree
-% Example pretty syntax
+\paragraph{Example}
+The following is an example of the predicate $\forall n \in \mathbb{N} . \exists m \in \mathbb{N} . Even (n + m)$. The \texttt{BListTree} constructor $\_::\_$ (cons) fixes the type of the variables quantified.  
+
+\begin{lstlisting}
+example1 : Predicate ($\mathbb{N}$ :: $\mathbb{N}$ :: [])
+example1 = Forall ($\lambda$ n $\rightarrow$ (Exists $\lambda$ m $\rightarrow$
+		(Property (Even (n + m))))
+\end{lstlisting}
+
+Another example showing additional constructs available in \texttt{Predicate}.
+The \texttt{BListTree} constructor $\_,\_$ is used for conjunction and disjunction.
+\begin{lstlisting}
+example2 : Predicate ($\mathbb{N}$ :: ([] , []))
+example2 = Forall ($\lambda$ n $\rightarrow$ 
+		(Property (Even n)) $\vee$ 
+		(Not (Property (Even n))))
+\end{lstlisting}
+
+The first example using the pretty syntax definitions:
+\begin{lstlisting}
+example1-pretty : Predicate ($\mathbb{N}$ :: $\mathbb{N}$ :: [])
+example1-pretty = Forall n $\sim$ Exists m $\sim$ 
+			Property (Even (n + m))
+\end{lstlisting}
 
 \end{itemize}
 
 \subsection{Testing framework}
-The data type \texttt{Testable} contains a predicate $p$ of type \texttt{Predicate xs}, a set of input values of type \texttt{Input List xs} and the testing function $\llbracket p \rrbracket$ and represent a minimal testable unit. The shared index \texttt{xs} guarantees that the collection of input values match the shape and the types contained in the predicate.
+The data type \texttt{Testable} contains a predicate $p$ of type \texttt{Predicate xs}, a set of input values of type \texttt{Input List xs} and the testing function $\llbracket p \rrbracket$ and represent a minimal testable unit. The shared index \texttt{xs} of type \texttt{BListTree} guarantees that the collection of input values match the shape and the types contained in the predicate.
 The type level function $\llbracket \cdot \rrbracket$, given a predicate, returns the type of a decision procedure used to test the property.
 Such function takes as many arguments as variables quantified and returns a \texttt{Dec} relation over the final property. Due to this only decidable predicates can be tested, however further extensions might tackle the problem of testing undecidable or partially decidable properties.
 
-% Example of [[ ]]
+\paragraph{Example}
+As an example this is the decision procedure required to test \texttt{example1}:
+\begin{lstlisting}
+example1-dec : $\llbracket$ example1 $\rrbracket$
+example1-dec = (n : $\mathbb{N}$) $\rightarrow$ (m : $\mathbb{N}$) $\rightarrow$ Dec (Even (n + m))
+\end{lstlisting}
 
-The testing framework comprises a family of mutually recursive testing function, each specialized to deal with a specific constructor of the \texttt{Predicate} data type. These functions return a tagged \texttt{Result}.
+The testing framework comprises a family of mutually recursive testing functions, each specialized to deal with a specific constructor of the \texttt{Predicate} data type. These functions return a tagged \texttt{Result}.
 The tag (constructor $inj_1$ or $inj_2$) represents whether for the current input value the property turned out to be valid or not.
 Based on that for each kind of construct of the predicate a different behaviour is defined, accordingly to its semantics.
 For instance universal quantification will test all the given input values until either the search space is exhausted or a counter example is found. Conversely existential quantification will stop as soon as an input value validates the predicate.
@@ -68,13 +103,12 @@ The simplest runner is \texttt{run}, which simply runs the test and reports whet
 The runner \texttt{runVerbose} additionally returns also the actual \texttt{Result} produced by the testing framework. This is either a witness of the correctness of the property or a counterexample.
 Special care have been put in making the feedback as useful and readable as possible for the user. This is discussed in more detail in section 	\ref{sec:Result}.
 
-% Example
 In both cases the \texttt{Result} is an index of the returned type and argument of the only constructor of this data-type. In previous version of this library 
 Agda's \texttt{auto} feature could infer the only inhabitant of the type.
-Unfortunately this turned out not to work anymore when the \texttt{BListTree} was added as an index to \texttt{Result}. Hopefully later version of agda will improve this feature, solving this issue. At the moment it's still possible to manually fill such holes copying the witness or counterexample from the environment.
+Unfortunately this turned out not to work anymore when the \texttt{BListTree} was added as an index to \texttt{Result}. This is currently tracked as a \href{http://code.google.com/p/agda/issues/detail?id=1223}{bug}. Hopefully later version of agda will fix it, solving this issue. At the moment it's still possible to manually fill such holes copying the witness or counterexample from the environment.
 
 The runners \texttt{pass} and \texttt{fail} require the test to respectively pass and fail. The runner \texttt{skip} does not run the test at all.
-The runners \texttt{pass\_With\_Using} and \texttt{fail\_With\_Using} are variants of the runners \texttt{pass} and \texttt{fail} in which the user specifies not only whether the test will pass or not, but also with which outcome.
+The runners \texttt{pass\_With\_Using} and \texttt{fail\_With\_Using} are variants of the runners \texttt{pass} and \texttt{fail} in which the user specifies not only whether the test should pass or not, but also with which outcome.
 These runners require decidable equality over the types involved in the property, which are contained in a \texttt{Comparator} object.
 The \texttt{Comparator} shares the same \texttt{BListTree} index  of the property  being tested, which guarantees that is contains the decidable equality functions for the correct types and that it has the same shape.
 The same overloaded constructors for a \texttt{BListTree} have been used to help the user's intuition, in the same way it has been done for the \texttt{Input} data type.
@@ -87,12 +121,30 @@ The module \texttt{Test.Result} defines the data-type \texttt{Result} which repr
 There is also an internal version of this data-type in the module \texttt{Test.Base}.
 The latter is used in the testing framework, whereas the former is exposed to the final user. The exposed version has been added to provide sensible feedback to the user. The internal result cannot be used directly because it contains partial results of the testing process, which may not be sensible to show. For instance consider the predicate $\forall n \in \mathbb{N} : Even (n + 0)$. After testing the predicate for a subset of the natural numbers $n$ will be bound to the last number tested. This kind of information needs to be hidden and this is done converting the internal result in the exposed result by the functions \texttt{normalize} and \texttt{hide}.
 
+\paragraph{Example} The \texttt{Result} data type returned for the previously mentioned property would be.
+
+\begin{lstlisting}
+example3-result : Result ($\mathbb{N}$ :: [])
+example3-result = ForAll < $\mathbb{N}$ > $\checkmark$
+\end{lstlisting}
+In other situations these partial values are useful and retained:
+\begin{lstlisting}
+example4-result : Result ($\mathbb{N}$ :: [])
+example4-result = $\exists$ $\langle$ 0 $\rangle$ Even 0
+\end{lstlisting}
+
 \subsection{Input}
 The module \texttt{Test.Input} defines the \texttt{Input} data type, which is used to provide input values to the testing framework.
 It is indexed over a \texttt{BListTree} which determine its shape and the type of the values contained and parametrized over a functor, which is the container of the values.
 The testing framework requires \texttt{Input List}, but following the example of \texttt{Test.Input.Stream} it's possible to use arbitrary containers as long as they can be internally converted to the \texttt{Input List} data type.
+Its constructors are overloaded version of the \texttt{BListTree} constructors, so that it has also visually the same shape of the property's \texttt{BListTree}.
 
-% Example
+\paragraph{Example} An example of \texttt{Input List} for \texttt{example1}.
+\begin{lstlisting}
+example1-input : Input List ($\mathbb{N}$ :: $\mathbb{N}$ :: [])
+example1-input = (0 :: 1 :: 2 :: 3 :: []) :: 
+		 (0 :: 1 :: 2 :: 3 :: []) :: []
+\end{lstlisting}
 
 \section{Conversion}
 The library provides in the module \texttt{Test.Conversion} the function \texttt{convert} which automatically converts the signature of a lemma (yet to be proven) to the correspondent predicate. Dependent types are converted to universal quantification and standard library constructs such as $\neg$, $\exists$, $\biguplus$, $\times$ are recognized and mapped to their \texttt{Predicate} counterpart.
