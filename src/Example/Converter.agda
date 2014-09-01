@@ -52,6 +52,7 @@ test3 = refl
 test4 : unquote (convert (quote lemma4)) ≡ (Forall n ~ (Property (Even n)) ∨ Not (Property (Even n)))
 test4 = refl
 
+-- FIX this test fails. Looks like an agda bug
 test5 : unquote (convert (quote lemma5)) ≡ (Predicate.Exists n ~ Property (Even n))
 test5 = refl
 

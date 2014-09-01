@@ -15,30 +15,30 @@ open import Data.List hiding (or ; and)
 private
   property : Term -> Term
   property p = con (quote Property) [ argp ]
-    where argp = arg visible relevant p
+    where argp = arg (arg-info visible relevant) p
 
   forall' : Term -> Term -> Term
   forall' ty next = con (quote Predicate.Forall) (argTy ∷ argNext ∷ [])
-    where argTy = arg hidden relevant ty
-          argNext = arg visible relevant (lam visible next)
+    where argTy = arg (arg-info hidden relevant) ty
+          argNext = arg (arg-info visible relevant) (lam visible next)
 
   not : Term -> Term
   not next = con (quote Not) [ argNext ]
-    where argNext = arg visible relevant next
+    where argNext = arg (arg-info visible relevant) next
 
   or : Term -> Term -> Term
   or t1 t2 = con (quote _∨_) (arg1 ∷ arg2 ∷ [])
-    where arg1 = arg visible relevant t1
-          arg2 = arg visible relevant t2
+    where arg1 = arg (arg-info visible relevant) t1
+          arg2 = arg (arg-info visible relevant) t2
 
   and : Term -> Term -> Term
   and t1 t2 = def (quote _∧_) (arg1 ∷ arg2 ∷ [])
-    where arg1 = arg visible relevant t1
-          arg2 = arg visible relevant t2
+    where arg1 = arg (arg-info visible relevant) t1
+          arg2 = arg (arg-info visible relevant) t2
 
   exists : (t : Term) -> Term
   exists t = con (quote Predicate.Exists) [ arg1 ]
-    where arg1 = arg visible relevant (lam visible t)
+    where arg1 = arg (arg-info visible relevant) (lam visible t)
 
 --------------------------------------------------------------------------------
 -- -- Conversion error messages
@@ -77,7 +77,7 @@ private
   -- constructs specially handed during conversion.
   -- Otherwise return 'Nothing'.
   name2Special : Name -> Maybe Special
-  name2Special name = lookup {dec = _≟-Name_} name special
+  name2Special name' = lookup {dec = _≟-Name_} name' special
     where special = ((quote ¬_) , Not) ∷ (quote ∃ , Exists) ∷ 
                     ((quote _×_) , And) ∷ (quote _⊎_ , Or) ∷ [] 
 
@@ -100,11 +100,10 @@ private
 
   -- | Checks if an argument has the given 'Visibility' and 'Relevance' and
   -- if the wrapped 'Term' it's itself supported. 
-  _is_And_ : Arg Term -> Visibility -> Relevance -> Set
-  arg v r t is v₁ And r₁ with v ≟-Visibility v₁ | r ≟-Relevance r₁
-  arg v r t is v₁ And r₁ | yes p | yes p₁ = supportedTerm t
-  arg v r t is v₁ And r₁ | yes p | no ¬p = ⊥
-  arg v r t is v₁ And r₁ | no ¬p | p2 = ⊥  
+  _has_ : Arg Term -> Arg-info -> Set
+  arg i₁ t has i₂ with i₁ ≟-Arg-info i₂
+  arg i₁ t has i₂ | yes p = supportedTerm t
+  arg i₁ t has i₂ | no ¬p = ⊥
 
   supportedTerm (var x args) = NotSupported (var x args)
   supportedTerm (con c args) = DontKnowRightNow (con c args)
@@ -115,14 +114,16 @@ private
   supportedTerm (pi t₁ (el s t)) = supportedTerm t 
   supportedTerm (sort x) = NotSupported (sort x)
   supportedTerm unknown = NotSupported unknown
+  supportedTerm (pat-lam cs as) = DontKnowRightNow (pat-lam cs as)
+  supportedTerm (lit _) = ⊤
 
-  supportedSpecial Not (_ ∷ x ∷ []) = x is visible And relevant
+  supportedSpecial Not (_ ∷ x ∷ []) = x has (arg-info visible relevant)
   supportedSpecial Not _ = ⊥
-  supportedSpecial Or (_ ∷ _ ∷ x₁ ∷ x₂ ∷ []) = x₁ is visible And relevant × x₂ is visible And relevant
+  supportedSpecial Or (_ ∷ _ ∷ x₁ ∷ x₂ ∷ []) = x₁ has (arg-info visible relevant) × x₂ has (arg-info visible relevant)
   supportedSpecial Or _ = ⊥
-  supportedSpecial And (_ ∷ _ ∷ x₁ ∷ x₂ ∷ []) = x₁ is visible And relevant × x₂ is visible And relevant
+  supportedSpecial And (_ ∷ _ ∷ x₁ ∷ x₂ ∷ []) = x₁ has (arg-info visible relevant) × x₂ has (arg-info visible relevant)
   supportedSpecial And _ = ⊥
-  supportedSpecial Exists (_ ∷ _ ∷ _ ∷ x ∷ []) = x is visible And relevant
+  supportedSpecial Exists (_ ∷ _ ∷ _ ∷ x ∷ []) = x has (arg-info visible relevant)
   supportedSpecial Exists _ = ⊥
 
 supported : Type -> Set
@@ -136,38 +137,37 @@ supported (el s t) = supportedTerm t
 private 
   convertTerm : (t : Term) -> {isSup : supportedTerm t} -> Term
   convertSpecial : (s : Special) -> (args : List (Arg Term)) -> {isS : supportedSpecial s args} -> Term
-  convertArg : (a : Arg Term) -> (v : Visibility) -> (r : Relevance) -> {isS : a is v And r} -> Term
+  convertArg : (a : Arg Term) -> (i : Arg-info) -> {isS : a has i} -> Term
 
-  convertArg (arg v r t) v₁ r₁ {isS} with v ≟-Visibility v₁ | r ≟-Relevance r₁
-  convertArg (arg v r t) v₁ r₁ {isS} | yes p | yes p₁ = convertTerm t {isS}
-  convertArg (arg v r t) v₁ r₁ {} | yes p | no ¬p
-  convertArg (arg v r t) v₁ r₁ {} | no ¬p | p2
+  convertArg (arg i₁ t) i₂ {isS} with i₁ ≟-Arg-info i₂
+  convertArg (arg i₁ t) i₂ {isS} | yes p = convertTerm t {isS}
+  convertArg (arg i₁ t) i₂ {} | no ¬p
 
   convertSpecial Not [] {}
   convertSpecial Not (_ ∷ []) {}
-  convertSpecial Not (_ ∷ a ∷ []) {isS} = not (convertArg a visible relevant {isS})
+  convertSpecial Not (_ ∷ a ∷ []) {isS} = not (convertArg a (arg-info visible relevant) {isS})
   convertSpecial Not (_ ∷ _ ∷ _ ∷ args) {} 
   convertSpecial Or [] {}
   convertSpecial Or (_ ∷ []) {}
   convertSpecial Or (_ ∷ _ ∷ []) {}
   convertSpecial Or (_ ∷ _ ∷ _ ∷ []) {}
   convertSpecial Or (_ ∷ _ ∷ a₁ ∷ a₂ ∷ []) {isS₁ , isS₂} = or arg1 arg2
-    where arg1 = convertArg a₁ visible relevant {isS₁}
-          arg2 = convertArg a₂ visible relevant {isS₂}
+    where arg1 = convertArg a₁ (arg-info visible relevant) {isS₁}
+          arg2 = convertArg a₂ (arg-info visible relevant) {isS₂}
   convertSpecial Or (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ args) {}
   convertSpecial And [] {}
   convertSpecial And (_ ∷ []) {}
   convertSpecial And (_ ∷ _ ∷ []) {}
   convertSpecial And (_ ∷ _ ∷ _ ∷ []) {}
   convertSpecial And (_ ∷ _ ∷ a₁ ∷ a₂ ∷ []) {isS₁ , isS₂} = and arg1 arg2
-    where arg1 = convertArg a₁ visible relevant {isS₁}
-          arg2 = convertArg a₂ visible relevant {isS₂}
+    where arg1 = convertArg a₁ (arg-info visible relevant) {isS₁}
+          arg2 = convertArg a₂ (arg-info visible relevant) {isS₂}
   convertSpecial And (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ args) {}
   convertSpecial Exists [] {}
   convertSpecial Exists (_ ∷ []) {}
   convertSpecial Exists (_ ∷ _ ∷ []) {}
   convertSpecial Exists (_ ∷ _ ∷ _ ∷ []) {}
-  convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS} = exists (convertArg a visible relevant {isS})
+  convertSpecial Exists (_ ∷ _ ∷ _ ∷ a ∷ []) {isS} = exists (convertArg a (arg-info visible relevant) {isS})
   convertSpecial Exists (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ args) {} 
 
   convertTerm (var x args) {}
@@ -176,10 +176,12 @@ private
   convertTerm (def f args) {isS} | just x = convertSpecial x args {isS}
   convertTerm (def f args) | nothing = property (def f args)
   convertTerm (lam v t) {isS} = convertTerm t {isS}
-  convertTerm (pi (arg v r (el s ty)) (el s₁ t)) {isS} = forall' ty (convertTerm t {isS})
+  convertTerm (pi (arg i (el s ty)) (el s₁ t)) {isS} = forall' ty (convertTerm t {isS})
   convertTerm (sort x) {}
+  convertTerm (pat-lam cs as) {}
+  convertTerm (lit l) = lit l
   convertTerm unknown {}
 
-convert : (name : Name) -> {isSup : supported (type name)} -> Term
-convert name {isS} with type name
-convert name {isS} | el s t = convertTerm t {isS}
+convert : (name' : Name) -> {isSup : supported (type name')} -> Term
+convert name' {isS} with type name'
+convert name' {isS} | el s t = convertTerm t {isS}
