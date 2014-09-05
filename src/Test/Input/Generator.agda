@@ -4,12 +4,12 @@ open import Data.Nat
 open import Data.Conat
 open import Data.Bool
 open import Data.List using (List ; [] ; _∷_)
+open import Data.Colist using (Colist ; [] ; _∷_)
+open import Data.BoundedVec.Inefficient as BVec
+import Data.Colist as C
 open import Function
 open import Coinduction
-open import Data.Colist using (Colist ; [] ; _∷_) 
-open import Reflection
 open import Relation.Nullary
-open import Relation.Binary
 open import Example.Even
 
 --------------------------------------------------------------------------------
@@ -82,6 +82,9 @@ toColist : ∀ {I : Set} {p : I -> Set} -> SetColist I p -> Colist I
 toColist [] = []
 toColist (_∷_ {i = i} x xs) = i ∷ ♯ (toColist (♭ xs))
 
+take : ∀ {I : Set} {p : I -> Set} -> (n : ℕ) -> SetColist I p -> BoundedVec I n
+take n = C.take n ∘ toColist 
+
 -- TODO remove?
 -- | This is actually not really useful because of the signature of f.
 -- It's rare that for any I the property p holds.
@@ -93,6 +96,7 @@ generate f (x ∷ xs) = f x ∷ ♯ (generate f (♭ xs))
 --------------------------------------------------------------------------------
 -- Examples
 --------------------------------------------------------------------------------
+-- TODO move to Example module
 
 -- Generator of Even numbers
 even-gen : SetColist ℕ Even
@@ -101,8 +105,8 @@ even-gen = go isEven0
         go p = p ∷ (♯ (go (isEven+2 p)))
 
 -- Generates proof objects for all numbers ≤ n
-leq-gen : (n : ℕ) ->  SetColist ℕ (flip _≤_ n)
-leq-gen n = go 0
+≤-gen : (n : ℕ) ->  SetColist ℕ (flip _≤_ n)
+≤-gen n = go 0
   where go : ℕ -> SetColist ℕ (flip _≤_ n )
         go m with m ≤? n      -- This requires ≤ to be decidable
         go m | yes p = p ∷ ♯ (go (suc m))
@@ -112,10 +116,11 @@ leq-gen n = go 0
 ≤-refl zero = z≤n
 ≤-refl (suc m) = s≤s (≤-refl m)
 
-leq-gen1 : (n : ℕ) -> SetColist ℕ (flip _≤_ n)
-leq-gen1 n with n | ≤-refl n
-leq-gen1 n | zero | z≤n = z≤n ∷ (♯ [])
-leq-gen1 n | suc m | s≤s r = s≤s r ∷ {!♯ leq-gen1 m!}
+≤-gen1 : (n : ℕ) -> SetColist ℕ (flip _≤_ n)
+
+≤-gen1 n with n | ≤-refl n
+≤-gen1 n | zero | z≤n = z≤n ∷ (♯ [])
+≤-gen1 n | suc m | s≤s r = s≤s r ∷ {!♯ ≤-gen1 m!}
   where cong : (SetColist ℕ (flip _≤_ m)) -> (SetColist ℕ (flip _≤_ (suc m)))
         cong [] = []
         cong (x ∷ xs) = {!!}
@@ -126,8 +131,16 @@ leq-gen1 n | suc m | s≤s r = s≤s r ∷ {!♯ leq-gen1 m!}
   --       go (suc m) (s≤s p) | suc n = (s≤s p) ∷ (♯ {!go ? ?!}) -- p ∷ (♯ (go m (≤-pred {!p!})))
 
 
-geq-gen : (n : ℕ) ->  SetColist ℕ (_>_ n)
-geq-gen n = {!!}
+>-gen : (n : ℕ) ->  SetColist ℕ (flip _>_ n)
+>-gen n = go (suc n) (s≤s (≤-refl n))
+  where 
+        lb : ∀ {n m} -> m > n -> (suc m) > n
+        lb {m = zero} ()
+        lb {n = zero} {m = suc m} p = s≤s z≤n
+        lb {n = suc n} {m = suc m} p = s≤s (lb (≤-pred p))
+
+        go : (m : ℕ) -> (m > n) -> SetColist ℕ (flip _>_ n) 
+        go m p = p ∷ ♯ (go (suc m) (lb p))
 
 -- I will consider only ℕ to make things easier for the time being
 data Sorted : List ℕ -> Set where
@@ -144,11 +157,11 @@ sorted-gen n = nil ∷ ♯ (singles n +++ longer (sorted-gen n))
         
         gen : ∀ {xs} -> Sorted xs -> SetColist (List ℕ)  Sorted
         gen nil = []
-        gen (singleton m) = go (leq-gen m)
+        gen (singleton m) = go (≤-gen m)
           where go : SetColist ℕ (flip _≤_ m) -> SetColist (List ℕ) Sorted
                 go [] = []
                 go (x ∷ xs) = (cons x (singleton m)) ∷ ♯ (go (♭ xs))
-        gen (cons {n} x p) = go (leq-gen n)
+        gen (cons {n} x p) = go (≤-gen n)
           where go : SetColist ℕ (flip _≤_ n) -> SetColist (List ℕ) Sorted 
                 go [] = []
                 go (y ∷ ys) = (cons y (cons x p)) ∷ ♯ (go (♭ ys))
