@@ -98,6 +98,10 @@ generate f (x ∷ xs) = f x ∷ ♯ (generate f (♭ xs))
 --------------------------------------------------------------------------------
 -- TODO move to Example module
 
+-- Promising common pattern
+-- Base cases can be generated directly.
+-- Recursively cases are recursive calls to the generator
+
 -- Generator of Even numbers
 even-gen : Generator ℕ Even
 even-gen = go isEven0
@@ -105,31 +109,40 @@ even-gen = go isEven0
         go p = p ∷ (♯ (go (isEven+2 p)))
 
 -- Generates proof objects for all numbers ≤ n
+-- This is more difficult because it is a specialization of the generic 
+-- binary relation ≤ and particularly the right hand side of ≤ changes in the
+-- definitions.
+-- Furthermore we are exploiting specific information about the ≤ relation in ℕ.
 ≤-gen : (n : ℕ) ->  Generator ℕ (flip _≤_ n)
 ≤-gen n = go 0
-  where go : ℕ -> Generator ℕ (flip _≤_ n )
-        go m with m ≤? n      -- This requires ≤ to be decidable
+  where go : ℕ -> Generator ℕ (flip _≤_ n)
+        go m with m ≤? n      -- BAD : This requires ≤ to be decidable and it's not different from the ⇒ construct
         go m | yes p = p ∷ ♯ (go (suc m))
         go m | no ¬p = []
+
+open import Data.Stream using (Stream ; _∷_)
+
+-- Here instead we are following the pattern given by the constructors of ≤.
+-- This is easier here because of ≤ definition for the lhs.
+
+≤-gen' : (n : ℕ) ->  Generator ℕ (_≤_ n)
+≤-gen' zero = go nats
+  where go : Stream ℕ -> Generator ℕ ( _≤_ 0)
+        go (x ∷ xs) = _∷_ {i = x} z≤n (♯ (go (♭ xs)))
+≤-gen' (suc n) = go (≤-gen' n)
+  where go : ∀ {n} -> Generator ℕ (_≤_ n) -> Generator ℕ (_≤_ (suc n))
+        go [] = []
+        go (x ∷ xs) = (s≤s x) ∷ ♯ (go (♭ xs)) 
+
+-- In this case the ≤′ definition is even more suitable.
+≤′-gen : (n : ℕ) -> Generator ℕ (_≤′_ n)
+≤′-gen n = go ≤′-refl
+  where go : ∀ {m} -> n ≤′ m -> Generator ℕ (_≤′_ n)
+        go p = p ∷ ♯ (go (≤′-step p))
 
 ≤-refl  : ∀ m -> m ≤ m
 ≤-refl zero = z≤n
 ≤-refl (suc m) = s≤s (≤-refl m)
-
-≤-gen1 : (n : ℕ) -> Generator ℕ (flip _≤_ n)
-
-≤-gen1 n with n | ≤-refl n
-≤-gen1 n | zero | z≤n = z≤n ∷ (♯ [])
-≤-gen1 n | suc m | s≤s r = s≤s r ∷ {!♯ ≤-gen1 m!}
-  where cong : (Generator ℕ (flip _≤_ m)) -> (Generator ℕ (flip _≤_ (suc m)))
-        cong [] = []
-        cong (x ∷ xs) = {!!}
-  -- where go : (m : ℕ) -> m Data.Nat.≤ n -> Generator ℕ (flip _≤_ n)
-  --       go zero z≤n = z≤n ∷ (♯ [])
-  --       go (suc m) p with n
-  --       go (suc m) () | zero
-  --       go (suc m) (s≤s p) | suc n = (s≤s p) ∷ (♯ {!go ? ?!}) -- p ∷ (♯ (go m (≤-pred {!p!})))
-
 
 >-gen : (n : ℕ) ->  Generator ℕ (flip _>_ n)
 >-gen n = go (suc n) (s≤s (≤-refl n))
