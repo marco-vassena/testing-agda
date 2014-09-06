@@ -3,9 +3,10 @@ module Test.Input.Generator where
 open import Data.Nat
 open import Data.Conat
 open import Data.Bool
-open import Data.List using (List ; [] ; _∷_)
+open import Data.List using (List ; [] ; _∷_ ; [_])
 open import Data.Colist using (Colist ; [] ; _∷_)
-open import Data.BoundedVec.Inefficient as BVec
+open import Data.BoundedVec.Inefficient using (BoundedVec ; [] ; _∷_)
+import Data.BoundedVec.Inefficient as BVec
 import Data.Colist as C
 open import Function
 open import Coinduction
@@ -168,7 +169,7 @@ sorted-gen n = nil ∷ ♯ (singles n +++ longer (sorted-gen n))
         singles zero = (singleton zero) ∷ ♯ []
         singles (suc n) = singleton (suc n) ∷ ♯ (singles n)
         
-        gen : ∀ {xs} -> Sorted xs -> Generator (List ℕ)  Sorted
+        gen : ∀ {xs} -> Sorted xs -> Generator (List ℕ) Sorted
         gen nil = []
         gen (singleton m) = go (≤-gen m)
           where go : Generator ℕ (flip _≤_ m) -> Generator (List ℕ) Sorted
@@ -185,8 +186,8 @@ sorted-gen n = nil ∷ ♯ (singles n +++ longer (sorted-gen n))
 open import Data.Unit
 
 -- Generator for non dependent types
-SimpleGenerator : Set -> Set₁
-SimpleGenerator A = Generator ⊤ (const A)
+SimpleGenerator : Set -> Set
+SimpleGenerator A = Colist A
 
 -- | Generates boolean values
 bool-gen : SimpleGenerator Bool
@@ -199,7 +200,37 @@ nat-gen = go 0
         go n = n ∷ ♯ (go (suc n))
 
 list-gen : {A : Set} {{ g : SimpleGenerator A }} -> SimpleGenerator (List A)
-list-gen {{ g = g }} = {!!}
+list-gen {{g = g}} = [] ∷ ♯ (longer g (list-gen {{g}}))
+  where cons-gen : ∀ {A} -> List A -> SimpleGenerator A -> SimpleGenerator (List A)
+        cons-gen xs [] = []
+        cons-gen xs (y ∷ ys) = (y ∷ xs) ∷ ♯ (cons-gen xs (♭ ys))
+
+        singles : ∀ {A} -> SimpleGenerator A -> SimpleGenerator (List A)
+        singles [] = []
+        singles (x ∷ xs) = [ x ] ∷ ♯ (singles (♭ xs))
+
+        longer : ∀ {A} -> SimpleGenerator A -> SimpleGenerator (List A) -> SimpleGenerator (List A)
+        longer g [] = []
+        longer g (x ∷ xs) = (cons-gen x g) C.++ longer g (♭ xs)
+
+open import Data.Vec using (Vec ; _∷_ ; [])
+import Data.Vec as V
+
+-- In this case take will retrieve the length ℕ of the vectors which is not really
+-- what we wanted
+vec-gen : ∀ {A} -> {{g : SimpleGenerator A}} -> Generator ℕ (Vec A)
+vec-gen {{g = g}} = [] ∷ ♯ (longer g (vec-gen {{g}}))
+  where cons-gen : ∀ {A n} -> Vec A n -> SimpleGenerator A -> Generator ℕ (Vec A)
+        cons-gen xs [] = []
+        cons-gen xs (y ∷ ys) = (y ∷ xs) ∷ ♯ (cons-gen xs (♭ ys))
+
+        singles : ∀ {A} -> SimpleGenerator A -> Generator ℕ (Vec A)
+        singles [] = []
+        singles (x ∷ xs) = V.[ x ] ∷ ♯ (singles (♭ xs))
+
+        longer : ∀ {A} -> SimpleGenerator A -> Generator ℕ (Vec A) -> Generator ℕ (Vec A)
+        longer g [] = []
+        longer g (x ∷ xs) = (cons-gen x g) +++ longer g (♭ xs)
 
 -- TODO examples for:
 --   rosetree
