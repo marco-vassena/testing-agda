@@ -10,16 +10,22 @@ open import Data.Colist using (Colist ; _∷_ ; [])
 open import Function
 open import Level as L
 
+-- TODO cannot rexpress concat as concatMap id because of mismatching levels ℓ and (suc ℓ) (wrong sort)
+-- TODO cannot express it not even as an ad hoc constructor for the same reason
+-- is there some workaround?
+-- concat : ∀ {ℓ} {A : Set ℓ} -> ColistP (ColistP A) -> ColistP A
+-- concat xss = concatMap {!!} {!xss!}
+
 mutual
 
   data ColistP {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
     [] : ColistP A
     _∷_     : (x : A) (xs : ∞ (ColistP A)) → ColistP A
-    zipWith : ∀ {B C : Set ℓ} (f : B → C → A)
+    zipWith : {B C : Set ℓ} (f : B → C → A)
               (xs : ColistP B) (ys : ColistP C) → ColistP A
-    map     : ∀ {B} (f : B → A) (xs : ColistP B) → ColistP A
+    map     : {B : Set ℓ} (f : B → A) (xs : ColistP B) → ColistP A
     _++_ : ColistP A -> ColistP A -> ColistP A
-    concatMap : ∀ {B : Set ℓ} -> (f : B -> ColistP A) -> {isP : IsProductive f} -> ColistP B -> ColistP A
+    concatMap : {B : Set ℓ} -> (f : B -> ColistP A) -> {isP : IsProductive f} -> ColistP B -> ColistP A
 
   data ColistW {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
     [] : ColistW A
