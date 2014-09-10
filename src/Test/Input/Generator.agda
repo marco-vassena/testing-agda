@@ -1,7 +1,6 @@
 module Test.Input.Generator where
 
 open import Data.Nat
-open import Data.Conat
 open import Data.Bool
 open import Data.List using (List ; [] ; _∷_ ; [_])
 open import Data.Colist using (Colist ; [] ; _∷_)
@@ -32,7 +31,7 @@ open import Example.Even
 
 -- Demoniac version - Not sure how to translate this
 -- generator' : ∀ {I} -> Set
--- generator' = Stream (∃ (T i))
+-- generator' = Stream (∃ (i : I) -> (T i))
 
 -- Not the right interface ... Not many similar proofs that n is even
 -- even-gen : Generator Even
@@ -45,9 +44,13 @@ open import Example.Even
 --   where go : ∀ {n} -> Even n -> Colist {!!}
 --         go p = p ∷ (♯ go {!isEven+2 p!}) 
 
-data Generator (I : Set) : (p : I -> Set) -> Set₁ where
-     [] : ∀ {p} -> Generator I p
-     _∷_ : ∀ {i : I} {p} -> (x : p i) -> (xs : ∞ (Generator I p)) -> Generator I p
+-- TODO I can be implicit
+-- TODO p : I -> Set ℓ , otherwise it might be difficult to
+-- use _×_ and other constructs
+
+data Generator (I : Set) (p : I -> Set) : Set₁ where
+     [] : Generator I p
+     _∷_ : ∀ {i : I} (x : p i) -> (xs : ∞ (Generator I p)) -> Generator I p
 
 _+++_ : ∀ {I p} -> Generator I p -> Generator I p -> Generator I p
 [] +++ ys = ys
@@ -63,10 +66,10 @@ map f [] = []
 map f (x ∷ xs) = f x ∷ (♯ (map f (♭ xs)))
 
 -- TODO can be fused in only one map ?
--- | Change also index
-map' : ∀ {I J} {p q} {j : J} -> (∀ {i : I} -> p i -> q j) -> Generator I p -> Generator J q
-map' f [] = []
-map' f (x ∷ xs) = (f x) ∷ (♯ map' f (♭ xs))
+-- | Change the index and the predicate
+map' : ∀ {I J} {p q} -> (f : I -> J) (g : {i : I} -> p i -> q (f i)) -> Generator I p -> Generator J q
+map' f g [] = []
+map' f g (x ∷ xs) = (g x) ∷ ♯ map' f g (♭ xs)
 
 concatMap : ∀ {I p q} -> (∀ {i : I} -> p i -> Generator I q) -> Generator I p -> Generator I q
 concatMap f [] = []
@@ -75,7 +78,6 @@ concatMap f (x ∷ xs) = (f x) +++ (concatMap f (♭ xs)) -- Why is this red?
 concatMap' : ∀ {I p q} -> (∀ {i : I} -> p i -> Generator I q) -> Generator I p -> Generator I q
 concatMap' f [] = []
 concatMap' f (x ∷ xs) = (f x) +++' ♯ (concatMap' f (♭ xs)) -- Also this fails (even though the recursive call is guarded)
-
 
 -- | Collects the input values (in which we are ultimately interested) from a Colist
 -- of proof objects
@@ -102,6 +104,9 @@ generate f (x ∷ xs) = f x ∷ ♯ (generate f (♭ xs))
 -- Promising common pattern
 -- Base cases can be generated directly.
 -- Recursively cases are recursive calls to the generator
+
+-- This works well when there is a specialized data-type that models
+-- the property sought. 
 
 -- Generator of Even numbers
 even-gen : Generator ℕ Even
@@ -183,7 +188,7 @@ sorted-gen n = nil ∷ ♯ (singles n +++ longer (sorted-gen n))
         longer : Generator (List ℕ) Sorted -> Generator (List ℕ) Sorted
         longer xs = concatMap gen xs         
 
-open import Data.Unit
+
 
 -- Generator for non dependent types
 SimpleGenerator : Set -> Set
@@ -224,10 +229,6 @@ vec-gen {{g = g}} = [] ∷ ♯ (longer g (vec-gen {{g}}))
         cons-gen xs [] = []
         cons-gen xs (y ∷ ys) = (y ∷ xs) ∷ ♯ (cons-gen xs (♭ ys))
 
-        singles : ∀ {A} -> SimpleGenerator A -> Generator ℕ (Vec A)
-        singles [] = []
-        singles (x ∷ xs) = V.[ x ] ∷ ♯ (singles (♭ xs))
-
         longer : ∀ {A} -> SimpleGenerator A -> Generator ℕ (Vec A) -> Generator ℕ (Vec A)
         longer g [] = []
         longer g (x ∷ xs) = (cons-gen x g) +++ longer g (♭ xs)
@@ -235,3 +236,78 @@ vec-gen {{g = g}} = [] ∷ ♯ (longer g (vec-gen {{g}}))
 -- TODO examples for:
 --   rosetree
 --   vector
+
+--------------------------------------------------------------------------------
+-- Example of using map and map'
+
+-- Each number successor of Even is Odd
+odd-gen : Generator ℕ (¬_ ∘ Even)
+odd-gen = map' suc next-odd even-gen
+  where next-odd : ∀ {n} -> Even n -> ¬ (Even (suc n))
+        next-odd isEven0 ()
+        next-odd (isEven+2 p) (isEven+2 x) = next-odd p x
+
+open import Data.Product
+
+data _∈_ {A : Set} : A -> List A -> Set where 
+  here : ∀ x xs -> x ∈ (x ∷ xs)
+  there : ∀ x y {ys} -> x ∈ ys -> x ∈ (y ∷ ys) 
+
+-- TODO can be improved
+∈-gen : ∀ {A} -> {{g : SimpleGenerator A}} -> Generator (A × List A) (λ x → proj₁ x ∈ proj₂ x)
+∈-gen {A} {{g = g}} = here-gen g (list-gen {{g}}) +++ there-gen g (∈-gen {{g}}) 
+  where 
+        here-gen : SimpleGenerator A -> SimpleGenerator (List A) -> Generator (A × List A) (λ x → proj₁ x ∈ proj₂ x)
+        here-gen (x ∷ xs) (ys ∷ yss) = here x ys ∷ (♯ (here-gen (♭ xs) (ys ∷ yss))) 
+        here-gen _ _ = []
+
+        there-gen : SimpleGenerator A -> Generator (A × List A) (λ x → proj₁ x ∈ proj₂ x)
+                                      -> Generator (A × List A) (λ x → proj₁ x ∈ proj₂ x)
+        there-gen (x ∷ xs) (_∷_ {i = i} y ys) = (there (proj₁ i) x y) ∷ ♯ (there-gen (♭ xs) (y ∷ ys))
+        there-gen _ _ = []
+
+-- TODO combinators for dealing with generation of multiple values
+
+-- Example lambda terms
+
+-- Unit and function types are supported.
+data Type : Set where
+ O    : Type
+ _=>_ : Type -> Type -> Type
+
+ty-gen : SimpleGenerator Type
+ty-gen = O ∷ ♯ ((O => O) ∷ (♯ (fun ty-gen)))
+  where fun : SimpleGenerator Type -> SimpleGenerator Type
+        fun [] = []
+        fun (x ∷ xs) with ♭ xs
+        fun (x ∷ xs) | [] = []
+        fun (x ∷ xs) | y ∷ ys = (x => y) ∷ (♯ ((y => x) ∷ (♯ ((y => y) ∷ (♯ (fun (y ∷ ys)))))))
+
+-- Type context: the top of this list is the type of the innermost
+-- abstraction variable, the next element is the type of the next
+-- variable, and so on.
+Context : Set
+Context = List Type
+
+-- Reference to a variable, bound during some abstraction.
+data Ref : Context -> Type -> Set where
+ Top : forall {G u} -> Ref (u ∷ G) u
+ Pop : forall {G u v} -> Ref G u -> Ref (v ∷ G) u
+
+-- A term in the lambda calculus. The language solely consists of
+-- abstractions, applications and variable references.
+data Term : Context -> Type -> Set where
+ Abs : forall {G u v} -> Term (u ∷ G) v -> Term G (u => v)
+ App : forall {G u v} -> Term G (u => v) -> Term G u -> Term G v
+ Var : forall {G u} -> Ref G u -> Term G u
+
+fun-gen : Generator Context (λ G → Term G (O => O))
+fun-gen = {!!}
+
+-- Suppose we want to generate terms that have some type α
+-- Writing a generator for the data type Term is not the way
+-- because the indexes are Context and Type, instead it needs
+-- to be a Term
+
+-- data FunType (G : Context) (a b : Type) : Term G (a => b) -> Set where
+--   Lambda : (t : Term (a ∷ G) b) -> FunType G a b (Abs t)
