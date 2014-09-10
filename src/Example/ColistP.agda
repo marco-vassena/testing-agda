@@ -24,7 +24,7 @@ nats' = 0 ∷ ♯ (map suc nats')
 nats : Colist ℕ
 nats = ⟦ nats' ⟧P
 
--- Does not type check
+-- Does not type check because const [] is not productive
 -- non-productive : Colist ℕ
 -- non-productive = ⟦ concatMap (const []) nats' ⟧P
 
