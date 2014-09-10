@@ -29,7 +29,7 @@ mutual
   isConsW (x ∷ xs) = ⊤
 
   IsProductive : ∀ {A B : Set} -> (f : A -> ColistP B) -> Set
-  IsProductive {A} f = (a : A) -> isConsW (whnf (f a))
+  IsProductive {A} f = (a : A) -> isConsW (whnf (f a))  -- Sound (but not complete) approximation of productive function
 
   whnf : ∀ {A} → ColistP A → ColistW A
   whnf []                       = [] 
@@ -69,33 +69,6 @@ mutual
   ⟦_⟧P : ∀ {A} → ColistP A → Colist A
   ⟦ xs ⟧P = ⟦ whnf xs ⟧W
 
-
---------------------------------------------------------------------------------
--- Examples
---------------------------------------------------------------------------------
--- TODO move to example modules
-
-fibP : ColistP ℕ
-fibP = 0 ∷ ♯ zipWith _+_ fibP (1 ∷ ♯ fibP)
-
-fib : Colist ℕ
-fib = ⟦ fibP ⟧P 
-
-append : Colist ℕ
-append = ⟦ xs ++ ys ⟧P
-  where xs ys : ColistP ℕ
-        xs = 1 ∷ ♯ (2 ∷ (♯ (3 ∷ (♯ []))))
-        ys = 4 ∷ ♯ (5 ∷ (♯ (6 ∷ (♯ []))))
-
-nats' : ColistP ℕ
-nats' = 0 ∷ ♯ (map suc nats')
-
-nats : Colist ℕ
-nats = ⟦ nats' ⟧P
-
--- Does not type check
--- non-productive : Colist ℕ
--- non-productive = ⟦ concatMap (const []) nats' ⟧P
-
-productive : Colist ℕ
-productive = ⟦ concatMap (const (1 ∷ (♯ []))) nats' ⟧P
+fromColist : ∀ {A} -> Colist A -> ColistP A
+fromColist [] = []
+fromColist (x ∷ xs) = x ∷ (♯ (fromColist (♭ xs)))
