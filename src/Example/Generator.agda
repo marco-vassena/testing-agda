@@ -70,6 +70,16 @@ even-gen = go isEven0
         gen : ColistP (∃ (flip _>_ n))
         gen = (suc n , s≤s (≤-refl n)) ∷ ♯ (map (P.map suc lb) gen)
 
+open import Data.Fin using (Fin)
+import Data.Fin as F
+
+fin-A-gen : GeneratorA ℕ Fin
+fin-A-gen zero = []
+fin-A-gen (suc n) = F.zero ∷ (♯ (C.map F.suc (fin-A-gen n)))
+
+fin-D-gen : GeneratorD ℕ Fin
+fin-D-gen = {!concatMap!}
+
 -- I will consider only ℕ to make things easier for the time being
 data Sorted : List ℕ -> Set where
   nil : Sorted []
@@ -106,15 +116,6 @@ sorted-gen' n = (_ , nil) ∷ ♯ (singles n ++ concatMap gen {isProd} (sorted-g
 -- | Produces all the sorted lists of arbitrary length using numbers up to n, without duplicates
 sorted-gen : ℕ -> GeneratorD (List ℕ) Sorted
 sorted-gen n = ⟦ (sorted-gen' n) ⟧P
-
--- GeneratorD for non dependent types
-SimpleGenerator : Set -> Set
-SimpleGenerator A = Colist A
-
--- Generator for non-dependent types
--- Alternative definition ... same shape as GeneratorD
--- SimpleGenerator : Set-> Set
--- SimpleGenerator A = GeneratorD A (const A)
 
 -- | Generates boolean values
 bool-gen : SimpleGenerator Bool
