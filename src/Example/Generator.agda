@@ -6,7 +6,8 @@ open import Data.Bool
 open import Data.Colist using (Colist ; [] ; _∷_ )
 import Data.Colist as C
 open import Data.List using (List ; [] ; _∷_ ; [_])
-open import Data.Product using (∃ ; _,_ ; _×_)
+open import Data.Product using (∃ ; _,_ ; _×_ ; proj₁ ; proj₂ ; ,_)
+import Data.Product as P
 open import Relation.Nullary
 open import Function
 
@@ -41,25 +42,21 @@ even-gen = go isEven0
 ≤-A-gen zero (suc m) = []
 ≤-A-gen (suc n) (suc m) = C.map s≤s (≤-A-gen n m)
 
-open import Data.Stream using (Stream ; _∷_)
 
 -- Here instead we are following the pattern given by the constructors of ≤.
 -- This is easier here because of ≤ definition for the lhs.
 
 ≤-gen' : (n : ℕ) ->  GeneratorD ℕ (_≤_ n)
-≤-gen' zero = go nats
-  where go : Stream ℕ -> GeneratorD ℕ ( _≤_ 0)
-        go (x ∷ xs) = (x , z≤n) ∷ ♯ (go (♭ xs))
-≤-gen' (suc n) = go (≤-gen' n)
-  where go : ∀ {n} -> GeneratorD ℕ (_≤_ n) -> GeneratorD ℕ (_≤_ (suc n))
-        go [] = []
-        go ((n , p) ∷ xs) = (_ , s≤s p) ∷ ♯ (go (♭ xs)) 
+≤-gen' zero = ⟦ gen0 ⟧P
+  where gen0 : ColistP (∃ (_≤_ zero))
+        gen0 = (zero , z≤n) ∷ (♯ (map (λ x → suc (proj₁ x) , z≤n) gen0))
+≤-gen' (suc n) = C.map (P.map suc s≤s) (≤-gen' n)
 
 -- In this case the ≤′ definition is even more suitable.
 ≤′-gen : (n : ℕ) -> GeneratorD ℕ (_≤′_ n)
-≤′-gen n = go ≤′-refl
-  where go : ∀ {m} -> n ≤′ m -> GeneratorD ℕ (_≤′_ n)
-        go p = (_ , p) ∷ ♯ (go (≤′-step p))
+≤′-gen n = ⟦ gen ⟧P
+  where gen : ColistP (∃ (_≤′_ n))
+        gen = (, ≤′-refl) ∷ (♯ (map (P.map suc ≤′-step) gen))
 
 ≤-refl  : ∀ m -> m ≤ m
 ≤-refl zero = z≤n
