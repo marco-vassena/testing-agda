@@ -200,7 +200,7 @@ odd-gen = C.map f even-gen
         f :  ∃ Even -> ∃ (¬_ ∘ Even)
         f (n , p) = (suc n) , (next-odd p)
 
-open import Data.Product
+open import Data.Product using (_×_ ; proj₁ ; proj₂)
 
 data _∈_ {A : Set} : A -> List A -> Set where 
   here : ∀ x xs -> x ∈ (x ∷ xs)
@@ -225,8 +225,25 @@ data _∈_ {A : Set} : A -> List A -> Set where
 -- ∈-gen :  ∀ {A} -> {{g : SimpleGenerator A}} -> Colist (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
 -- ∈-gen {{ g }} = ⟦ (∈-gen' {{ g }}) ⟧P
 
-∈-gen : ∀ {A} -> GeneratorA A {!!}
-∈-gen = {!!} 
+open import Relation.Binary.PropositionalEquality
+
+-- I have used ℕ here because they can be compared
+∈-gen : (x : ℕ) -> GeneratorA (List ℕ) ( _∈_ x )
+∈-gen x = ⟦_⟧P ∘ (∈-gen' x)
+  where ∈-gen' : (x : ℕ ) (xs : List ℕ) -> ColistP (x ∈ xs)
+        ∈-gen' x [] = []
+        ∈-gen' x (y ∷ xs) with x Data.Nat.≟ y
+        ∈-gen' x (.x ∷ xs) | yes refl = (here x xs) ∷ (♯ (map (there x x) (∈-gen' x xs)))
+        ∈-gen' x (y ∷ xs) | no _ = map (there x y) (∈-gen' x xs)
+
+-- Basically the same. It's not even necessary to use ColistP
+∈-gen2 : (xs : List ℕ) -> GeneratorA ℕ (flip _∈_ xs)
+∈-gen2 xs = ∈-gen' xs
+  where ∈-gen' : (xs : List ℕ) (x : ℕ) -> Colist (x ∈ xs)
+        ∈-gen' [] x = []
+        ∈-gen' (y ∷ xs) x with x Data.Nat.≟ y
+        ∈-gen' (.x ∷ xs) x | yes refl = (here x xs) ∷ ♯ (C.map (there x x) (∈-gen' xs x))
+        ∈-gen' (y ∷ xs) x | no ¬p = C.map (there x y) (∈-gen' xs x)
 
 -- Example lambda terms
 
