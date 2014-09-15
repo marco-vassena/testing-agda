@@ -5,7 +5,7 @@ open import Data.Nat
 open import Data.Empty
 open import Data.Unit
 open import Data.Sum using (_⊎_)
-open import Data.Product using (_×_)
+open import Data.Product using (_×_ ; _,_)
 open import Data.Colist using (Colist ; _∷_ ; [])
 open import Function
 open import Level as L
@@ -31,12 +31,12 @@ mutual
     [] : ColistW A
     _∷_ : (x : A) (xs : ColistP A) → ColistW A
 
-  isConsW : ∀ {ℓ} {A : Set ℓ} -> ColistW A -> Set
-  isConsW [] = ⊥
-  isConsW (x ∷ xs) = ⊤
+  nonEmptyW : ∀ {ℓ} {A : Set ℓ} -> ColistW A -> Set
+  nonEmptyW [] = ⊥
+  nonEmptyW (x ∷ xs) = ⊤
 
   IsProductive : ∀ {ℓ} {A B : Set ℓ} -> (f : A -> ColistP B) -> Set ℓ 
-  IsProductive {A = A} f = (a : A) -> isConsW (whnf (f a))  -- Sound (but not complete) approximation of productive function
+  IsProductive {A = A} f = (a : A) -> nonEmptyW (whnf (f a))  -- Sound (but not complete) approximation of productive function
 
   whnf : ∀ {ℓ} {A : Set ℓ} → ColistP A → ColistW A
   whnf []                       = [] 
@@ -79,3 +79,26 @@ mutual
 fromColist : ∀ {ℓ} {A : Set ℓ} -> Colist A -> ColistP A
 fromColist [] = []
 fromColist (x ∷ xs) = x ∷ (♯ (fromColist (♭ xs)))
+
+-- | Infinitely replicates the original non-empty colist.
+cycle : ∀ {ℓ} {A : Set ℓ} -> (xs : ColistP A) -> {p : nonEmptyW (whnf xs)} -> ColistP A  
+cycle xs {p} with whnf xs | p
+cycle xs | [] | ()
+cycle {A = A} xs {p} | y ∷ ys | tt = y ∷ ♯ (go (whnf ys))
+  where go : ColistW A -> ColistP A
+        go [] = cycle xs {p}
+        go (z ∷ zs) = z ∷ ♯ (go (whnf zs))
+
+
+-- Productive lemmas
+zipWith-productive : ∀ {ℓ} {A B C : Set ℓ} {f : B -> C -> A} {xs : ColistP B} {ys : ColistP C}
+                     -> nonEmptyW (whnf xs) × nonEmptyW (whnf ys) -> nonEmptyW (whnf (zipWith f xs ys))
+zipWith-productive {xs = xs} {ys = ys} (p1 , p2) with (whnf xs) | whnf (ys)
+zipWith-productive (() , p2) | [] | ys'
+zipWith-productive (p1 , ()) | _  ∷ _ | []
+zipWith-productive (p1 , p2) | _ ∷ _ | _ ∷ _ = tt
+
+map-productive : ∀ {ℓ} {A B : Set ℓ} {f : A -> B} -> {xs : ColistP A} -> nonEmptyW (whnf xs) -> nonEmptyW (whnf (map f xs))
+map-productive {xs = xs} p with whnf xs
+map-productive () | []
+map-productive p | x ∷ xs = tt

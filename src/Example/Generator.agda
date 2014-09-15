@@ -109,15 +109,20 @@ sorted-gen n = ⟦ (sorted-gen' n) ⟧P
 SimpleGenerator : Set -> Set
 SimpleGenerator A = Colist A
 
+-- Generator for non-dependent types
+-- Alternative definition ... same shape as GeneratorD
+-- SimpleGenerator : Set-> Set
+-- SimpleGenerator A = GeneratorD A (const A)
+
 -- | Generates boolean values
 bool-gen : SimpleGenerator Bool
 bool-gen = true ∷ ♯ (false ∷ ♯ [])
 
 -- | Generates all the natural numbers
 nat-gen : SimpleGenerator ℕ
-nat-gen = go 0
-  where go : ℕ -> SimpleGenerator ℕ
-        go n = n ∷ ♯ (go (suc n))
+nat-gen = ⟦ nat-gen' ⟧P
+  where nat-gen' : ColistP ℕ
+        nat-gen' = 0 ∷ ♯ (map suc nat-gen')
 
 list-gen' : {A : Set} {{ g : SimpleGenerator A }} -> ColistP (List A)
 list-gen' {A} {{g = g}} = [] ∷ ♯ (concatMap (cons-gen g) {isProd} (list-gen' {{g}}))
@@ -167,10 +172,20 @@ vec-gen'' {A} {{g = g₁ ∷ gs}} = (_ , []) ∷ ♯ (concatMap (cons-gen g₁ (
 vec-gen : ∀ {A} -> {{g : SimpleGenerator A}} -> GeneratorD ℕ (Vec A)
 vec-gen {{g}} = ⟦ vec-gen'' {{g}} ⟧P
 
+-- Angelic version
+vec-A-gen' : ∀ {A} -> {{g : SimpleGenerator A}} -> (n : ℕ) -> ColistP (Vec A n)
+vec-A-gen' zero = [] ∷ (♯ [])
+vec-A-gen' {{g = []}} (suc n) = []
+vec-A-gen' {A} {{g = x ∷ xs}} (suc n) = concatMap (gen (fromColist (x ∷ xs))) { λ _ → _ } (vec-A-gen' {{x ∷ xs}} n)
+  where 
+        gen : (xs : ColistP A) -> Vec A n -> ColistP (Vec A (suc n))
+        gen xs v = map (flip _∷_ v) xs
+        
+vec-A-gen : ∀ {A} -> {{g : SimpleGenerator A}} -> GeneratorA ℕ (Vec A)
+vec-A-gen {{g}} = ⟦_⟧P ∘ (vec-A-gen' {{g}})
 
 -- TODO examples for:
 --   rosetree
---   vector
 
 --------------------------------------------------------------------------------
 -- Example of using map and map'
@@ -192,23 +207,26 @@ data _∈_ {A : Set} : A -> List A -> Set where
   there : ∀ x y {ys} -> x ∈ ys -> x ∈ (y ∷ ys) 
 
 -- TODO overly complicated
-∈-gen' : ∀ {A} -> {{g : SimpleGenerator A}} -> ColistP (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
-∈-gen' {{g = []}} = []
-∈-gen' {A} {{g = (g₁ ∷ gs)}} = (_ , (here g₁ [])) ∷ ♯ (hs ++ (concatMap (there-gen g₁ (♭ gs)) {isProd} (∈-gen' {{g₁ ∷ gs}})))
-  where hs = zipWith (λ x ys → , here x ys) (fromColist (g₁ ∷ gs)) (fromColist (list-gen {{g₁ ∷ gs}}))
+-- ∈-gen' : ∀ {A} -> {{g : SimpleGenerator A}} -> ColistP (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
+-- ∈-gen' {{g = []}} = []
+-- ∈-gen' {A} {{g = (g₁ ∷ gs)}} = (_ , (here g₁ [])) ∷ ♯ (hs ++ (concatMap (there-gen g₁ (♭ gs)) {isProd} (∈-gen' {{g₁ ∷ gs}})))
+--   where hs = zipWith (λ x ys → , here x ys) (fromColist (g₁ ∷ gs)) (fromColist (list-gen {{g₁ ∷ gs}}))
 
-        there-gen : A -> SimpleGenerator A -> ∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x)
-                                           -> ColistP (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
-        there-gen a [] p  = (_ , (there a a (here a []))) ∷ ♯ []
-        there-gen a (y ∷ ys) ((x , xs) , p) = (_ , there x y p) ∷ ♯ (there-gen a (♭ ys) ((x , xs) , p)) 
+--         there-gen : A -> SimpleGenerator A -> ∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x)
+--                                            -> ColistP (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
+--         there-gen a [] p  = (_ , (there a a (here a []))) ∷ ♯ []
+--         there-gen a (y ∷ ys) ((x , xs) , p) = (_ , there x y p) ∷ ♯ (there-gen a (♭ ys) ((x , xs) , p)) 
 
-        isProd : IsProductive (there-gen g₁ (♭ gs))
-        isProd _ with ♭ gs
-        isProd _ | [] = _
-        isProd _ | x ∷ xs = _
+--         isProd : IsProductive (there-gen g₁ (♭ gs))
+--         isProd _ with ♭ gs
+--         isProd _ | [] = _
+--         isProd _ | x ∷ xs = _
 
-∈-gen :  ∀ {A} -> {{g : SimpleGenerator A}} -> Colist (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
-∈-gen {{ g }} = ⟦ (∈-gen' {{ g }}) ⟧P
+-- ∈-gen :  ∀ {A} -> {{g : SimpleGenerator A}} -> Colist (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
+-- ∈-gen {{ g }} = ⟦ (∈-gen' {{ g }}) ⟧P
+
+∈-gen : ∀ {A} -> GeneratorA A {!!}
+∈-gen = {!!} 
 
 -- Example lambda terms
 
@@ -217,7 +235,6 @@ data Type : Set where
  O    : Type
  _=>_ : Type -> Type -> Type
 
--- TODO : Not all possible types are generated
 ty-gen' : ColistP Type
 ty-gen' = O ∷ ♯ (concatMap funTy {isProd} ty-gen')
   where funTy : Type -> ColistP Type
