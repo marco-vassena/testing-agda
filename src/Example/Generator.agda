@@ -26,12 +26,20 @@ even-gen = go isEven0
 -- binary relation ≤ and particularly the right hand side of ≤ changes in the
 -- definitions.
 -- Furthermore we are exploiting specific information about the ≤ relation in ℕ.
-≤-gen : (n : ℕ) ->  GeneratorD ℕ (flip _≤_ n)
+≤-gen : (n : ℕ) -> GeneratorD ℕ (flip _≤_ n)
+
+
 ≤-gen n = go 0
   where go : ℕ -> GeneratorD ℕ (flip _≤_ n)
         go m with m ≤? n      -- BAD : This requires ≤ to be decidable and it's not different from the ⇒ construct
         go m | yes p = (_ , p) ∷ ♯ (go (suc m))
         go m | no ¬p = []
+
+-- Angelic version: basically a decidable property
+≤-A-gen : (n : ℕ) -> GeneratorA ℕ (flip _≤_ n)
+≤-A-gen n zero = z≤n ∷ (♯ [])
+≤-A-gen zero (suc m) = []
+≤-A-gen (suc n) (suc m) = C.map s≤s (≤-A-gen n m)
 
 open import Data.Stream using (Stream ; _∷_)
 
