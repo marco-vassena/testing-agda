@@ -36,7 +36,7 @@ even-gen = go isEven0
         go m | yes p = (_ , p) ∷ ♯ (go (suc m))
         go m | no ¬p = []
 
--- Angelic version: basically a decidable property
+-- Angelic version: basically a decision procedure
 ≤-A-gen : (n : ℕ) -> GeneratorA ℕ (flip _≤_ n)
 ≤-A-gen n zero = z≤n ∷ (♯ [])
 ≤-A-gen zero (suc m) = []
@@ -54,24 +54,21 @@ even-gen = go isEven0
 
 -- In this case the ≤′ definition is even more suitable.
 ≤′-gen : (n : ℕ) -> GeneratorD ℕ (_≤′_ n)
-≤′-gen n = ⟦ gen ⟧P
-  where gen : ColistP (∃ (_≤′_ n))
-        gen = (, ≤′-refl) ∷ (♯ (map (P.map suc ≤′-step) gen))
-
-≤-refl  : ∀ m -> m ≤ m
-≤-refl zero = z≤n
-≤-refl (suc m) = s≤s (≤-refl m)
+≤′-gen n = ⟦ iterate (P.map suc ≤′-step) (n , ≤′-refl) ⟧P
 
 >-gen : (n : ℕ) ->  GeneratorD ℕ (flip _>_ n)
->-gen n = go (suc n) (s≤s (≤-refl n))
-  where 
+>-gen n = ⟦ gen ⟧P
+  where ≤-refl  : ∀ m -> m ≤ m
+        ≤-refl zero = z≤n
+        ≤-refl (suc m) = s≤s (≤-refl m)
+
         lb : ∀ {n m} -> m > n -> (suc m) > n
         lb {m = zero} ()
         lb {n = zero} {m = suc m} p = s≤s z≤n
         lb {n = suc n} {m = suc m} p = s≤s (lb (≤-pred p))
-
-        go : (m : ℕ) -> (m > n) -> GeneratorD ℕ (flip _>_ n) 
-        go m p = (_ , p) ∷ ♯ (go (suc m) (lb p))
+        
+        gen : ColistP (∃ (flip _>_ n))
+        gen = (suc n , s≤s (≤-refl n)) ∷ ♯ (map (P.map suc lb) gen)
 
 -- I will consider only ℕ to make things easier for the time being
 data Sorted : List ℕ -> Set where
@@ -197,13 +194,10 @@ vec-A-gen {{g}} = ⟦_⟧P ∘ (vec-A-gen' {{g}})
 
 -- Each number successor of Even is Odd
 odd-gen : GeneratorD ℕ (¬_ ∘ Even)
-odd-gen = C.map f even-gen
+odd-gen = C.map (P.map suc next-odd) even-gen
   where next-odd : ∀ {n} -> Even n -> ¬ (Even (suc n))
         next-odd isEven0 ()
         next-odd (isEven+2 p) (isEven+2 x) = next-odd p x
-
-        f :  ∃ Even -> ∃ (¬_ ∘ Even)
-        f (n , p) = (suc n) , (next-odd p)
 
 open import Data.Product using (_×_ ; proj₁ ; proj₂)
 

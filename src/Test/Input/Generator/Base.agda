@@ -89,6 +89,8 @@ cycle {A = A} xs {p} | y ∷ ys | tt = y ∷ ♯ (go (whnf ys))
         go [] = cycle xs {p}
         go (z ∷ zs) = z ∷ ♯ (go (whnf zs))
 
+iterate : ∀ {ℓ} {A : Set ℓ} -> (A -> A) -> A -> ColistP A
+iterate f x = x ∷ ♯ (iterate f (f x))
 
 -- Productive lemmas
 zipWith-productive : ∀ {ℓ} {A B C : Set ℓ} {f : B -> C -> A} {xs : ColistP B} {ys : ColistP C}
