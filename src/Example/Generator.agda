@@ -265,11 +265,31 @@ ty-gen' = O ∷ ♯ (concatMap funTy {isProd} ty-gen')
 ty-gen : SimpleGenerator Type
 ty-gen = ⟦ ty-gen' ⟧P
 
+open import Data.Empty
+
+-- TODO can be written more succintly?
+
+lemma1 : ∀ {t1 t2 t3 t4} -> ¬ (t1 ≡ t3) -> (t1 => t2) ≡ (t3 => t4) -> ⊥
+lemma1 ¬p refl = ¬p refl 
+
+lemma2 : ∀ {t1 t2 t3 t4} -> ¬ (t2 ≡ t4) -> (t1 => t2) ≡ (t3 => t4) -> ⊥
+lemma2 ¬p refl = ¬p refl 
+
+_≟-ty_ : (t1 : Type) -> (t2 : Type) -> Dec (t1 ≡ t2)
+O ≟-ty O = yes refl
+O ≟-ty (t2 => t3) = no (λ ())
+(t1 => t2) ≟-ty O = no (λ ())
+(t1 => t2) ≟-ty (t3 => t4) with t1 ≟-ty t3 | t2 ≟-ty t4
+(t1 => t2) ≟-ty (.t1 => .t2) | yes refl | yes refl = yes refl
+(t1 => t2) ≟-ty (.t1 => t4) | yes refl | no ¬p = no (lemma2 ¬p)
+(t1 => t2) ≟-ty (t3 => t4) | no ¬p | _ = no (lemma1 ¬p) 
+
 -- Type context: the top of this list is the type of the innermost
 -- abstraction variable, the next element is the type of the next
 -- variable, and so on.
 Context : Set
 Context = List Type
+
 
 -- Reference to a variable, bound during some abstraction.
 data Ref : Context -> Type -> Set where
@@ -283,13 +303,63 @@ data Term : Context -> Type -> Set where
  App : forall {G u v} -> Term G (u => v) -> Term G u -> Term G v
  Var : forall {G u} -> Ref G u -> Term G u
 
-fun-gen : GeneratorD Context (λ G → Term G (O => O))
-fun-gen = {!!}
+o-term : Term (O ∷ []) O
+o-term = Var Top
 
--- Suppose we want to generate terms that have some type α
--- Writing a generator for the data type Term is not the way
--- because the indexes are Context and Type, instead it needs
--- to be a Term
+o-term' : Term (O ∷ []) O
+o-term' = App idTerm (Var Top)
+  where idTerm : ∀ {G} -> Term G (O => O)
+        idTerm = Abs (Var Top)
 
--- data FunType (G : Context) (a b : Type) : Term G (a => b) -> Set where
---   Lambda : (t : Term (a ∷ G) b) -> FunType G a b (Abs t)
+-- SKI combinators
+S : ∀ {G c b a} ->
+    let xTy = c => (b => a)
+        yTy = c => b 
+        zTy = c in Term G (xTy => (yTy => (zTy => a)))
+S = Abs (Abs (Abs (App (App x z) (App y z))))
+  where x = Var (Pop (Pop Top))
+        y = Var (Pop Top) 
+        z = Var Top
+
+I : ∀ {G ty} -> Term G (ty => ty)
+I = Abs (Var Top)
+
+K : ∀ {G a b} -> Term G (a => (b => a))
+K = Abs (Abs (Var (Pop Top)))
+
+ref-gen : (G : Context) -> GeneratorA Type (Ref G)
+ref-gen [] i = []
+ref-gen (ty₁ ∷ G) ty₂ with ty₁ ≟-ty ty₂
+ref-gen (ty₁ ∷ G) .ty₁ | yes refl = Top ∷ ♯ (C.map Pop (ref-gen G ty₁))
+ref-gen (ty₁ ∷ G) ty₂ | no ¬p = C.map Pop (ref-gen G ty₂)
+
+zipWith' : ∀ {A B C : Set} -> (A -> B -> C) -> Colist A -> Colist B -> Colist C
+zipWith' f (x ∷ xs) (y ∷ ys) = (f x y) ∷ (♯ (zipWith' f (♭ xs) (♭ ys))) 
+zipWith' f _ _ = []
+
+t1 : Term [] ((O => O) => O)
+t1 = App {!!} (Abs (Var Top))
+
+t2 : Term [] (O => (O => O))
+t2 = Abs (Abs (Var Top)) -- Also: Abs (Abs (Var (Pop Top)))
+
+
+-- Non terminating, bounded recursion needed.
+term-gen' : (G : Context) -> (ty : Type) -> ColistP (Term G ty)
+term-gen' G O = map Var (fromColist (ref-gen G O))
+term-gen' G (ty₁ => ty₂) = var-gen ++ (abs-gen ++ app-gen)
+  where var-gen : ColistP (Term G (ty₁ => ty₂))
+        var-gen = map Var (fromColist (ref-gen G (ty₁ => ty₂)))
+
+        abs-gen : ColistP (Term G (ty₁ => ty₂))
+        abs-gen = map Abs (term-gen' (ty₁ ∷ G) ty₂)
+
+        f : Type -> ColistP (Term G (ty₁ => ty₂))
+        f ty = zipWith App (term-gen' G (ty => (ty₁ => ty₂))) (term-gen' G ty)
+
+        -- app gen is problematic
+        app-gen : ColistP (Term G (ty₁ => ty₂))
+        app-gen = concatMap f {{!!}} ty-gen'
+
+term-gen : (G : Context) -> GeneratorA Type (Term G)
+term-gen G = ⟦_⟧P ∘ (term-gen' G)

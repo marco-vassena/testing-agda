@@ -70,15 +70,15 @@ open import Relation.Binary.PropositionalEquality using (_≡_ ; refl)
 open import Relation.Nullary using (Dec ; yes ; no)
 open import Relation.Binary
 
--- angelic2demoniac : ∀ {I p} -> SimpleGenerator I -> GeneratorA I P -> GeneratorD I P
+-- angelic2demoniac : ∀ {I P} -> SimpleGenerator I -> GeneratorA I P -> GeneratorD I P
 -- angelic2demoniac [] a = []
--- angelic2demoniac {I} {p} (x ∷ xs) a = ⟦ d ⟧P 
+-- angelic2demoniac {I} {P} (x ∷ xs) a = ⟦ d ⟧P 
 --   where pack : I -> ColistP (∃ P)
 --         pack x = ColistP.map ,_ (fromColist (a x))
 
 --         -- IsProductive proof for GeneratorA is very restrictive (e.g. even-gen)
 --         -- Alternatives ?
---         d : ColistP (∃ p)
+--         d : ColistP (∃ P)
 --         d = concatMap pack {{!!}} (fromColist (x ∷ xs))
 
 -- demoniac2angelic : ∀ {I P} -> {_≟_ : (Decidable (_≡_ {_} {I})) } -> GeneratorD I P -> GeneratorA I P
