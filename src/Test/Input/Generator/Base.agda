@@ -80,6 +80,12 @@ fromColist : ∀ {ℓ} {A : Set ℓ} -> Colist A -> ColistP A
 fromColist [] = []
 fromColist (x ∷ xs) = x ∷ (♯ (fromColist (♭ xs)))
 
+open import Data.List using (List ; _∷_ ; [])
+
+fromList :  ∀ {ℓ} {A : Set ℓ} -> List A -> ColistP A
+fromList [] = []
+fromList (x ∷ xs) = x ∷ (♯ (fromList xs))
+
 -- | Infinitely replicates the original non-empty colist.
 cycle : ∀ {ℓ} {A : Set ℓ} -> (xs : ColistP A) -> {p : nonEmptyW (whnf xs)} -> ColistP A  
 cycle xs {p} with whnf xs | p
