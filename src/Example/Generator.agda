@@ -309,30 +309,6 @@ data Term : Context -> Type -> Set where
  App : forall {G u v} -> Term G (u => v) -> Term G u -> Term G v
  Var : forall {G u} -> Ref G u -> Term G u
 
-o-term : Term (O ∷ []) O
-o-term = Var Top
-
-o-term' : Term (O ∷ []) O
-o-term' = App idTerm (Var Top)
-  where idTerm : ∀ {G} -> Term G (O => O)
-        idTerm = Abs (Var Top)
-
--- SKI combinators
-S : ∀ {G c b a} ->
-    let xTy = c => (b => a)
-        yTy = c => b 
-        zTy = c in Term G (xTy => (yTy => (zTy => a)))
-S = Abs (Abs (Abs (App (App x z) (App y z))))
-  where x = Var (Pop (Pop Top))
-        y = Var (Pop Top) 
-        z = Var Top
-
-I : ∀ {G ty} -> Term G (ty => ty)
-I = Abs (Var Top)
-
-K : ∀ {G a b} -> Term G (a => (b => a))
-K = Abs (Abs (Var (Pop Top)))
-
 ref-gen : (G : Context) -> GeneratorA Type (Ref G)
 ref-gen [] i = []
 ref-gen (ty₁ ∷ G) ty₂ with ty₁ ≟-ty ty₂
@@ -347,45 +323,6 @@ zipWith' f _ _ = []
 combine : ∀ {A B C : Set} -> (f : A -> B -> C) -> List A -> List B -> List C
 combine {A} {B} {C} f xs ys = L.concatMap (λ x → L.map (f x) ys) xs
 
--- Non terminating, bounded recursion needed.
-term-gen' : (G : Context) -> (ty : Type) -> ColistP (Term G ty)
-term-gen' G O = map Var (fromColist (ref-gen G O))
-term-gen' G (ty₁ => ty₂) = var-gen ++ (abs-gen ++ app-gen)
-  where var-gen : ColistP (Term G (ty₁ => ty₂))
-        var-gen = map Var (fromColist (ref-gen G (ty₁ => ty₂)))
-
-        abs-gen : ColistP (Term G (ty₁ => ty₂))
-        abs-gen = map Abs (term-gen' (ty₁ ∷ G) ty₂)
-
-        f : Type -> ColistP (Term G (ty₁ => ty₂))
-        f ty = zipWith App (term-gen' G (ty => (ty₁ => ty₂))) (term-gen' G ty)
-
-        -- app gen is problematic
-        app-gen : ColistP (Term G (ty₁ => ty₂))
-        app-gen = concatMap f {{!!}} ty-gen'
-
--- Alternative approach:
--- Given a functional type add all arguments to the environment.
--- Then (and only then) combine those element to produce the result type,
--- i.e. using lookup in the environment (Var) and function application.
-
--- Examples
-
-t0 : Term [] (O => O)
-t0 = Abs (Var Top)
-
-t1 : Term [] ((O => O) => O)
-t1 = Abs {!!}
-
-t2 : Term [] (O => (O => O))
-t2 = Abs (Abs (Var Top)) -- Also: Abs (Abs (Var (Pop Top)))
-
-
--- Better definition for SubGoals
--- such that it's easy to reconstruct the term of the goal type by applications
-SubGoals : Set
-SubGoals = List Type
-
 -- What can be produced via application or lookup from the given environment
 data Productable (G : Context) (ty : Type) : Set where
   Lookup : Ref G ty -> Productable G ty
@@ -395,44 +332,16 @@ produce : ∀ {G ty} -> Productable G ty -> Term G ty
 produce (Lookup x) = Var x
 produce (Apply f x) = App (produce f) (produce x)
 
-ex : Productable (O => O ∷ ((O => O) => ((O => O) => O)) ∷ []) O
-ex = Apply (Apply (Lookup (Pop Top)) (Lookup Top)) (Lookup Top)
-
 open import Data.Maybe using (just ; nothing ; Maybe)
 import Data.Maybe as M
 
-data Chain (ty : Type) : Type -> Set where
-  Empty : Chain ty ty
-  Next : ∀ {ty₁ ty₂} -> Chain ty ty₁ -> Chain ty (ty₂ => ty₁) 
-
-⟦_⟧ : ∀ {ty₁ ty₂} -> Chain ty₁ ty₂ -> Type
-⟦_⟧ {ty} Empty = ty 
-⟦_⟧ (Next {ty₁} {ty₂} c) = ty₂ => ⟦ c ⟧
-
--- Same suffix
-data _⊆_ {A : Set} : (xs ys : List A) -> Set where
-  Base : ∀ {xs} -> xs ⊆ xs
-  Drop : ∀ {x xs ys} -> (x ∷ xs) ⊆ ys -> xs ⊆ ys
-
-liftRef : ∀ {G₁ G₂ ty} -> G₁ ⊆ G₂ -> Ref G₁ ty -> Ref G₂ ty
-liftRef Base r = r
-liftRef (Drop s) r = liftRef s (Pop r)
-
 lift : ∀ {ty ty' G} -> Productable G ty -> Productable (ty' ∷ G) ty
-lift (Lookup x) = Lookup (liftRef (Drop Base) x)
+lift (Lookup x) = Lookup (Pop x)
 lift (Apply f x) = Apply (lift f) (lift x)
 
-lift* : ∀ {G₁ G₂ ty} -> G₁ ⊆ G₂ -> Productable G₁ ty -> Productable G₂ ty
-lift* Base p = p
-lift* (Drop s) p = lift* s (lift p)
-
--- Can a term ty be obtained applying a number of arguments to ty' ?
-subgoals' : (ty' ty : Type) -> Maybe (Chain ty ty')
-subgoals' ty' ty with ty ≟-ty ty'
-subgoals' ty .ty | yes refl = just Empty
-subgoals' O ty | no ¬p = nothing
-subgoals' (ty₁' => ty₂') ty | no ¬p = M.map Next (subgoals' ty₂' ty)
-
+_==>_ : List Type -> Type -> Type
+ts ==> ty = L.foldr _=>_ ty ts
+ 
 subgoals'' : (ty' ty : Type) -> Maybe (List Type)
 subgoals'' ty' ty with ty ≟-ty ty'
 subgoals'' ty .ty | yes refl = just []
@@ -440,7 +349,7 @@ subgoals'' O ty | no ¬p = nothing
 subgoals'' (ty₁' => ty₂') ty | no ¬p = M.map (_∷_ ty₁') (subgoals'' ty₂' ty)
 
 subgoals : ∀ (G : Context) -> (ty : Type) -> List (Productable G ty)
-subgoals G ty = go G {Base}
+subgoals G ty = go G
   where 
         -- Collects all elements of the given type
         lookup : (ty : Type) -> (G' : Context) -> List (Productable G' ty) 
@@ -449,20 +358,22 @@ subgoals G ty = go G {Base}
         lookup ty' (._ ∷ G') | yes refl = (Lookup Top) ∷ (L.map lift (lookup ty' G'))
         lookup ty' (ty₁ ∷ G') | no ¬p = (L.map lift (lookup ty' G'))
 
-        go : (G' : Context) → {s : G' ⊆ G} -> List (Productable G ty)
-        go [] = []
-        go (ty' ∷ G') {s} with subgoals'' ty' ty
-        go (ty' ∷ G') {s} | nothing = go G' {Drop s}
-        go (ty' ∷ G') | just c with lookup ty' G | c
-        go (ty' ∷ G') | just c | cs | [] = {!!}
-        go (ty' ∷ G') | just c | cs | x ∷ a = {!!}
+        followChain : ∀ {G'} -> (ts : List Type) -> List (Productable G' (ts ==> ty)) -> List (Productable G' ty)
+        followChain [] ps = ps
+        followChain (ty₁ ∷ []) ps = combine Apply (lookup (ty₁ => ty) _) (lookup ty₁ _)
+        followChain (ty₁ ∷ ty₂ ∷ ts) ps = followChain (ty₂ ∷ ts) (combine Apply fs xs₁)
+          where fs = lookup (ty₁ => ((ty₂ ∷ ts) ==> ty)) _
+                xs₁ = lookup ty₁ _
 
-        -- go (._ ∷ G') | just c | cs | Next c' = combine (λ f x → {!!}) (lookup {!!} G) (subgoals G {!!})
-        -- go (.(ty₂ => ty₁) ∷ G') | just (Next {ty₁} {ty₂} c) = combine (λ f x → Apply {!f!} x) (g (Next {ty₁ = ty₁} {ty₂ = ty₂} c) G) (subgoals G ty₂) -- L.++ go G' {Drop s}
+        go : (G' : Context) -> List (Productable G ty)
+        go [] = []
+        go (ty' ∷ G') with subgoals'' ty' ty
+        go (ty' ∷ G') | just ts = followChain ts (lookup (ts ==> ty) G)
+        go (ty' ∷ G') | nothing = go G'
 
 term-gen'' : (G : Context) -> (ty : Type) -> ColistP (Term G ty)
 term-gen'' G O = fromList (L.map produce (subgoals G O))
-term-gen'' G (ty => ty₁) = map Abs (term-gen'' (ty ∷ G) ty₁)
+term-gen'' G (ty₁ => ty₂) = fromList (L.map produce (subgoals G _)) ++ map Abs (term-gen'' (ty₁ ∷ G) ty₂)
 
 term-gen : (G : Context) -> GeneratorA Type (Term G)
-term-gen G = ⟦_⟧P ∘ (term-gen' G)
+term-gen G = ⟦_⟧P ∘ (term-gen'' G)
