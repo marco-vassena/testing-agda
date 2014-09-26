@@ -9,6 +9,11 @@ open import Data.List using (List ; [] ; _∷_ ; [_])
 import Data.List as L
 open import Data.Product using (∃ ; _,_ ; _×_ ; proj₁ ; proj₂ ; ,_)
 import Data.Product as P
+open import Data.Maybe using (just ; nothing ; Maybe)
+import Data.Maybe as M
+open import Data.Vec using (Vec ; _∷_ ; [])
+import Data.Vec as V
+open import Data.Empty
 open import Relation.Nullary
 open import Function
 
@@ -143,9 +148,6 @@ list-gen' {A} {{g = g}} = [] ∷ ♯ (concatMap (cons-gen g) {isProd} (list-gen'
 list-gen : {A : Set} {{ g : SimpleGenerator A }} -> SimpleGenerator (List A)
 list-gen {{ g }} = ⟦ list-gen' {{ g }} ⟧P
 
-open import Data.Vec using (Vec ; _∷_ ; [])
-import Data.Vec as V
-
 -- In this case take will retrieve the length ℕ of the vectors which is not really
 -- what we wanted
 vec-gen' : ∀ {A} -> {{g : SimpleGenerator A}} -> ColistP (∃ (Vec A))
@@ -201,7 +203,6 @@ odd-gen = C.map (P.map suc next-odd) even-gen
         next-odd isEven0 ()
         next-odd (isEven+2 p) (isEven+2 x) = next-odd p x
 
-open import Data.Product using (_×_ ; proj₁ ; proj₂)
 
 data _∈_ {A : Set} : A -> List A -> Set where 
   here : ∀ x xs -> x ∈ (x ∷ xs)
@@ -246,7 +247,11 @@ open import Relation.Binary.PropositionalEquality
         ∈-gen' (.x ∷ xs) x | yes refl = (here x xs) ∷ ♯ (C.map (there x x) (∈-gen' xs x))
         ∈-gen' (y ∷ xs) x | no ¬p = C.map (there x y) (∈-gen' xs x)
 
--- Example lambda terms
+
+-- TODO move to new example module
+--------------------------------------------------------------------------------
+-- Generators for λ-terms
+--------------------------------------------------------------------------------
 
 -- Unit and function types are supported.
 data Type : Set where
@@ -263,19 +268,11 @@ ty-gen' = O ∷ ♯ (concatMap funTy {isProd} ty-gen')
         isProd O = _
         isProd (ty => ty₁) = _
 
+-- | Simple Generator for Types.
 ty-gen : SimpleGenerator Type
 ty-gen = ⟦ ty-gen' ⟧P
 
-open import Data.Empty
-
--- TODO can be written more succintly?
-
-lemma1 : ∀ {t1 t2 t3 t4} -> ¬ (t1 ≡ t3) -> (t1 => t2) ≡ (t3 => t4) -> ⊥
-lemma1 ¬p refl = ¬p refl 
-
-lemma2 : ∀ {t1 t2 t3 t4} -> ¬ (t2 ≡ t4) -> (t1 => t2) ≡ (t3 => t4) -> ⊥
-lemma2 ¬p refl = ¬p refl 
-
+-- | Equality on types is Decidable.
 _≟-ty_ : (t1 : Type) -> (t2 : Type) -> Dec (t1 ≡ t2)
 O ≟-ty O = yes refl
 O ≟-ty (t2 => t3) = no (λ ())
@@ -283,19 +280,17 @@ O ≟-ty (t2 => t3) = no (λ ())
 (t1 => t2) ≟-ty (t3 => t4) with t1 ≟-ty t3 | t2 ≟-ty t4
 (t1 => t2) ≟-ty (.t1 => .t2) | yes refl | yes refl = yes refl
 (t1 => t2) ≟-ty (.t1 => t4) | yes refl | no ¬p = no (lemma2 ¬p)
+  where lemma2 : ∀ {t1 t2 t3 t4} -> ¬ (t2 ≡ t4) -> (t1 => t2) ≡ (t3 => t4) -> ⊥
+        lemma2 ¬p refl = ¬p refl 
 (t1 => t2) ≟-ty (t3 => t4) | no ¬p | _ = no (lemma1 ¬p) 
-
-_==_ : (ty₁ ty₂ : Type) -> Bool
-ty₁ == ty₂ with ty₁ ≟-ty ty₂
-ty₁ == ty₂ | yes p = true
-ty₁ == ty₂ | no ¬p = false
+  where lemma1 : ∀ {t1 t2 t3 t4} -> ¬ (t1 ≡ t3) -> (t1 => t2) ≡ (t3 => t4) -> ⊥
+        lemma1 ¬p refl = ¬p refl 
 
 -- Type context: the top of this list is the type of the innermost
 -- abstraction variable, the next element is the type of the next
 -- variable, and so on.
 Context : Set
 Context = List Type
-
 
 -- Reference to a variable, bound during some abstraction.
 data Ref : Context -> Type -> Set where
@@ -309,71 +304,67 @@ data Term : Context -> Type -> Set where
  App : forall {G u v} -> Term G (u => v) -> Term G u -> Term G v
  Var : forall {G u} -> Ref G u -> Term G u
 
-ref-gen : (G : Context) -> GeneratorA Type (Ref G)
-ref-gen [] i = []
-ref-gen (ty₁ ∷ G) ty₂ with ty₁ ≟-ty ty₂
-ref-gen (ty₁ ∷ G) .ty₁ | yes refl = Top ∷ ♯ (C.map Pop (ref-gen G ty₁))
-ref-gen (ty₁ ∷ G) ty₂ | no ¬p = C.map Pop (ref-gen G ty₂)
+-- f x y , ∀ x ∈ xs ∀ y ∈ ys  
+combine' : ∀ {A B C : Set} -> (f : A -> B -> C) -> List A -> List B -> List C
+combine' {A} {B} {C} f xs ys = L.concatMap (λ x → L.map (f x) ys) xs
 
-zipWith' : ∀ {A B C : Set} -> (A -> B -> C) -> Colist A -> Colist B -> Colist C
-zipWith' f (x ∷ xs) (y ∷ ys) = (f x y) ∷ (♯ (zipWith' f (♭ xs) (♭ ys))) 
-zipWith' f _ _ = []
-
--- combine f xs ys ≡ f x₁ y₁ ∷ f x₁ y₂ ... f x₁ yᵢ ∷ f x₂ y₁ ... [] 
-combine : ∀ {A B C : Set} -> (f : A -> B -> C) -> List A -> List B -> List C
-combine {A} {B} {C} f xs ys = L.concatMap (λ x → L.map (f x) ys) xs
-
--- What can be produced via application or lookup from the given environment
+-- What can be produced via application or lookup in the given context
 data Productable (G : Context) (ty : Type) : Set where
   Lookup : Ref G ty -> Productable G ty
   Apply : ∀ {ty'} -> Productable G (ty' => ty) -> Productable G ty' -> Productable G ty
 
+-- | Produces a term of the given type in the given context 
+-- from a Productable proof object.
 produce : ∀ {G ty} -> Productable G ty -> Term G ty
 produce (Lookup x) = Var x
 produce (Apply f x) = App (produce f) (produce x)
 
-open import Data.Maybe using (just ; nothing ; Maybe)
-import Data.Maybe as M
-
+-- If a term of some type can be produced in some environment, then it
+-- can be produced in an increased environment.
 lift : ∀ {ty ty' G} -> Productable G ty -> Productable (ty' ∷ G) ty
 lift (Lookup x) = Lookup (Pop x)
 lift (Apply f x) = Apply (lift f) (lift x)
 
+-- Compact representation of a function that produces ty given the types contained in ts
 _==>_ : List Type -> Type -> Type
 ts ==> ty = L.foldr _=>_ ty ts
- 
-subgoals'' : (ty' ty : Type) -> Maybe (List Type)
-subgoals'' ty' ty with ty ≟-ty ty'
-subgoals'' ty .ty | yes refl = just []
-subgoals'' O ty | no ¬p = nothing
-subgoals'' (ty₁' => ty₂') ty | no ¬p = M.map (_∷_ ty₁') (subgoals'' ty₂' ty)
 
-subgoals : ∀ (G : Context) -> (ty : Type) -> List (Productable G ty)
-subgoals G ty = go G
-  where 
-        -- Collects all elements of the given type
-        lookup : (ty : Type) -> (G' : Context) -> List (Productable G' ty) 
-        lookup _ [] = []
-        lookup ty' (ty ∷ G') with ty ≟-ty ty'
-        lookup ty' (._ ∷ G') | yes refl = (Lookup Top) ∷ (L.map lift (lookup ty' G'))
-        lookup ty' (ty₁ ∷ G') | no ¬p = (L.map lift (lookup ty' G'))
+-- | Determines whether a type ty' can produce another type by 0 or more applications.
+-- If that is the case those types are collected and returned in a list inside the Maybe monad.
+subgoals : (ty' ty : Type) -> Maybe (List Type)
+subgoals ty' ty with ty ≟-ty ty'
+subgoals ty .ty | yes refl = just []
+subgoals O ty | no ¬p = nothing
+subgoals (ty₁' => ty₂') ty | no ¬p = M.map (_∷_ ty₁') (subgoals ty₂' ty)
 
-        followChain : ∀ {G'} -> (ts : List Type) -> List (Productable G' (ts ==> ty)) -> List (Productable G' ty)
-        followChain [] ps = ps
-        followChain (ty₁ ∷ []) ps = combine Apply (lookup (ty₁ => ty) _) (lookup ty₁ _)
-        followChain (ty₁ ∷ ty₂ ∷ ts) ps = followChain (ty₂ ∷ ts) (combine Apply fs xs₁)
-          where fs = lookup (ty₁ => ((ty₂ ∷ ts) ==> ty)) _
-                xs₁ = lookup ty₁ _
+-- | Collects in a List all the terms of the given type in the given context.
+ref-genL : (G : Context) -> (ty : Type) -> List (Ref G ty)
+ref-genL [] i = []
+ref-genL (ty₁ ∷ G) ty₂ with ty₁ ≟-ty ty₂
+ref-genL (ty₁ ∷ G) .ty₁ | yes refl = Top ∷ (L.map Pop (ref-genL G ty₁))
+ref-genL (ty₁ ∷ G) ty₂ | no ¬p = L.map Pop (ref-genL G ty₂)
 
-        go : (G' : Context) -> List (Productable G ty)
-        go [] = []
-        go (ty' ∷ G') with subgoals'' ty' ty
-        go (ty' ∷ G') | just ts = followChain ts (lookup (ts ==> ty) G)
-        go (ty' ∷ G') | nothing = go G'
+-- | Angelic generator for reference data-type
+ref-gen : (G : Context) -> GeneratorA Type (Ref G)
+ref-gen G ty = C.fromList (ref-genL G ty)
 
-term-gen'' : (G : Context) -> (ty : Type) -> ColistP (Term G ty)
-term-gen'' G O = fromList (L.map produce (subgoals G O))
-term-gen'' G (ty₁ => ty₂) = fromList (L.map produce (subgoals G _)) ++ map Abs (term-gen'' (ty₁ ∷ G) ty₂)
+-- | Angelic generator for the Productable data type.
+-- It returns a List because of productivity issues.
+productable-genL : (G : Context) -> (ty : Type) -> List (Productable G ty)
+productable-genL G ty = L.concatMap (λ ts → (apply-gen ts (lookup-gen _))) (L.gfilter (subgoals ty) G)
+  where lookup-gen : (ty : Type) -> List (Productable G ty)
+        lookup-gen ty = L.map Lookup (ref-genL G ty)
+
+        apply-gen : (ts : List Type) -> List (Productable G (ts ==> ty)) -> List (Productable G ty)
+        apply-gen [] ps = ps
+        apply-gen (ty₁ ∷ []) ps = combine' Apply ps (lookup-gen ty₁)
+        apply-gen (ty₁ ∷ ty₂ ∷ ts) ps = apply-gen (ty₂ ∷ ts) (combine' Apply ps xs₁)
+          where xs₁ = lookup-gen ty₁
+
+-- | Angelic generator for the Productable data type.
+productable-gen : (G : Context) -> GeneratorA Type (Productable G)
+productable-gen G ty = C.fromList (productable-genL G ty)
 
 term-gen : (G : Context) -> GeneratorA Type (Term G)
-term-gen G = ⟦_⟧P ∘ (term-gen'' G)
+term-gen G O = C.map produce (productable-gen G O)
+term-gen G (ty₁ => ty₂) = C.map produce (productable-gen G _) C.++ C.map Abs (term-gen (ty₁ ∷ G) ty₂)
