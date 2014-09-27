@@ -365,7 +365,7 @@ productable-genL G ty = L.concatMap (λ ts → (apply-gen ts (lookup-gen _))) (L
 productable-gen : (G : Context) -> GeneratorA Type (Productable G)
 productable-gen G ty = C.fromList (productable-genL G ty)
 
--- | Angelic generator for the λ-terms of the given type in the given context
+-- | Angelic generator for the λ-terms of the given type in the given context.
 term-gen : (G : Context) -> GeneratorA Type (Term G)
 term-gen G O = C.map produce (productable-gen G O)
 term-gen G (ty₁ => ty₂) = C.map produce (productable-gen G _) C.++ C.map Abs (term-gen (ty₁ ∷ G) ty₂)

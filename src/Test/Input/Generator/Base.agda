@@ -98,6 +98,12 @@ cycle {A = A} xs {p} | y ∷ ys | tt = y ∷ ♯ (go (whnf ys))
 iterate : ∀ {ℓ} {A : Set ℓ} -> (A -> A) -> A -> ColistP A
 iterate f x = x ∷ ♯ (iterate f (f x))
 
+-- f x y , ∀ x ∈ xs ∀ y ∈ ys
+combine : ∀ {A B C : Set} -> (f : A -> B -> C) -> ColistP A -> ColistP B -> ColistP C
+combine f xs ys with ⟦ ys ⟧P
+combine f xs ys | [] = []
+combine f xs _ | y ∷ ys = concatMap (λ x → map (f x) (fromColist (y ∷ ys))) xs
+
 -- Productive lemmas
 zipWith-productive : ∀ {ℓ} {A B C : Set ℓ} {f : B -> C -> A} {xs : ColistP B} {ys : ColistP C}
                      -> nonEmptyW (whnf xs) × nonEmptyW (whnf ys) -> nonEmptyW (whnf (zipWith f xs ys))
@@ -110,3 +116,55 @@ map-productive : ∀ {ℓ} {A B : Set ℓ} {f : A -> B} -> {xs : ColistP A} -> n
 map-productive {xs = xs} p with whnf xs
 map-productive () | []
 map-productive p | x ∷ xs = tt
+
+Null : ∀ {ℓ} {A : Set ℓ} -> ColistP A -> Set
+Null xs with whnf xs
+Null xs | [] = ⊤
+Null xs | x ∷ xs₁ = ⊥
+
+Null' : ∀ {ℓ} {A : Set ℓ} -> Colist A -> Set
+Null' [] = ⊤
+Null' (x ∷ xs) = ⊥
+
+Cons : ∀ {ℓ} {A : Set ℓ} -> Colist A -> Set
+Cons [] = ⊥
+Cons (_ ∷ _) = ⊤
+
+open import Relation.Nullary
+
+-- Productive data-type
+data Prod {A B : Set} (f : A -> ColistP B) : (xs : ColistP A) -> Set₁ where
+  Base : Prod f []
+  Skip : {x : A} {xs : ∞ (ColistP A)} -> Prod f (♭ xs) -> Null (f x) -> Prod f (x ∷ xs)
+  Now : {x : A} {xs : ∞ (ColistP A)} -> ∞ (Prod f (♭ xs)) -> ¬ (Null (f x)) -> Prod f (x ∷ xs)
+
+-- Prod is as expressive as IsProductive
+-- IsProductive2Prod : ∀ {A B} {f : A -> ColistP B} -> {xs : ColistP A} -> IsProductive f -> Prod f xs
+-- IsProductive2Prod {xs = xs} p = {!!}
+
+data Prod' {A B : Set} (f : A -> Colist B) : (xs : Colist A) -> Set₁ where
+  Base : Prod' f []
+  Skip : {x : A} {xs : ∞ (Colist A)} -> Prod' f (♭ xs) -> Prod' f (x ∷ xs)
+  Now : {x : A} {xs : ∞ (Colist A)} -> ∞ (Prod' f (♭ xs)) -> Cons (f x) -> Prod' f (x ∷ xs)
+
+-- Non productive data-type
+-- Correct but I could not use it
+data NonProd {A B : Set} (f : A -> ColistP B) : ColistP A -> Set₁ where
+  Always : ∀ {xs x} -> Null (f x) -> ∞ (NonProd f xs) -> NonProd f (x ∷ ♯ xs)
+
+-- Ideas from the paper:
+-- 1) Keep (boolean) index to mark finite or possibly infinite colist
+-- 2) 
+open import Relation.Binary.PropositionalEquality
+
+-- Equality between ColistP and ColistW
+_≅_ : ∀ {ℓ} {A : Set ℓ} -> (xs : ColistP A) (ys : ColistW A) -> Set ℓ
+xs ≅ ys = ⟦ xs ⟧P ≡ ⟦ ys ⟧W
+
+whnf-iso : ∀ {ℓ} {A : Set ℓ} -> (xs : ColistP A) -> xs ≅ whnf xs 
+whnf-iso [] = refl
+whnf-iso (x ∷ xs) = refl
+whnf-iso (zipWith f xs xs₁) = refl
+whnf-iso (map f xs) = refl
+whnf-iso (xs ++ xs₁) = refl
+whnf-iso (concatMap f xs) = refl
