@@ -1,7 +1,7 @@
 module Example.ColistP where
 
 open import Coinduction
-open import Data.Colist using (Colist ; [] ; _∷_)
+open import Data.Colist using (Colist ; [] ; _∷_ ; _≈_)
 open import Data.Nat
 open import Function
 open import Test.Input.Generator.Base
@@ -19,7 +19,7 @@ append = ⟦ xs ++ ys ⟧P
         ys = 4 ∷ ♯ (5 ∷ (♯ (6 ∷ (♯ []))))
 
 nats' : ColistP ℕ
-nats' = 0 ∷ ♯ (map suc nats')
+nats' = iterate suc zero
 
 nats : Colist ℕ
 nats = ⟦ nats' ⟧P
@@ -33,10 +33,7 @@ productive = ⟦ concatMap (const (1 ∷ (♯ []))) nats' ⟧P
 
 -- Examples with Prod data-type
 
-example : ∀ {A B} -> Prod {A = A} {B = B} (const []) []
-example = Base
-
-open import Example.Even using (isEven? ; Even)
+open import Example.Even using (isEven? ; Even ; isEven0 ; isEven+2)
 open import Relation.Nullary
 
 evens : ℕ -> Colist ℕ
@@ -46,14 +43,11 @@ evens n | no ¬p = []
 
 open import Relation.Binary.PropositionalEquality
 
-ones : ColistP ℕ
+ones : Colist ℕ
 ones = 1 ∷ ♯ ones
 
-ones-prod : Prod (λ n → n ∷ ♯ []) ones
-ones-prod = Now (♯ ones-prod) (λ z → z)
-
-ex1 : Prod {!!} {!!}
-ex1 = {!Now ? ?!}
+ones-prod : Prod' (λ n → n ∷ ♯ []) ones
+ones-prod = Now (♯ ones-prod) _
 
 open import Data.Bool
 
@@ -67,33 +61,43 @@ data EvenOddSeqence : Bool -> Colist ℕ -> Set where
   [] : ∀ {b} -> EvenOddSeqence b []
   _∷_ : ∀ {b ns} -> (n : ℕ) -> {p : evenOrOdd b n} -> ∞ (EvenOddSeqence (not b) (♭ ns)) -> EvenOddSeqence b (n ∷ ns)
 
-nats-even-odd : EvenOddSeqence true nats
-nats-even-odd = _∷_ zero {Example.Even.isEven0} (♯ (_∷_ (suc zero) {λ ()} (♯ (_∷_ (suc (suc zero)) {Example.Even.isEven+2 Example.Even.isEven0} (♯ {!!})))))
+open import Data.Empty using (⊥-elim)
+open import Data.Sum
 
+even-next-odd : ∀ {n} -> Even n -> ¬ (Even (suc n))
+even-next-odd isEven0 ()
+even-next-odd (isEven+2 p) (isEven+2 x) = even-next-odd p x
+
+this-or-next : ∀ n -> (Even n) ⊎ (Even (suc n))
+this-or-next zero = inj₁ isEven0
+this-or-next (suc n) with this-or-next n
+this-or-next (suc n₁) | inj₁ x = inj₂ (isEven+2 x)
+this-or-next (suc n₁) | inj₂ y = inj₁ y
+
+odd-next-even : ∀ {n} -> (¬ Even n) -> Even (suc n)
+odd-next-even {n} ¬p with this-or-next n
+odd-next-even ¬p | inj₁ p = ⊥-elim (¬p p)
+odd-next-even ¬p | inj₂ p = p
+
+nats-even-odd : EvenOddSeqence true nats
+nats-even-odd = proof 0 isEven0
+  where proof : ∀ {b} -> (n : ℕ) -> evenOrOdd b n -> EvenOddSeqence b (⟦ iterate suc n ⟧P)
+        proof {true} n p = _∷_ n {p} (♯ (proof (suc n) (even-next-odd p)))
+        proof {false} n p = _∷_ n {p} (♯ (proof (suc n) (odd-next-even p)))
+          
 even : ∀ {ns} -> EvenOddSeqence true ns -> Prod' evens ns
 odd : ∀ {ns} -> EvenOddSeqence false ns -> Prod' evens ns
 even [] = Base
-even (_∷_ n {p} ns) = Now (♯ (odd (♭ ns))) (f n p)
-  where f : ∀ n -> Even n -> Cons (evens n)
-        f .0 Example.Even.isEven0 = _
-        f (suc (suc n)) (Example.Even.isEven+2 p) with evens (suc (suc n)) | isEven? (suc (suc n))
-        f (suc (suc n)) (Example.Even.isEven+2 p₁) | [] | yes p = _
-        f (suc (suc n)) (Example.Even.isEven+2 p) | [] | no ¬p = ¬p (Example.Even.isEven+2 p)
-        f (suc (suc n₁)) (Example.Even.isEven+2 p₁) | x ∷ xs | yes p = _
-        f (suc (suc n₁)) (Example.Even.isEven+2 p) | x ∷ xs | no ¬p = ¬p (Example.Even.isEven+2 p) 
+even (_∷_ n {p} ns) = Now (♯ (odd (♭ ns))) (even2NonNull p) 
+  where even2NonNull : ∀ {n} -> Even n -> NonNull (evens n)
+        even2NonNull isEven0 = _
+        even2NonNull {.(suc (suc n))} (isEven+2 {n} p) with isEven? n
+        even2NonNull (isEven+2 p) | yes _ = _
+        even2NonNull (isEven+2 p) | no ¬p = ¬p p
+
 odd [] = Base
 odd (n ∷ ns) = Skip (even (♭ ns))
 
-ex2' : ∀ {b ns} -> EvenOddSeqence b ns -> Prod' evens ns
-ex2' [] = Base
-ex2' (_∷_ {true} n {p} ns) = even (_∷_ {true} n {p} ns)
-ex2' (_∷_ {false} n {p} ns) = odd (_∷_ {false} n {p} ns)
-
--- Improductive
-g : ∀ {A : Set} -> A -> ColistP ℕ
-g = const []
-
-ex3 : NonProd g nats'
-ex3 = go nats'
-  where go : (xs : ColistP ℕ) -> NonProd g xs
-        go xs = {!!}
+ex2 : ∀ {b ns} -> EvenOddSeqence b ns -> Prod' evens ns
+ex2 {true} seq = even seq
+ex2 {false} seq = odd seq
