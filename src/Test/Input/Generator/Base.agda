@@ -121,6 +121,14 @@ concatMapC {B = B} f (x ∷ xs) {Now isP tt} | y ∷ ys = unwrap y (♭ ys)
         unwrap z [] = z ∷ ♯ (concatMapC f (♭ xs) {♭ isP})
         unwrap z (z₁ ∷ zs) = z ∷ (♯ (unwrap z₁ (♭ zs)))
 
--- Prod is as expressive as IsProductive
--- IsProductive2Prod : ∀ {A B} {f : A -> ColistP B} -> {xs : ColistP A} -> IsProductive f -> Prod f xs
--- IsProductive2Prod {xs = xs} p = {!!}
+nonEmptyW2NonNull : ∀ {ℓ} {A : Set ℓ} -> {xs : ColistW A} -> nonEmptyW xs -> NonNull ⟦ xs ⟧W
+nonEmptyW2NonNull {xs = []} ()
+nonEmptyW2NonNull {xs = x ∷ xs} p = tt
+
+-- Prod is as expressive as IsProductive (modulo ⟦_⟧P)
+IsProductive2Prod : ∀ {A B} {f : A -> ColistP B} -> {xs : ColistP A} -> IsProductive f -> Prod (⟦_⟧P ∘ f) ⟦ xs ⟧P
+IsProductive2Prod {xs = xs} p with whnf xs
+IsProductive2Prod p | [] = Base
+IsProductive2Prod {f = f} p | x ∷ xs with whnf (f x) | p x
+IsProductive2Prod p | x ∷ xs | [] | ()
+IsProductive2Prod {f = f} p | x ∷ xs | y ∷ ys | tt = Now (♯ (IsProductive2Prod {f = f} {xs = xs} p)) (nonEmptyW2NonNull (p x))
