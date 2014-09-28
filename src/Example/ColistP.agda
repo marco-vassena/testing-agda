@@ -35,7 +35,7 @@ productive = ⟦ concatMap (const (1 ∷ (♯ []))) nats' ⟧P
 ones : Colist ℕ
 ones = 1 ∷ ♯ ones
 
-ones-prod : Prod' (λ n → n ∷ ♯ []) ones
+ones-prod : Prod (λ n → n ∷ ♯ []) ones
 ones-prod = Now (♯ ones-prod) _
 
 open import Example.Even using (isEven? ; Even ; isEven0 ; isEven+2)
@@ -61,8 +61,8 @@ open import Data.Empty using (⊥-elim)
 open import Data.Sum using (inj₁ ; inj₂ ; _⊎_)
 import Data.Sum as S
           
-even : ∀ {ns} -> EvenOddSeqence true ns -> Prod' evens ns
-odd : ∀ {ns} -> EvenOddSeqence false ns -> Prod' evens ns
+even : ∀ {ns} -> EvenOddSeqence true ns -> Prod evens ns
+odd : ∀ {ns} -> EvenOddSeqence false ns -> Prod evens ns
 even [] = Base
 even (_∷_ n {p} ns) = Now (♯ (odd (♭ ns))) (even2NonNull p) 
   where even2NonNull : ∀ {n} -> Even n -> NonNull (evens n)
@@ -75,7 +75,7 @@ odd [] = Base
 odd (n ∷ ns) = Skip (even (♭ ns))
 
 -- evens is productive if applied on any EvenOddSequence, nats included
-evens-prod : ∀ {b ns} -> EvenOddSeqence b ns -> Prod' evens ns
+evens-prod : ∀ {b ns} -> EvenOddSeqence b ns -> Prod evens ns
 evens-prod {true} seq = even seq
 evens-prod {false} seq = odd seq
 
@@ -103,3 +103,10 @@ nats-even-odd = proof 0 isEven0
   where proof : ∀ {b} -> (n : ℕ) -> evenOrOdd b n -> EvenOddSeqence b (⟦ iterate suc n ⟧P)
         proof {true} n p = _∷_ n {p} (♯ (proof (suc n) (even-next-odd p)))
         proof {false} n p = _∷_ n {p} (♯ (proof (suc n) (odd-next-even p)))
+
+-- After all this proofs we can write:
+-- [0, 2, 4, 6 ...]
+example₁ : Colist ℕ
+example₁ = concatMapC evens nats {isP}
+  where isP : Prod evens nats
+        isP = evens-prod nats-even-odd

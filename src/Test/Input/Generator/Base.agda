@@ -1,20 +1,16 @@
 module Test.Input.Generator.Base where
 
 open import Coinduction
+open import Data.Bool
 open import Data.Nat
 open import Data.Empty
 open import Data.Unit
 open import Data.Sum using (_⊎_)
 open import Data.Product using (_×_ ; _,_)
 open import Data.Colist using (Colist ; _∷_ ; [])
+import Data.Colist as C
 open import Function
 open import Level as L
-
--- TODO cannot rexpress concat as concatMap id because of mismatching levels ℓ and (suc ℓ) (wrong sort)
--- TODO cannot express it not even as an ad hoc constructor for the same reason
--- is there some workaround?
--- concat : ∀ {ℓ} {A : Set ℓ} -> ColistP (ColistP A) -> ColistP A
--- concat xss = concatMap {!!} {!xss!}
 
 mutual
 
@@ -46,7 +42,6 @@ mutual
   whnf (xs ++ ys)               = (whnf xs) ++W (whnf ys)
   whnf (concatMap f {isP} xs)   = concatMapW f {isP} (whnf xs)
 
-
   zipWithW : ∀ {ℓ} {A B C : Set ℓ} →
              (A → B → C) → ColistW A → ColistW B → ColistW C
   zipWithW f (x ∷ xs) (y ∷ ys) = f x y ∷ zipWith f xs ys
@@ -68,7 +63,6 @@ mutual
   concatMapW f {isP} (x ∷ xs) | y ∷ ys | tt = y ∷ (ys ++ (concatMap f {isP} xs))
 
 mutual
-
   ⟦_⟧W : ∀ {ℓ} {A : Set ℓ} → ColistW A → Colist A
   ⟦ x ∷ xs ⟧W = x ∷ ♯ ⟦ xs ⟧P
   ⟦ [] ⟧W = []
@@ -104,15 +98,28 @@ combine f xs ys with ⟦ ys ⟧P
 combine f xs ys | [] = []
 combine f xs _ | y ∷ ys = concatMap (λ x → map (f x) (fromColist (y ∷ ys))) xs
 
+--------------------------------------------------------------------------------
+-- Productive data types for Colist
+--------------------------------------------------------------------------------
+
 NonNull : ∀ {ℓ} {A : Set ℓ} -> Colist A -> Set
-NonNull [] = ⊥
-NonNull (_ ∷ _) = ⊤
+NonNull xs = T (not (C.null xs))
 
 -- Productive data-type
-data Prod' {A B : Set} (f : A -> Colist B) : (xs : Colist A) -> Set₁ where
-  Base : Prod' f []
-  Skip : {x : A} {xs : ∞ (Colist A)} -> Prod' f (♭ xs) -> Prod' f (x ∷ xs)
-  Now : {x : A} {xs : ∞ (Colist A)} -> ∞ (Prod' f (♭ xs)) -> NonNull (f x) -> Prod' f (x ∷ xs)
+data Prod {A B : Set} (f : A -> Colist B) : (xs : Colist A) -> Set₁ where
+  Base : Prod f []
+  Skip : {x : A} {xs : ∞ (Colist A)} -> Prod f (♭ xs) -> Prod f (x ∷ xs)
+  Now : {x : A} {xs : ∞ (Colist A)} -> ∞ (Prod f (♭ xs)) -> NonNull (f x) -> Prod f (x ∷ xs)
+
+concatMapC : ∀ {A B : Set} -> (f : A -> Colist B) -> (xs : Colist A) -> {isP : Prod f xs} -> Colist B
+concatMapC f .[] {Base} = []
+concatMapC f (x ∷ xs) {Skip isP} = concatMapC f (♭ xs) {isP}
+concatMapC f (x ∷ xs) {Now isP nonNull} with f x
+concatMapC f (x ∷ xs) {Now isP ()} | []
+concatMapC {B = B} f (x ∷ xs) {Now isP tt} | y ∷ ys = unwrap y (♭ ys)
+  where unwrap : B -> Colist B -> Colist B 
+        unwrap z [] = z ∷ ♯ (concatMapC f (♭ xs) {♭ isP})
+        unwrap z (z₁ ∷ zs) = z ∷ (♯ (unwrap z₁ (♭ zs)))
 
 -- Prod is as expressive as IsProductive
 -- IsProductive2Prod : ∀ {A B} {f : A -> ColistP B} -> {xs : ColistP A} -> IsProductive f -> Prod f xs
