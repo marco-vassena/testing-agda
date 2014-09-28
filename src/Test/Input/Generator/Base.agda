@@ -22,6 +22,7 @@ mutual
     map     : {B : Set ℓ} (f : B → A) (xs : ColistP B) → ColistP A
     _++_ : ColistP A -> ColistP A -> ColistP A
     concatMap : {B : Set ℓ} -> (f : B -> ColistP A) -> {isP : IsProductive f} -> ColistP B -> ColistP A
+    concatMap' : {B : Set ℓ} -> (f : B -> ColistP A) -> (xs : ColistP B) -> {isP : Prod' f (whnf xs)} -> ColistP A
 
   data ColistW {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
     [] : ColistW A
@@ -34,6 +35,12 @@ mutual
   IsProductive : ∀ {ℓ} {A B : Set ℓ} -> (f : A -> ColistP B) -> Set ℓ 
   IsProductive {A = A} f = (a : A) -> nonEmptyW (whnf (f a))  -- Sound (but not complete) approximation of productive function
 
+  -- Productive data-type
+  data Prod' {ℓ} {A B : Set ℓ} (f : A -> ColistP B) : (xs : ColistW A) -> Set (L.suc ℓ) where
+     Base : Prod' f []
+     Skip : {x : A} {xs : (ColistP A)} -> Prod' f (whnf xs) -> Prod' f (x ∷ xs)
+     Now : {x : A} {xs : (ColistP A)} -> ∞ (Prod' f (whnf  xs)) -> nonEmptyW (whnf (f x)) -> Prod' f (x ∷ xs)
+
   whnf : ∀ {ℓ} {A : Set ℓ} → ColistP A → ColistW A
   whnf []                       = [] 
   whnf (x ∷ xs)                 = x ∷ ♭ xs
@@ -41,6 +48,7 @@ mutual
   whnf (map f xs)               = mapW f (whnf xs)
   whnf (xs ++ ys)               = (whnf xs) ++W (whnf ys)
   whnf (concatMap f {isP} xs)   = concatMapW f {isP} (whnf xs)
+  whnf (concatMap' f xs {isP})  = concatMapW' f (whnf xs) {isP}
 
   zipWithW : ∀ {ℓ} {A B C : Set ℓ} →
              (A → B → C) → ColistW A → ColistW B → ColistW C
@@ -61,6 +69,13 @@ mutual
   concatMapW f {isP} (x ∷ xs) with whnf (f x) | isP x
   concatMapW f {isP} (x ∷ xs) | [] | ()
   concatMapW f {isP} (x ∷ xs) | y ∷ ys | tt = y ∷ (ys ++ (concatMap f {isP} xs))
+
+  concatMapW' : ∀ {ℓ} {A B : Set ℓ} -> (f : A -> ColistP B) -> (xs : ColistW A) -> {isP : Prod' f xs} -> ColistW B
+  concatMapW' f .[] {Base} = []
+  concatMapW' f (x ∷ xs) {Skip isP} = concatMapW' f (whnf xs) {isP}
+  concatMapW' f (x ∷ xs) {Now isP nonNull} with whnf (f x)
+  concatMapW' f (x ∷ xs) {Now isP ()} | []
+  concatMapW' f (x ∷ xs) {Now isP tt} | y ∷ ys = y ∷ (ys ++ concatMap' f xs {♭ isP})
 
 mutual
   ⟦_⟧W : ∀ {ℓ} {A : Set ℓ} → ColistW A → Colist A
@@ -106,7 +121,7 @@ NonNull : ∀ {ℓ} {A : Set ℓ} -> Colist A -> Set
 NonNull xs = T (not (C.null xs))
 
 -- Productive data-type
-data Prod {A B : Set} (f : A -> Colist B) : (xs : Colist A) -> Set₁ where
+data Prod {ℓ} {A B : Set ℓ} (f : A -> Colist B) : (xs : Colist A) -> Set (L.suc ℓ) where
   Base : Prod f []
   Skip : {x : A} {xs : ∞ (Colist A)} -> Prod f (♭ xs) -> Prod f (x ∷ xs)
   Now : {x : A} {xs : ∞ (Colist A)} -> ∞ (Prod f (♭ xs)) -> NonNull (f x) -> Prod f (x ∷ xs)
@@ -126,7 +141,7 @@ nonEmptyW2NonNull {xs = []} ()
 nonEmptyW2NonNull {xs = x ∷ xs} p = tt
 
 -- Prod is as expressive as IsProductive (modulo ⟦_⟧P)
-IsProductive2Prod : ∀ {A B} {f : A -> ColistP B} -> {xs : ColistP A} -> IsProductive f -> Prod (⟦_⟧P ∘ f) ⟦ xs ⟧P
+IsProductive2Prod : ∀ {ℓ} {A B : Set ℓ} {f : A -> ColistP B} -> {xs : ColistP A} -> IsProductive f -> Prod (⟦_⟧P ∘ f) ⟦ xs ⟧P
 IsProductive2Prod {xs = xs} p with whnf xs
 IsProductive2Prod p | [] = Base
 IsProductive2Prod {f = f} p | x ∷ xs with whnf (f x) | p x

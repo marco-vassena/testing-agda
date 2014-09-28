@@ -104,7 +104,7 @@ nats-even-odd = proof 0 isEven0
         proof {true} n p = _∷_ n {p} (♯ (proof (suc n) (even-next-odd p)))
         proof {false} n p = _∷_ n {p} (♯ (proof (suc n) (odd-next-even p)))
 
--- After all this proofs we can write:
+-- After all those proofs we can write:
 -- [0, 2, 4, 6 ...]
 example₁ : Colist ℕ
 example₁ = concatMapC evens nats {isP}
