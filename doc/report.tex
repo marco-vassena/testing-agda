@@ -24,6 +24,8 @@ Inspired by libraries like Quickcheck, Smallcheck and FEAT, the goal of this exp
 \subsection{Motivation}
 Under the Curry-Howard correspondence, it is possible to use Agda to formally prove arbitrary properties. The reader might then wonder what would be the benefit of a testing library in such a setting. Proving properties is in general hard and time-consuming, therefore it could be useful, before undertaking this demanding task, to verify that the property holds with concrete input values. This sanity-check can be achieved by means of this library and could quickly spot erroneous definitions and invalid or incomplete theorems.
 
+TODO add discussion about decidability restriction
+
 \section{Library}
 
 The library is organized as follows:
@@ -146,6 +148,30 @@ example1-input = (0 :: 1 :: 2 :: 3 :: []) ::
 \section{Conversion}
 The library provides in the module \texttt{Test.Conversion} the function \texttt{convert} which automatically converts the signature of a lemma (yet to be proven) to the correspondent predicate. Dependent types are converted to universal quantification and standard library constructs such as $\neg$, $\exists$, $\biguplus$, $\times$ are recognized and mapped to their \texttt{Predicate} counterpart.
 In order to achieve its purpose this module relies on the \texttt{Reflection} module from the standard library.
+
+\section{Generator}
+Generators definition.
+
+\subsection{•}
+Generators for simple types: SimpleGenerator.
+
+\subsection{Dependent types generator}
+Nature of dependent types : Provide additional information, Represent constructively properties about values.
+Generators for dependent types: Angelic and Demoniac generators.
+Implementing one generator or the other is easier based on the nature of the dependent type at hand.
+Example.
+
+\subsection{Productivity}
+Limitations of productivity checker.
+Danielsson workaround.
+Additional contribution:
+	concatMap / concatMap'
+Productivity data type
+	Sound, but incomplete version
+	Sound and complete version
+		
+\section{Complete Test Case ?}
+Lambda-calculus, small step semantics, deterministic proof.
 
 \section{Further Work}
 This project leaves room for further extensionsq to the library.
