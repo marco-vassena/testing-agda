@@ -1,5 +1,4 @@
 \documentclass[10pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
 \usepackage{amsmath}
 \usepackage{amsfonts}
@@ -7,6 +6,17 @@
 \usepackage{stmaryrd}
 \usepackage{hyperref}
 \usepackage{listings}
+\usepackage{agda}
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{autofe}
+\usepackage{fancyvrb}
+
+\DeclareUnicodeCharacter{8759}{::}
+ 
+\DefineVerbatimEnvironment
+   {code}{Verbatim}
+   {} % Add fancy options here if you like.
 
 \lstset{
   basicstyle=\ttfamily,
@@ -22,12 +32,9 @@
 Inspired by libraries like Quickcheck, Smallcheck and FEAT, the goal of this experimentation project is to design and implement a library for testing decidable properties for Agda, a total, dependently typed functional programming language.
 
 \subsection{Motivation}
-Under the Curry-Howard correspondence, it is possible to use Agda to formally prove arbitrary properties. The reader might then wonder what would be the benefit of a testing library in such a setting. Proving properties is in general hard and time-consuming, therefore it could be useful, before undertaking this demanding task, to verify that the property holds with concrete input values. This sanity-check can be achieved by means of this library and could quickly spot erroneous definitions and invalid or incomplete theorems.
-
-TODO add discussion about decidability restriction
+Under the Curry-Howard correspondence, it is possible to use Agda to formally prove arbitrary properties. The reader might then wonder what would be the benefit of a testing library in such a setting. Proving properties is in general hard and time-consuming, therefore it could be useful, before undertaking this demanding task, to verify that the property at hand holds with concrete input values. This sanity-check can be achieved by means of this library and could quickly spot erroneous definitions and invalid or incomplete theorems.
 
 \section{Library}
-
 The library is organized as follows:
 \begin{itemize}
 	\item \texttt{Test.Base}. Basic data-type definitions.
@@ -39,15 +46,36 @@ The library is organized as follows:
 	\item \texttt{Example} Contains several simple examples about how to use the library.
 	
 \subsection{Predicate}
-The \texttt{Predicate} data-type represents a predicate in first order logic.
-It includes universal, existential and unique existential quantification, conjunction, disjunction, negation, implication and bi-implication.
-In other testing libraries predicates are limited to boolean formulas, in this setting instead, consistently with the Curry–Howard equivalence, types are the basic building block of a predicate, which are wrapped by the \texttt{Property} constructor.
-The data type is indexed over a \texttt{BListTree} which keeps track of the types of the quantified variables and whose avail will be explained in the following.
-The definition of the quantification constructs is the most interesting.
-Exploiting the underlying high-order language, the quantification is represented as a continuation (lambda expression), which literally introduces a new variable in scope, available in the remaining part of the predicate.
-Special syntax declarations hide the presence of the lambda abstractions and keep the predicate readable.
+The \texttt{Predicate} data-type is a universe that represents first order logic predicates.
 
-% Example of predicate and BListTree
+\begin{code}
+data Predicate : (BListTree Set) → Set₁ where
+  Forall : (p : A → Predicate xs) → Predicate (A ∷ xs)
+  Exists : (p : A → Predicate xs) → Predicate (A ∷ xs)
+  ExistsUnique : (p : A → Predicate xs) → Predicate (A ∷ xs)
+  Not : Predicate xs → Predicate xs
+  _∨_ : Predicate xs → Predicate ys → Predicate (xs , ys)
+  Property : (P : Set) → Predicate []
+\end{code}
+
+In other testing libraries predicates are limited to boolean formulas, in this setting instead, consistently with the Curry–Howard equivalence, types are the basic building block of a predicate, which explains the basic constructor \texttt{Property} which wraps a \texttt{Set} element.
+
+The constructors \texttt{Forall}, \texttt{Exists} and \texttt{ExistsUnique} add quantification to the \texttt{Predicate} data type.
+Exploiting the underlying high-order language, the quantification is represented as a continuation (lambda expression), which literally introduces a new variable in scope, available in the remaining part of the predicate and ultimately in  the type \texttt{P} inside a \texttt{Property}.
+
+The data type is indexed over a \texttt{BListTree} which keeps track of the types of the quantified variables and whose avail will be explained in the following.
+The definition of \texttt{BListTree} is straightforward:
+\begin{code}
+data BListTree {a} (A : Set a) : Set a where 
+  [] : BListTree A
+  _∷_ : A → BListTree A → BListTree A
+  _,_ : BListTree A → BListTree A → BListTree A
+\end{code}
+The constructor \texttt{\_::\_} is used when quantification add a variable in scope, whereas the constructor \texttt{\_,\_} couples together the \texttt{BListTree} when two predicates are composed by the disjunction constructor \texttt{\_$\vee$\_}.
+
+Other derived combinators have been defined on top of the \texttt{Predicate} 
+data type, such as implication, conjunction and double implication.
+
 \paragraph{Example}
 The following is an example of the predicate $\forall n \in \mathbb{N} . \exists m \in \mathbb{N} . Even (n + m)$. The \texttt{BListTree} constructor \texttt{\_::\_} (cons) fixes the type of the variables quantified.  
 
@@ -56,45 +84,128 @@ example1 : Predicate ($\mathbb{N}$ :: $\mathbb{N}$ :: [])
 example1 = Forall ($\lambda$ n $\rightarrow$ (Exists $\lambda$ m $\rightarrow$
 		(Property (Even (n + m))))
 \end{lstlisting}
-
-Another example showing additional constructs available in \texttt{Predicate}.
-The \texttt{BListTree} constructor \texttt{\_,\_} is used for conjunction and disjunction.
-\begin{lstlisting}
-example2 : Predicate ($\mathbb{N}$ :: ([] , []))
-example2 = Forall ($\lambda$ n $\rightarrow$ 
-		(Property (Even n)) $\vee$ 
-		(Not (Property (Even n))))
-\end{lstlisting}
-
-The first example using the pretty syntax definitions:
+Special syntax declarations has been used to hide the presence of the lambda abstractions and keep the predicate readable and avoid clutter.
 \begin{lstlisting}
 example1-pretty : Predicate ($\mathbb{N}$ :: $\mathbb{N}$ :: [])
 example1-pretty = Forall n $\sim$ Exists m $\sim$ 
 			Property (Even (n + m))
 \end{lstlisting}
-
+Another example showing additional constructs available in \texttt{Predicate}.
+\begin{lstlisting}
+example2 : Predicate ($\mathbb{N}$ :: ([] , []))
+example2 = Forall n $\sim$ Property (Even n) $\vee$ 
+                       Not (Property (Even n))
+\end{lstlisting}
 \end{itemize}
 
 \subsection{Testing framework}
-The data type \texttt{Testable} contains a predicate $p$ of type \texttt{Predicate xs}, a collection of input values of type \texttt{Input List xs} and the testing function $\llbracket p \rrbracket$ and represent a minimal testable unit. The shared index \texttt{xs} of type \texttt{BListTree} guarantees that the collection of input values match the shape and the types contained in the predicate.
-The type level function $\llbracket \cdot \rrbracket$, given a predicate, returns the type of a decision procedure used to test the property.
-Such function takes as many arguments as variables quantified and returns a \texttt{Dec} relation over the final property. Due to this only decidable predicates can be tested, however further extensions might tackle the problem of testing undecidable or partially decidable properties.
+The data type \texttt{Testable} represents a minimal testable unit.
+
+\begin{code}
+data Testable : (BListTree Set) → Set₁ where
+  Test_on_by_ : (p : Predicate xs )→ Input List xs →  ⟦ p ⟧ → Testable xs
+\end{code}
+
+It contains a predicate $p$ of type \texttt{Predicate xs}, a collection of input values of type \texttt{Input List xs} and the testing function $\llbracket$ \texttt{p} $ \rrbracket$. The shared index \texttt{xs} of type \texttt{BListTree} guarantees that the collection of input values match the shape and the types contained in the predicate.
+
+The type level function $\llbracket\_\rrbracket$, given a predicate, returns the type of a decision procedure used to test that property.
+Such function takes as many arguments as variables quantified and returns a \texttt{Dec} relation over the final property.
+Its definition is straightforward:
+\begin{code}
+⟦_⟧ : Predicate xs → Set
+⟦ Forall {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ Exists {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ ExistsUnique {A = A} f ⟧ = (a : A) → ⟦ f a ⟧
+⟦ Not p ⟧ = ⟦ p ⟧
+⟦ p1 ∨ p2 ⟧ = ⟦ p1 ⟧ × ⟦ p2 ⟧
+⟦ Property P ⟧ = Dec P
+\end{code}
+For each quantified variable, denoted by existential and quantification 
+constructors, we require an argument of that type. The rest of the signature is 
+filled applying the  $\llbracket\_\rrbracket$ function to the remaining 
+part of the predicate that becomes accessible applying the continuation 
+\texttt{f} to the argument \texttt{a}.
+In the disjunction  case the decision procedure of each predicate are paired together. The base case (\texttt{Property}) requires decidability over the final type \texttt{P}.
 
 \paragraph{Example}
-As an example this is the decision procedure required to test \texttt{example1}:
+This is the type signature of the decision procedure required to test \texttt{example1}:
+\begin{lstlisting}
+$\llbracket$ example1 $\rrbracket$ $\equiv$ (n : $\mathbb{N}$) $\rightarrow$ (m : $\mathbb{N}$) $\rightarrow$ Dec (Even (n + m))
+\end{lstlisting}
+Suppose that a decidability procedure for the \texttt{Even} relation is available as \texttt{even? : (n : $\mathbb{N}$) $\rightarrow$ Even n}, then a suitable decision procedure for \texttt{example1} is:
 \begin{lstlisting}
 example1-dec : $\llbracket$ example1 $\rrbracket$
-example1-dec = (n : $\mathbb{N}$) $\rightarrow$ (m : $\mathbb{N}$) $\rightarrow$ Dec (Even (n + m))
+example1-dec n m = even? (n + m)
+\end{lstlisting}
+Note that the simple, yet precise, definition of $\llbracket\_\rrbracket$ 
+and the power of dependent types can prevent subtle bugs in the specification.
+For instance providing the following decision procedure for \texttt{example1} will raise a type error, because \texttt{n} is different from \texttt{n + m}:
+\begin{lstlisting}
+wrong : $\llbracket$ example1 $\rrbracket$ 
+wrong n m = even? n
 \end{lstlisting}
 
-The testing framework comprises a family of mutually recursive testing functions, each specialized to deal with a specific constructor of the \texttt{Predicate} data type. These functions return a tagged \texttt{Result}.
-The tag (constructor $inj_1$ or $inj_2$) represents whether for the current input value the property turned out to be valid or not.
-Based on that for each kind of construct of the predicate a different behaviour is defined, accordingly to its semantics.
-For instance universal quantification will test all the given input values until either the search space is exhausted or a counter example is found. Conversely existential quantification will stop as soon as an input value validates the predicate.
-These functions rely on the continuation passing style.
-The decision procedure $\llbracket \cdot \rrbracket$ is saturated passing an input value at each node of the predicate, until lastly at the leaf \texttt{Predicate} a decidable instance about the property (for some specific input values) is obtained.
-Since also the \texttt{Predicate} data-type relies on continuation input values are required to traverse a predicate and get to the next constructor.
-Note that this implies that in general is not possible to analyze a predicate for finding out information about its structure. This is one of the major drawback of this data structure.
+
+The data type \texttt{Input} stores the input values used to test the predicate.
+\begin{code}
+data Input (F : Set → Set) : (BListTree Set) → Set₁ where
+  [] : Input F []
+  _∷_ : F A → Input F xs → Input F (A ∷ xs)
+  _,_ : Input F xs → Input F ys → Input F (xs , ys)
+\end{code}
+It is indexed over a \texttt{BListTree} which determine its shape and the type of the values contained and polymorphic over \texttt{F}, which is the container of the input values.
+The testing framework requires \texttt{Input List}, but following the example of \texttt{Test.Input.Stream} it's possible to use arbitrary containers as long as they can be internally converted to the \texttt{Input List} data type.
+Its constructors are overloaded version of the \texttt{BListTree} constructors, so that it has also visually the same shape of the property's \texttt{BListTree}.
+\paragraph{Example} An example of \texttt{Input List} for \texttt{example1}.
+\begin{lstlisting}
+example1-input : Input List ($\mathbb{N}$ :: $\mathbb{N}$ :: [])
+example1-input = (0 :: 1 :: 2 :: 3 :: []) :: 
+		 (0 :: 1 :: 2 :: 3 :: []) :: []
+\end{lstlisting}
+
+
+The testing framework comprises a family of mutually recursive testing functions, each specialized to deal with a specific constructor of the \texttt{Predicate} data type, all returning a tagged \texttt{Result}, which models all the possible outcomes of testing a first order predicate. 
+The tag (constructor \texttt{inj₁} or \texttt{inj₂}) represents whether for the current input value the property turned out to be valid or not.
+
+The entry point of the testing framework is the function \texttt{test'}:
+\begin{code}
+test' : (u : Predicate xs) → ⟦ u ⟧ → Input List xs → Result xs ⊎ Result xs
+test' (Forall p) check (x ∷ input) = test∀ (Forall p) check x input
+test' (Exists p) check (x ∷ input) = test∃ (Exists p) check x input
+test' (ExistsUnique p) check (x ∷ input) = test∃! (ExistsUnique p) check x input
+test' (Not p) check xs with test' p check xs
+test' (Not p) check xs | inj₁ x = inj₂ x
+test' (Not p) check xs | inj₂ y = inj₁ y 
+...
+test' (Property P) (yes p) [] = inj₂ (Hold P)
+test' (Property P) (no ¬p) [] = inj₁ (DoesNotHold P)
+\end{code}
+For the non quantified constructors (negation and disjunction) the semantics of the combinators is directly expressed by the function itself.
+Otherwise if the predicate is quantified it will dispatch the predicate to the specific testing function that deals with the given quantifier.
+As an example consider \texttt{test∀}, which deals with universally quantified predicates.
+The type levels function \texttt{is∀} maps non universally quantified predicates in the empty type \texttt{$\bot$}, which discards the spurious cases with the  absurd pattern \texttt{()}.
+The \texttt{List A} argument represents the search space over which universal quantification has to be tested.
+If this list is empty in the first place then the universal quantification is technically (although trivially) valid. Otherwise the predicate is tested with the first element present in the list. This is done by calling recursively the dispatch function \texttt{test'}, feeding the argument both to the continuation of the predicate and of the decision procedure. This mechanism is common to all the testing functions that deal with quantifiers (\texttt{test∃!}, \texttt{test∃}, \texttt{test∀}). 	
+\begin{code}
+test∀ : (u : Predicate (A ∷ xs)) {p : is∀ u} → ⟦ u ⟧ → List A → 
+         Input List xs → Result (A ∷ xs) ⊎ Result (A ∷ xs)
+test∀ (Forall p) check [] input = inj₂ Trivial
+test∀ (Forall p) check (x ∷ xs) input with test' (p x) (check x) input
+test∀ {A = A} (Forall p) check (x ∷ xs) input | inj₁ r = inj₁ (NotFor x r)
+test∀ {A = A} (Forall p) check (x ∷ []) input | inj₂ y = inj₂ (Forall A y)
+test∀ {A = A} (Forall p) check (x ∷ x₁ ∷ xs₁) input | inj₂ y = 
+	test∀ (Forall p) check (x₁ ∷ xs₁) input
+test∀ (Exists p) {()} check xs₁ input
+test∀ (ExistsUnique p) {()} check xs₁ input
+test∀ (Not u) {()} check xs₁ input
+\end{code}
+The rest of the function simply expresses the semantics of universal quantification: if the current input value represents a counter example, a failure is reported
+(\texttt{inj₁ (NotFor x r)}), otherwise more values are tested until the search space is exhausted.
+
+Eventually, after filling the decision procedure \texttt{⟦ u ⟧} one argument at the time, the final \texttt{Property} will be analyzed in \texttt{test'}.
+At this point, when \texttt{⟦ u ⟧} has been completely saturated, the result is a decision statement about \texttt{P}, which is mapped directly to correspondent tag.
+What is interesting here is that \texttt{P} represents the original property in which also the quantified variables have been fixed to some values, during the testing process. 
+This information is returned as it may represent useful feedback for the user. As an example consider testing \texttt{Forall n $\sim$ Even n} over the natural numbers. The test will fail, finding a counter example for 1 and reporting \texttt{DoesNotHold (Even 1)}, providing a readable version of the outcome.
 
 \subsection{Runner}
 The module \texttt{Test.Runner} defines different runners.
@@ -132,19 +243,6 @@ example4-result : Result ($\mathbb{N}$ :: [])
 example4-result = $\exists$ $\langle$ 0 $\rangle$ Even 0
 \end{lstlisting}
 
-\subsection{Input}
-The module \texttt{Test.Input} defines the \texttt{Input} data type, which is used to provide input values to the testing framework.
-It is indexed over a \texttt{BListTree} which determine its shape and the type of the values contained and parametrized over a functor, which is the container of the values.
-The testing framework requires \texttt{Input List}, but following the example of \texttt{Test.Input.Stream} it's possible to use arbitrary containers as long as they can be internally converted to the \texttt{Input List} data type.
-Its constructors are overloaded version of the \texttt{BListTree} constructors, so that it has also visually the same shape of the property's \texttt{BListTree}.
-
-\paragraph{Example} An example of \texttt{Input List} for \texttt{example1}.
-\begin{lstlisting}
-example1-input : Input List ($\mathbb{N}$ :: $\mathbb{N}$ :: [])
-example1-input = (0 :: 1 :: 2 :: 3 :: []) :: 
-		 (0 :: 1 :: 2 :: 3 :: []) :: []
-\end{lstlisting}
-
 \section{Conversion}
 The library provides in the module \texttt{Test.Conversion} the function \texttt{convert} which automatically converts the signature of a lemma (yet to be proven) to the correspondent predicate. Dependent types are converted to universal quantification and standard library constructs such as $\neg$, $\exists$, $\biguplus$, $\times$ are recognized and mapped to their \texttt{Predicate} counterpart.
 In order to achieve its purpose this module relies on the \texttt{Reflection} module from the standard library.
@@ -177,8 +275,15 @@ Lambda-calculus, small step semantics, deterministic proof.
 This project leaves room for further extensionsq to the library.
 \begin{itemize}
 	\item The library currently supports only decidable properties. It would be useful handle also partially-decidable properties and investigate alternative approaches for undecidable properties.
+The framework currently supports only decidable properties, because in this setting it is always clear the distinction between a success and a failure.
+However further extensions might tackle the problem of testing undecidable or only partially decidable properties.
+
+	
+	
 	\item The user needs to write custom generator for each data-type under testing. The library could give support in writing such generators, or even generate them using a generic approach. Particularly relevant in this setting is the generation of dependent values.
 	\item A crucial aspect of this library is giving precise, readable and informative feedback to the user. Adding more constructors to the \texttt{Predicate}, rather then just mapping them to basic constructors (as it happens for conjunction, implication and bi-implication, could certainly improve the quality of the results, because they could be tailored for each constructor. The normalization of the internal \texttt{Result} data type could also be improved further with this goal in mind.
+\item Note that this implies that in general is not possible to analyze a predicate for finding out information about its structure. This is one of the major drawback of this data structure.
+
 \end{itemize}
 
 \end{document}
