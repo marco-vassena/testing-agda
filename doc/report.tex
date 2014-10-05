@@ -13,6 +13,7 @@
 \usepackage{fancyvrb}
 
 \DeclareUnicodeCharacter{8759}{::}
+\DeclareUnicodeCharacter{8799}{\ensuremath{\stackrel{?}{=}}}
  
 \DefineVerbatimEnvironment
    {code}{Verbatim}
@@ -204,25 +205,85 @@ The rest of the function simply expresses the semantics of universal quantificat
 
 Eventually, after filling the decision procedure \texttt{⟦ u ⟧} one argument at the time, the final \texttt{Property} will be analyzed in \texttt{test'}.
 At this point, when \texttt{⟦ u ⟧} has been completely saturated, the result is a decision statement about \texttt{P}, which is mapped directly to correspondent tag.
-What is interesting here is that \texttt{P} represents the original property in which also the quantified variables have been fixed to some values, during the testing process. 
+What is interesting here is that \texttt{P} represents the original property in which also the quantified variables have been fixed to some value, during the testing process. 
 This information is returned as it may represent useful feedback for the user. As an example consider testing \texttt{Forall n $\sim$ Even n} over the natural numbers. The test will fail, finding a counter example for 1 and reporting \texttt{DoesNotHold (Even 1)}, providing a readable version of the outcome.
 
 \subsection{Runner}
-The module \texttt{Test.Runner} defines different runners.
-A runner is a type level function that uses directly the underlying testing framework and after running a test returns a specific wrapper data-type that provides readable feedback to the user.
+The module \texttt{Test.Runner} defines different runners, which are functions used to actually run tests.
+A runner is a type level function that calls the underlying testing framework and returns, based on the test outcome, a suitable type that provides readable feedback to the user.
+As an example consider \texttt{run}, which is the basic runner which simply returns when the property turned out to hold or not.
+\begin{code}
+run : ∀ {xs} → Testable xs → Set
+run (Test u on input by check) with test u check input
+run (Test u on input by check) | inj₁ _ = Fail
+run (Test u on input by check) | inj₂ _ = Succeed
+\end{code}
+The function \texttt{test} tests the given property and normalizes the outcome (the reason behind this will be explained in \ref{sec:Result}).
+Based on the tag of the returned \texttt{Result} (\texttt{inj₁} or \texttt{inj₂}) a different suitable type is returned.
+\begin{code}
+data Fail : Set where
+  Failed : Fail
 
-The simplest runner is \texttt{run}, which simply runs the test and reports whether it failed or not returning either the type \texttt{Fail} or \texttt{Succeed}. These types have only one inhabitant and then the result of running a test can be filled automatically with Agda's \texttt{auto} feature.
-The runner \texttt{runVerbose} additionally returns also the actual \texttt{Result} produced by the testing framework. This is either a witness of the correctness of the property or a counterexample.
+data Succeed : Set where
+  Pass : Succeed
+\end{code}
+Here is an example of a trivial test-case:
+\begin{code}
+trivial : Predicate []
+trivial = Property Unit
+
+dec-trivial : ⟦ trivial ⟧
+dec-trivial = yes unit
+
+test-trivial : run (Test trivial on [] by dec-trivial)
+test-trivial = ?
+\end{code}
+Initially the definition of \texttt{test-trivial} is left open.
+Type checking the file that contains the test suite and inspecting the type of the goal the user will find out that the hole has type \texttt{Succeed} as expected, and fills it with \texttt{Pass}.
+Since these types have only one inhabitant the hole can also be filled automatically with Agda's \texttt{auto} feature.
+Alternatively the user can already fill the definition of each test case with \texttt{Pass}: if some test turns out to fail, a compile-time type error will be reported.
+A test suite consists then of an Agda module containing such definitions and running the test suite is as simple as type checking the whole module.
+
+The module defines other runners explained in the following.
+The runner \texttt{runVerbose} additionally returns also the actual \texttt{Result} produced by the testing framework, which is either a witness of the correctness of the property or a counterexample.
+\begin{code}
+runVerbose : ∀ {xs} → Testable xs → Set₁
+runVerbose (Test u on input by check) with test u check input
+runVerbose (Test u on input by check) | inj₁ r = Fail: r
+runVerbose (Test u on input by check) | inj₂ r = Succeed: r
+\end{code}
 Special care have been put in making the feedback as useful and readable as possible for the user. This is discussed in more detail in section 	\ref{sec:Result}.
-In both cases the \texttt{Result} is an index of the returned type and argument of the only constructor of this data-type. In previous version of this library 
-Agda's \texttt{auto} feature could infer the only inhabitant of the type.
-Unfortunately this turned out not to work anymore when the \texttt{BListTree} was added as an index to \texttt{Result}. This is currently tracked as a \href{http://code.google.com/p/agda/issues/detail?id=1223}{bug}. Hopefully later version of agda will fix it, solving this issue. At the moment it's still possible to manually fill such holes copying the witness or counterexample from the environment.	
+The data-types \texttt{Fail:} and \texttt{Succeed:} are variants of \texttt{Fail} and \texttt{Succeed} indexed over some \texttt{Result} value.
+\begin{code}
+data Fail: : ∀ {xs} → Result xs → Set₁ where
+  Failed : ∀ {xs} (r : Result xs) → Fail: {xs} r
+
+data Succeed: : ∀ {xs} → Result xs → Set₁ where
+  Pass : ∀ {xs} (r : Result xs) → Succeed: {xs} r
+\end{code}
+As an example consider again testing the trivial property:
+\begin{code}
+test-trivial' : runVerbose (Test trivial on [] by dec-trivial)
+test-trivial' = Pass (Hold Unit)
+\end{code}
+Note that from the definition of \texttt{Succeed:} and \texttt{Fail:}, there is only one possible inhabitant for any of these types instantiated with some result. Therefore agda's \texttt{auto} feature should be able to automatically infer it, which was the case in previous version of this library. 
+Unfortunately this turned out not to work anymore when the index \texttt{BListTree} was added to \texttt{Result}. This is currently tracked as a \href{http://code.google.com/p/agda/issues/detail?id=1223}{bug} in the agda bug-tracker.It's nevertheless possible to manually fill such holes copying the witness or counterexample from the goal type.
 The runners \texttt{pass} and \texttt{fail} require the test to respectively pass and fail. The runner \texttt{skip} does not run the test at all.
 The runners \texttt{pass\_With\_Using} and \texttt{fail\_With\_Using} are variants of the runners \texttt{pass} and \texttt{fail} in which the user specifies not only whether the test should pass or not, but also with which outcome.
 These runners require decidable equality over the types involved in the property, which are contained in a \texttt{Comparator} object.
-The \texttt{Comparator} shares the same \texttt{BListTree} index  of the property  being tested, which guarantees that is contains the decidable equality functions for the correct types and that it has the same shape.
+\begin{code}
+pass_With_Using_, fail_With_Using_ : Testable xs → Result xs → 
+                                     Comparator xs → Set₁
+\end{code}
+The \texttt{Comparator} shares the same \texttt{BListTree} index  of the property  being tested, which guarantees that it contains the decidable equality functions for the correct types and that it has the same shape.
+\begin{code}
+data Comparator : BListTree Set → Set₁ where
+  [] : Comparator []
+  _∷_ : ( _≟_ : Decidable (_≡_ {A = A}))  → Comparator xs → Comparator (A ∷ xs)
+  _,_ : Comparator xs → Comparator ys → Comparator (xs , ys)
+\end{code}
 The same overloaded constructors for a \texttt{BListTree} have been used to help the user's intuition, in the same way it has been done for the \texttt{Input} data type.
-The only flaw of this runner it's that it is not able to compare the expected and actual property. The problem is that these are types (\texttt{Set}) for which equality cannot be decided by the user, but only by the type checker.
+The only flaw of this runner it's that it is not able to compare the leaves of the \texttt{Result} data type, namely \texttt{Hold} and \texttt{DoesNotHold}. The problem is that these constructors wraps types (\texttt{Set}) for which equality cannot be decided by the user, but only by the type checker.
 Therefore at the moment they are optimistically considered equal, even tough the actual set could be different from the expected one.
 
 \subsection{Result}
