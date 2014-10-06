@@ -110,3 +110,20 @@ example₁ : Colist ℕ
 example₁ = concatMapC evens nats {isP}
   where isP : Prod evens nats
         isP = evens-prod nats-even-odd
+
+--------------------------------------------------------------------------------
+-- Examples with self-generative colist
+--------------------------------------------------------------------------------
+
+-- foo = 0 ∷ ♯ (concatMap f foo)
+foo : ColistP ℕ
+foo = ⟦ Input f (0 ∷ []) ⟧SG
+  where f : ℕ -> ColistP ℕ
+        f n = (n + 1) ∷ (♯ ((n + 3) ∷ ♯ []))
+
+-- bar n = n ∷ ♯ (concatMap count (bar n)) 
+bar : ℕ -> ColistP  ℕ
+bar n = ⟦ Input₁ count n ⟧SG
+  where count : ℕ -> ColistP ℕ
+        count zero = []
+        count (suc n₁) = suc n₁ ∷ ♯ (count n₁)

@@ -126,7 +126,7 @@ data Prod {ℓ} {A B : Set ℓ} (f : A -> Colist B) : (xs : Colist A) -> Set (L.
   Skip : {x : A} {xs : ∞ (Colist A)} -> Prod f (♭ xs) -> Prod f (x ∷ xs)
   Now : {x : A} {xs : ∞ (Colist A)} -> ∞ (Prod f (♭ xs)) -> NonNull (f x) -> Prod f (x ∷ xs)
 
-concatMapC : ∀ {A B : Set} -> (f : A -> Colist B) -> (xs : Colist A) -> {isP : Prod f xs} -> Colist B
+concatMapC : ∀ {ℓ} {A B : Set ℓ} -> (f : A -> Colist B) -> (xs : Colist A) -> {isP : Prod f xs} -> Colist B
 concatMapC f .[] {Base} = []
 concatMapC f (x ∷ xs) {Skip isP} = concatMapC f (♭ xs) {isP}
 concatMapC f (x ∷ xs) {Now isP nonNull} with f x
@@ -147,3 +147,30 @@ IsProductive2Prod p | [] = Base
 IsProductive2Prod {f = f} p | x ∷ xs with whnf (f x) | p x
 IsProductive2Prod p | x ∷ xs | [] | ()
 IsProductive2Prod {f = f} p | x ∷ xs | y ∷ ys | tt = Now (♯ (IsProductive2Prod {f = f} {xs = xs} p)) (nonEmptyW2NonNull (p x))
+
+IsProductive2Prod' : ∀ {ℓ} {A B : Set ℓ} {f : A -> ColistP B} -> {xs : ColistP A} -> IsProductive f -> Prod' f (whnf xs)
+IsProductive2Prod' {xs = xs} p with whnf xs
+IsProductive2Prod' p | [] = Base
+IsProductive2Prod' {f = f} p | x ∷ xs₁ with whnf (f x) | p x
+IsProductive2Prod' p | x ∷ xs | [] | ()
+IsProductive2Prod' {f = f} p | x ∷ xs | y ∷ ys | tt = Now (♯ IsProductive2Prod' {f = f} {xs = xs} p) (p x)
+
+--------------------------------------------------------------------------------
+
+-- Self Generative data type.
+-- Represents a colist obtained repeatedly mapping f over the input colist. 
+data SG {ℓ} (A : Set ℓ) : (f : A -> ColistP A) -> Set (L.suc ℓ) where
+  Input : ∀ (f : A -> ColistP A) -> (xs : ColistW A) -> SG A f
+
+-- | Syntactic sugar for singleton colist as seed of a SG
+Input₁ : ∀ {ℓ} {A : Set ℓ} -> (f : A -> ColistP A) -> A -> SG A f
+Input₁ f x = Input f (x ∷ [])
+
+-- | Expresses the semantics of concatMap f over a self generative colist.
+-- xs = ys ++ concatMap f xs ≡ ⟦ Input f ys ⟧SG
+-- Note that a good behaviour is always defined for such definitions.
+-- Furthermore no proofs about the generative function or the input colist are required. 
+⟦_⟧SG : ∀ {ℓ} {A : Set ℓ} {f : A -> ColistP A} -> SG A f -> ColistP A
+⟦ Input _ [] ⟧SG = []
+⟦ Input f (x ∷ xs) ⟧SG = x ∷ ♯ (⟦ Input f (whnf (xs ++ f x))⟧SG)
+
