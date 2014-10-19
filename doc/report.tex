@@ -11,9 +11,17 @@
 \usepackage[utf8x]{inputenc}
 \usepackage{autofe}
 \usepackage{fancyvrb}
+\usepackage{pifont}% http://ctan.org/pkg/pifont
+
+
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
 
 \DeclareUnicodeCharacter{8759}{::}
 \DeclareUnicodeCharacter{8799}{\ensuremath{\stackrel{?}{=}}}
+\DeclareUnicodeCharacter{10003}{\cmark}
+\DeclareUnicodeCharacter{10007}{\xmark}
+
  
 \DefineVerbatimEnvironment
    {code}{Verbatim}
@@ -47,6 +55,7 @@ The library is organized as follows:
 	\item \texttt{Example} Contains several simple examples about how to use the library.
 	
 \subsection{Predicate}
+\label{sec:predicate}
 The \texttt{Predicate} data-type is a universe that represents first order logic predicates.
 
 \begin{code}
@@ -64,7 +73,7 @@ In other testing libraries predicates are limited to boolean formulas, in this s
 The constructors \texttt{Forall}, \texttt{Exists} and \texttt{ExistsUnique} add quantification to the \texttt{Predicate} data type.
 Exploiting the underlying high-order language, the quantification is represented as a continuation (lambda expression), which literally introduces a new variable in scope, available in the remaining part of the predicate and ultimately in  the type \texttt{P} inside a \texttt{Property}.
 
-The data type is indexed over a \texttt{BListTree} which keeps track of the types of the quantified variables and whose avail will be explained in the following.
+The data type is indexed over a \texttt{BListTree} which keeps track of the types of the quantified variables and whose goal will be explained in the following.
 The definition of \texttt{BListTree} is straightforward:
 \begin{code}
 data BListTree {a} (A : Set a) : Set a where 
@@ -72,7 +81,7 @@ data BListTree {a} (A : Set a) : Set a where
   _∷_ : A → BListTree A → BListTree A
   _,_ : BListTree A → BListTree A → BListTree A
 \end{code}
-The constructor \texttt{\_::\_} is used when quantification add a variable in scope, whereas the constructor \texttt{\_,\_} couples together the \texttt{BListTree} when two predicates are composed by the disjunction constructor \texttt{\_$\vee$\_}.
+The constructor \texttt{\_::\_} is used when quantification adds a variable in scope, whereas the constructor \texttt{\_,\_} couples together the \texttt{BListTree} when two predicates are composed by the disjunction constructor \texttt{\_$\vee$\_}.
 
 Other derived combinators have been defined on top of the \texttt{Predicate} 
 data type, such as implication, conjunction and double implication.
@@ -121,12 +130,11 @@ Its definition is straightforward:
 ⟦ p1 ∨ p2 ⟧ = ⟦ p1 ⟧ × ⟦ p2 ⟧
 ⟦ Property P ⟧ = Dec P
 \end{code}
-For each quantified variable, denoted by existential and quantification 
-constructors, we require an argument of that type. The rest of the signature is 
+For each quantified variable, denoted by existential and universal quantification  constructors, we require an argument of that type. The rest of the signature is 
 filled applying the  $\llbracket\_\rrbracket$ function to the remaining 
 part of the predicate that becomes accessible applying the continuation 
 \texttt{f} to the argument \texttt{a}.
-In the disjunction  case the decision procedure of each predicate are paired together. The base case (\texttt{Property}) requires decidability over the final type \texttt{P}.
+In the disjunction  case the decision procedure of each predicate are paired together. The base case (\texttt{Property}) requires decidability over the final type \texttt{P}. Note that the variables introduced via quantification are now bound in P, thus the type signature returned by $\llbracket\_\rrbracket$ is a dependent function. 
 
 \paragraph{Example}
 This is the type signature of the decision procedure required to test \texttt{example1}:
@@ -161,7 +169,7 @@ Its constructors are overloaded version of the \texttt{BListTree} constructors, 
 \begin{lstlisting}
 example1-input : Input List ($\mathbb{N}$ :: $\mathbb{N}$ :: [])
 example1-input = (0 :: 1 :: 2 :: 3 :: []) :: 
-		 (0 :: 1 :: 2 :: 3 :: []) :: []
+		 (0 :: 1 :: 2 :: [])      :: []
 \end{lstlisting}
 
 
@@ -266,7 +274,7 @@ As an example consider again testing the trivial property:
 test-trivial' : runVerbose (Test trivial on [] by dec-trivial)
 test-trivial' = Pass (Hold Unit)
 \end{code}
-Note that from the definition of \texttt{Succeed:} and \texttt{Fail:}, there is only one possible inhabitant for any of these types instantiated with some result. Therefore agda's \texttt{auto} feature should be able to automatically infer it, which was the case in previous version of this library. 
+Note that from the definition of \texttt{Succeed:} and \texttt{Fail:}, there is only one possible inhabitant for any of these types instantiated with some result. Therefore agda's \texttt{auto} feature should be able to automatically infer it, which was the case in a 	previous version of this library. 
 Unfortunately this turned out not to work anymore when the index \texttt{BListTree} was added to \texttt{Result}. This is currently tracked as a \href{http://code.google.com/p/agda/issues/detail?id=1223}{bug} in the agda bug-tracker.It's nevertheless possible to manually fill such holes copying the witness or counterexample from the goal type.
 The runners \texttt{pass} and \texttt{fail} require the test to respectively pass and fail. The runner \texttt{skip} does not run the test at all.
 The runners \texttt{pass\_With\_Using} and \texttt{fail\_With\_Using} are variants of the runners \texttt{pass} and \texttt{fail} in which the user specifies not only whether the test should pass or not, but also with which outcome.
@@ -283,26 +291,83 @@ data Comparator : BListTree Set → Set₁ where
   _,_ : Comparator xs → Comparator ys → Comparator (xs , ys)
 \end{code}
 The same overloaded constructors for a \texttt{BListTree} have been used to help the user's intuition, in the same way it has been done for the \texttt{Input} data type.
-The only flaw of this runner it's that it is not able to compare the leaves of the \texttt{Result} data type, namely \texttt{Hold} and \texttt{DoesNotHold}. The problem is that these constructors wraps types (\texttt{Set}) for which equality cannot be decided by the user, but only by the type checker.
-Therefore at the moment they are optimistically considered equal, even tough the actual set could be different from the expected one.
+The only flaw of this runner it's that it is not able to compare the leaves of the \texttt{Result} data type, namely \texttt{Hold} and \texttt{DoesNotHold}. The problem is that these constructors wraps types (\texttt{Set}) for which equality cannot be decided by the user, but only by the type checker. Currently it is not possible to overcome this limitation, therefore at the moment they are optimistically considered equal, even tough the actual set could be different from the expected one. Hopefully future versions of agda will provide some primitive to test for equality on the set level.
 
 \subsection{Result}
 \label{sec:Result}
-The module \texttt{Test.Result} defines the data-type \texttt{Result} which represents a normalized outcome of testing a predicate.
-There is also an internal version of this data-type in the module \texttt{Test.Base}.
-The latter is used in the testing framework, whereas the former is exposed to the final user. The exposed version has been added to provide sensible feedback to the user. The internal result cannot be used directly because it contains partial results of the testing process, which may not be sensible to show. For instance consider the predicate $\forall n \in \mathbb{N} : Even (n + 0)$. After testing the predicate for a subset of the natural numbers $n$ will be bound to the last number tested. This kind of information needs to be hidden and this is done converting the internal result in the exposed result by the functions \texttt{normalize} and \texttt{hide}.
+The module \texttt{Test.Base} defines the data-type \texttt{Result} which represents a normalized outcome of testing a predicate and it is used internally in the testing framework
 
-\paragraph{Example} The \texttt{Result} data type returned for the previously mentioned property would be.
+\begin{verbatim}
+  data Internal.Result : BListTree Set -> Set₁ where
+    -- The possible outcomes for a universally quantified property
+    Forall : (A : Set) -> Result xs -> Result (A ∷ xs)
+    NotFor : A -> Result xs -> Result (A ∷ xs)
+    Trivial : Result (A ∷ xs)  -- Empty search space
 
-\begin{lstlisting}
-example3-result : Result ($\mathbb{N}$ :: [])
-example3-result = ForAll < $\mathbb{N}$ > $\checkmark$
-\end{lstlisting}
-In other situations these partial values are useful and retained:
-\begin{lstlisting}
-example4-result : Result ($\mathbb{N}$ :: [])
-example4-result = $\exists$ $\langle$ 0 $\rangle$ Even 0
-\end{lstlisting}
+    -- The possible outcomes for an existentially quantified property
+    Exists : A -> Result xs -> Result (A ∷ xs)
+    NotExists : (A : Set) -> Result xs -> Result (A ∷ xs)
+    Impossible : Result (A ∷ xs)  -- Empty search space
+    ...	
+    -- The possible outcomes for a property
+    Hold : Set -> Result []
+    DoesNotHold : Set -> Result []
+\end{verbatim}
+
+The module \texttt{Test.Result} contains a variant of result, which is used to give feedback to the user. It is obtained by post-processing the internal result.
+
+\begin{verbatim}
+data Result : BListTree Set -> Set₁ where
+   ForAll : (A : Set) -> Result xs -> Result (A ∷ xs)
+   ∃ : ValueOrSet A -> Result xs -> Result (A ∷ xs)
+   ¬∃ : (A : Set) -> Result xs -> Result (A ∷ xs)
+   Impossible : Result xs
+   Trivial : Result xs
+   ...
+    -- The possible outcomes for a property
+   Hold : Set -> Result []
+   DoesNotHold : Set -> Result []
+   ✓ : Result []
+   ✗ : Result []
+   
+data ValueOrSet : Set -> Set₁ where
+  ⟨_⟩ : {A : Set} -> A -> ValueOrSet A
+  <_> : (A : Set) -> ValueOrSet A
+
+\end{verbatim}
+
+The internal result cannot be used directly because it contains partial results of the testing process, which may not be sensible to show.
+More precisely in the result corresponding to a predicate the quantified variables will be bound to some specific values, which may be relevant or not, depending on the kinds of quantification used, their order and the outcome of the test itself.
+The function \texttt{normalize} and \texttt{hidden} convert the internal result to the exposed version, tackling this issue.
+
+
+\begin{verbatim}
+hide : Internal.Result xs -> Result xs
+hide (Internal.Hold x) = ✓
+hide (Internal.DoesNotHold x) = ✗
+hide (Internal.NotFor x r) = ∃ < _ > (hide r)
+hide (Internal.Exists x r) = ∃ < _ > (hide r)
+...
+
+normalize : Internal.Result xs -> Result xs
+normalize (Internal.Forall A x) = hide (Internal.Forall A x)
+normalize (Internal.NotExists A x) = hide (Internal.NotExists A x)
+normalize (Internal.NotFor x r) = ∃ ⟨ x ⟩ (normalize r)
+normalize (Internal.Exists x r) = ∃ ⟨ x ⟩ (normalize r)
+normalize (Internal.Hold x) = Hold x
+normalize (Internal.DoesNotHold x) = DoesNotHold x
+...
+\end{verbatim}
+The \texttt{hide} maps each constructor of the internal result data type to the correspondent exposed version, erasing any actual value.
+Therefore in the cases \texttt{NotFor x r} and \texttt{Exists x r}, x is hidden and substituted with its type. 
+Also the leaf nodes \texttt{Hold} or \texttt{DoesNotHold} are replaced with an appropriate symbol, because the set wrapped in those constructors could possibly contain actual values that need to be hidden.
+The function \texttt{normalize} converts the internal result to the exposed version, making sure to hide unimportant details, when necessary using \texttt{hide}. For instance in case of universal quantification success (\texttt{Forall}) and existential quantification failure (\texttt{NotExists}) the remaining part of the result value needs to be hidden, as they are just a trace of the testing process, not bearing any meaning.
+Note that when this is not the case the actual values are retained, as they provide useful feedback to the user.
+
+\paragraph{Example} 
+Consider the property \texttt{Forall n $\sim$ Even n} tested on the values 0 ∷ 2 ∷ 4 ∷ []. The result of testing it with \texttt{test'} is \texttt{\texttt{inj₂} (Forall $\mathbb{N}$ (Hold (Even 4))}. The value \texttt{Even 4} is a remained of the last input value tested, when checking the universal quantification. The conversion produces the more readable result 
+\texttt{ForAll < $\mathbb{N}$ > $\checkmark$}.
+On the other hand if the same property would have been tested on the values 0 ∷ 1 ∷ 2 ∷ [], the original result would have been \texttt{\texttt{inj₁} (NotFor 1 (DoesNotHold (Even 1))}, which is then converted to \texttt{$\exists$ $\langle$ 1 $\rangle$ Even 1}. In this case the input value 1 represents a counterexample to the universal quantification and therefore it's properly retained in the conversion.
 
 \section{Conversion}
 The library provides in the module \texttt{Test.Conversion} the function \texttt{convert} which automatically converts the signature of a lemma (yet to be proven) to the correspondent predicate. Dependent types are converted to universal quantification and standard library constructs such as $\neg$, $\exists$, $\biguplus$, $\times$ are recognized and mapped to their \texttt{Predicate} counterpart.
