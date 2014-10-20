@@ -73,7 +73,7 @@ In other testing libraries predicates are limited to boolean formulas, in this s
 The constructors \texttt{Forall}, \texttt{Exists} and \texttt{ExistsUnique} add quantification to the \texttt{Predicate} data type.
 Exploiting the underlying high-order language, the quantification is represented as a continuation (lambda expression), which literally introduces a new variable in scope, available in the remaining part of the predicate and ultimately in  the type \texttt{P} inside a \texttt{Property}.
 
-The data type is indexed over a \texttt{BListTree} which keeps track of the types of the quantified variables and whose goal will be explained in the following.
+The data type is indexed over a \texttt{BListTree} which keeps track of the types of the quantified variables and whose importance will be explained in the following.
 The definition of \texttt{BListTree} is straightforward:
 \begin{code}
 data BListTree {a} (A : Set a) : Set a where 
@@ -109,6 +109,7 @@ example2 = Forall n $\sim$ Property (Even n) $\vee$
 \end{itemize}
 
 \subsection{Testing framework}
+\label{sec:testing}
 The data type \texttt{Testable} represents a minimal testable unit.
 
 \begin{code}
@@ -116,7 +117,7 @@ data Testable : (BListTree Set) → Set₁ where
   Test_on_by_ : (p : Predicate xs )→ Input List xs →  ⟦ p ⟧ → Testable xs
 \end{code}
 
-It contains a predicate $p$ of type \texttt{Predicate xs}, a collection of input values of type \texttt{Input List xs} and the testing function $\llbracket$ \texttt{p} $ \rrbracket$. The shared index \texttt{xs} of type \texttt{BListTree} guarantees that the collection of input values match the shape and the types contained in the predicate.
+It contains a predicate \texttt{p} of type \texttt{Predicate xs}, a collection of input values of type \texttt{Input List xs} and the testing function $\llbracket$ \texttt{p} $ \rrbracket$. The shared index \texttt{xs} of type \texttt{BListTree} guarantees that the collection of input values match the shape and the types contained in the predicate.
 
 The type level function $\llbracket\_\rrbracket$, given a predicate, returns the type of a decision procedure used to test that property.
 Such function takes as many arguments as variables quantified and returns a \texttt{Dec} relation over the final property.
@@ -130,11 +131,12 @@ Its definition is straightforward:
 ⟦ p1 ∨ p2 ⟧ = ⟦ p1 ⟧ × ⟦ p2 ⟧
 ⟦ Property P ⟧ = Dec P
 \end{code}
-For each quantified variable, denoted by existential and universal quantification  constructors, we require an argument of that type. The rest of the signature is 
-filled applying the  $\llbracket\_\rrbracket$ function to the remaining 
+For each quantified variable, denoted by existential and universal quantification  constructors, we require an argument of that type. 
+The rest of the signature is  filled applying the  interpretation function 
+$\llbracket\_\rrbracket$  to the remaining 
 part of the predicate that becomes accessible applying the continuation 
 \texttt{f} to the argument \texttt{a}.
-In the disjunction  case the decision procedure of each predicate are paired together. The base case (\texttt{Property}) requires decidability over the final type \texttt{P}. Note that the variables introduced via quantification are now bound in P, thus the type signature returned by $\llbracket\_\rrbracket$ is a dependent function. 
+In the disjunction  case the decision procedure of each predicate are paired together. The base case (\texttt{Property}) requires decidability over the final type \texttt{P}. Note that the variables introduced via quantification are now bound in \texttt{P}, thus the type signature returned by $\llbracket\_\rrbracket$ is a dependent function. 
 
 \paragraph{Example}
 This is the type signature of the decision procedure required to test \texttt{example1}:
@@ -214,7 +216,7 @@ The rest of the function simply expresses the semantics of universal quantificat
 Eventually, after filling the decision procedure \texttt{⟦ u ⟧} one argument at the time, the final \texttt{Property} will be analyzed in \texttt{test'}.
 At this point, when \texttt{⟦ u ⟧} has been completely saturated, the result is a decision statement about \texttt{P}, which is mapped directly to correspondent tag.
 What is interesting here is that \texttt{P} represents the original property in which also the quantified variables have been fixed to some value, during the testing process. 
-This information is returned as it may represent useful feedback for the user. As an example consider testing \texttt{Forall n $\sim$ Even n} over the natural numbers. The test will fail, finding a counter example for 1 and reporting \texttt{DoesNotHold (Even 1)}, providing a readable version of the outcome.
+This information is returned as it may represent useful feedback for the user and its implications will be discussed in section \ref{sec:Result}.
 
 \subsection{Runner}
 The module \texttt{Test.Runner} defines different runners, which are functions used to actually run tests.
@@ -314,7 +316,7 @@ The module \texttt{Test.Base} defines the data-type \texttt{Result} which repres
     DoesNotHold : Set -> Result []
 \end{verbatim}
 
-The module \texttt{Test.Result} contains a variant of result, which is used to give feedback to the user. It is obtained by post-processing the internal result.
+The module \texttt{Test.Result} contains a variant of result, which is used to give feedback to the user. It is obtained by post-processing the internal result, obtained by the \texttt{test'} function discussed in \ref{sec:testing}.
 
 \begin{verbatim}
 data Result : BListTree Set -> Set₁ where
@@ -359,7 +361,7 @@ normalize (Internal.DoesNotHold x) = DoesNotHold x
 ...
 \end{verbatim}
 The \texttt{hide} maps each constructor of the internal result data type to the correspondent exposed version, erasing any actual value.
-Therefore in the cases \texttt{NotFor x r} and \texttt{Exists x r}, x is hidden and substituted with its type. 
+Therefore in the cases \texttt{NotFor x r} and \texttt{Exists x r}, \texttt{x} is hidden and substituted with its type. 
 Also the leaf nodes \texttt{Hold} or \texttt{DoesNotHold} are replaced with an appropriate symbol, because the set wrapped in those constructors could possibly contain actual values that need to be hidden.
 The function \texttt{normalize} converts the internal result to the exposed version, making sure to hide unimportant details, when necessary using \texttt{hide}. For instance in case of universal quantification success (\texttt{Forall}) and existential quantification failure (\texttt{NotExists}) the remaining part of the result value needs to be hidden, as they are just a trace of the testing process, not bearing any meaning.
 Note that when this is not the case the actual values are retained, as they provide useful feedback to the user.
@@ -370,13 +372,109 @@ Consider the property \texttt{Forall n $\sim$ Even n} tested on the values 0 ∷
 On the other hand if the same property would have been tested on the values 0 ∷ 1 ∷ 2 ∷ [], the original result would have been \texttt{\texttt{inj₁} (NotFor 1 (DoesNotHold (Even 1))}, which is then converted to \texttt{$\exists$ $\langle$ 1 $\rangle$ Even 1}. In this case the input value 1 represents a counterexample to the universal quantification and therefore it's properly retained in the conversion.
 
 \section{Conversion}
-The library provides in the module \texttt{Test.Conversion} the function \texttt{convert} which automatically converts the signature of a lemma (yet to be proven) to the correspondent predicate. Dependent types are converted to universal quantification and standard library constructs such as $\neg$, $\exists$, $\biguplus$, $\times$ are recognized and mapped to their \texttt{Predicate} counterpart.
-In order to achieve its purpose this module relies on the \texttt{Reflection} module from the standard library.
+The library provides in the module \texttt{Test.Conversion} the function \texttt{convert} which can automatically derive predicates of a lemma under test. 
+This feature exploits agda's \texttt{Reflection} mechanism and in this section the conversion technique is explained in detail.
+
+\subsection{Basic Conversion}
+The function \texttt{convert} produces a \texttt{Predicate} in the form of a quoted term, which can be unquoted to retrieve the actual predicate.
+\begin{verbatim}
+convert : (name : Name) -> {isS : supported (type name)} -> Term
+convert name {isS} with type name
+convert name {isS} | el s t = convertTerm t {isS}
+\end{verbatim}
+The primitive \texttt{type} retrieves the type representation of a given \texttt{Name}, then the term consisting of the signature of the lemma at hand becomes available and it's converted using \texttt{convertedTerm}.
+Since a \texttt{Term} represents an arbitrary agda term, the implicit proof object \texttt{isS} is needed to restrict the domain of supported terms to those that can actually be turned into predicates. This is achieved using a type-level function:
+\begin{verbatim}
+supported : Type -> Set
+supported (el s t) = supportedTerm t
+\end{verbatim}
+This technique is needed because agda is a total language, thus arbitrary runtime failure is not an option. Nevertheless those proofs don't need to be carried out by the user explicitly: either they are inferred automatically or result in a type error.
+
+The signature is converted inspecting its term representation.
+\begin{verbatim}
+convertTerm : (t : Term) -> {isS : supportedTerm t} -> Term
+convertTerm (var x args) {}
+convertTerm (con c args) {}
+convertTerm (def f args) {isS} = property (def f args)
+convertTerm (lam v t) {isS} = convertTerm t {isS}
+convertTerm (pi (arg i (el s ty)) (el s₁ t)) {isS} = forall' ty (convertTerm t {isS})
+convertTerm (sort x) {}
+convertTerm (pat-lam cs as) {}
+convertTerm (lit l) = lit l
+convertTerm unknown {}
+\end{verbatim}
+The absurd pattern \texttt{\{\}} is used to rule out those spurious cases, which is possible because the type \texttt{NotSupported} is empty.
+The function \texttt{supportedTerm} is defined recursively on the given term, thus the proof object at each level is reduced as well during type-checking, producing proofs object for the recursive call in \texttt{convertTerm}. The two base cases are literals (\texttt{lit}) and identifiers applied to a list of arguments (\texttt{def f args}). The former are left untouched, whereas the latter are converted using the \texttt{Property} constructor, because they are set and thus, in this setting, actual predicate.
+Dependent types (\texttt{pi}) are converted using universal quantification.
+The functions \texttt{property} and \texttt{forall'} correspond to the constructors \texttt{Property} and \texttt{Forall} on the \texttt{Term} level.
+\begin{verbatim}
+data NotSupported : Term -> Set where
+
+supportedTerm : Term -> Set
+supportedTerm (var x args) = NotSupported (var x args)
+supportedTerm (con c args) = NotSupported (con c args)
+supportedTerm (def f args) = ⊤
+supportedTerm (lam v t) = supportedTerm t
+supportedTerm (pi t₁ (el s t)) = supportedTerm t 
+supportedTerm (sort x) = NotSupported (sort x)
+supportedTerm unknown = NotSupported unknown
+supportedTerm (pat-lam cs as) = NotSupported (pat-lam cs as)
+supportedTerm (lit _) = ⊤
+\end{verbatim}
+
+\paragraph{Example}
+Suppose to have the lemma:
+\begin{verbatim}
+lemma : (n : ℕ) -> Even n
+lemma = {!!}
+\end{verbatim}
+Than the corresponding predicate \texttt{Forall n $\sim$ Property (Even n)} can be simply obtained by \texttt{unquote (convert (quote lemma))}.
+The primitive \texttt{quote} retrieves the representation of a definition as a value of the primitive type \texttt{Name}.
+The primitive \texttt{unquote} converts the representation of an agda term to its actual value, in this case a \texttt{Predicate}. Note that we did not need to specify the \texttt{supported} proof for \texttt{convert} as this could be reduced during type-checking to \texttt{$\top$} and thus automatically inferred.
+
+\subsection{Special Constructs}
+In order to convert signatures accurately some standard library constructs need to be handled properly. In particular $\neg$, $\exists$, $\biguplus$, $\times$ must be tracked and mapped to their \texttt{Predicate} counterpart.
+This can be achieved adapting the definition of \texttt{convertTerm} and consequently also the definition of \texttt{supportedTerm} for the \texttt{def} case. The main problem is that those constructs create types, which are by-default converted to property, therefore we need first to inspect and detect special those special constructors and convert them appropriately. The changes to \texttt{convertTerm} and \texttt{supportedTerm} are minimal:
+
+\begin{verbatim}
+supportedTerm (def f args) with name2Special f
+supportedTerm (def f args) | just x = supportedSpecial x args
+supportedTerm (def f args) | nothing = ⊤
+...
+
+convertTerm (def f args) {isS} with name2Special f
+convertTerm (def f args) {isS} | just x = convertSpecial x args {isS}
+convertTerm (def f args) | nothing = property (def f args)
+...
+\end{verbatim}
+
+A technical problem is that \texttt{Name} is a primitive type, on which direct pattern match is not possible, therefore we first try to convert it to an ad-hoc tag data type \texttt{Special} using \texttt{name2special}, which exploits (primitive) decidable equality on names. If it succeeds an appropriate conversion takes place (\texttt{convertSpecial}, omitted here for brevity), otherwise a property is produced.
+
+\begin{verbatim}
+data Special : Set where
+	Not : Special
+    Or : Special
+    And : Special
+    Exists : Special
+
+name2Special : Name -> Maybe Special
+name2Special name = lookup {dec = _≟-Name_} name special
+	where special = ((quote ¬_) , Not) ∷ (quote ∃ , Exists) ∷ 
+             		          ((quote _×_) , And) ∷ (quote _⊎_ , Or) ∷ [] 
+\end{verbatim}
+
+\paragraph{Example}
+Consider the lemma:
+\begin{verbatim}
+lemma' : (n : ℕ) -> (Even n) ⊎ (¬ (Even n))
+lemma' = {!!}
+\end{verbatim}
+This is converted to \texttt{Forall n $\sim$ (Property (Even n)) ∨ Not (Property (Even n))} by  \texttt{unquote (convert (quote lemma4))}. Again no proof whatsoever needs to be specified to use \texttt{convert}.
 
 \section{Generator}
 Generators definition.
 
-\subsection{•}
+%\subsection{•}
 Generators for simple types: SimpleGenerator.
 
 \subsection{Dependent types generator}
