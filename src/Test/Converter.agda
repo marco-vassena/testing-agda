@@ -79,7 +79,7 @@ private
   name2Special : Name -> Maybe Special
   name2Special name' = lookup {dec = _≟-Name_} name' special
     where special = ((quote ¬_) , Not) ∷ (quote ∃ , Exists) ∷ 
-                    ((quote _×_) , And) ∷ (quote _⊎_ , Or) ∷ [] 
+                    ((quote Σ) , And) ∷ (quote _⊎_ , Or) ∷ [] 
 
 --------------------------------------------------------------------------------
 -- Support functions
@@ -105,13 +105,24 @@ private
   arg i₁ t has i₂ | yes p = supportedTerm t
   arg i₁ t has i₂ | no ¬p = ⊥
 
+  data Is⊥ : Term -> Set where
+    refl : Is⊥ (def (quote ⊥) [])
+
+  isBottom : (t : Term) -> Maybe (Is⊥ t)
+  isBottom (def f []) with f ≟-Name quote ⊥
+  isBottom (def .(quote ⊥) []) | yes refl = just refl
+  isBottom (def f []) | no _ = nothing
+  isBottom t = nothing
+
   supportedTerm (var x args) = NotSupported (var x args)
   supportedTerm (con c args) = DontKnowRightNow (con c args)
   supportedTerm (def f args) with name2Special f
   supportedTerm (def f args) | just x = supportedSpecial x args
   supportedTerm (def f args) | nothing = ⊤
   supportedTerm (lam v (abs s t)) = supportedTerm t
-  supportedTerm (pi t₁ (abs s (el s₁ t))) = supportedTerm t 
+  supportedTerm (pi (arg i (el s ty)) (abs _ (el s₁ t))) with isBottom t
+  supportedTerm (pi (arg i (el s ty)) (abs s₁ (el s₂ .(def (quote ⊥) [])))) | just refl = supportedTerm ty
+  supportedTerm (pi (arg i (el s ty)) (abs s₁ (el s₂ t))) | nothing = supportedTerm t
   supportedTerm (sort x) = NotSupported (sort x)
   supportedTerm unknown = NotSupported unknown
   supportedTerm (pat-lam cs as) = DontKnowRightNow (pat-lam cs as)
@@ -134,7 +145,7 @@ supported (el s t) = supportedTerm t
 -- These functions produce a 'Term' that when unquoted gives the
 -- correspondent property.
 --------------------------------------------------------------------------------
-mutual 
+private
   convertTerm : (t : Term) -> {isSup : supportedTerm t} -> Term
   convertSpecial : (s : Special) -> (args : List (Arg Term)) -> {isS : supportedSpecial s args} -> Term
   convertArg : (a : Arg Term) -> (i : Arg-info) -> {isS : a has i} -> Term
@@ -175,8 +186,10 @@ mutual
   convertTerm (def f args) {isS} with name2Special f
   convertTerm (def f args) {isS} | just x = convertSpecial x args {isS}
   convertTerm (def f args) | nothing = property (def f args)
-  convertTerm (lam v (abs s t)) {isS} = convertTerm t {isS}
-  convertTerm (pi (arg i (el s ty)) (abs s₁ (el s₂ t))) {isS} = forall' ty (convertTerm t {isS})
+  convertTerm (lam v (abs s t)) {isS} = lam v (abs "a" (convertTerm t {isS}))
+  convertTerm (pi (arg i (el s ty)) (abs s₁ (el s₂ t))) {isS} with isBottom t
+  convertTerm (pi (arg i (el s ty)) (abs s₁ (el s₂ .(def (quote ⊥) [])))) {isS} | just refl = not (convertTerm ty {isS})
+  convertTerm (pi (arg i (el s ty)) (abs s₁ (el s₂ t))) {isS} | nothing = forall' ty (convertTerm t {isS})
   convertTerm (sort x) {}
   convertTerm (pat-lam cs as) {}
   convertTerm (lit l) = lit l
