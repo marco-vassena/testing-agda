@@ -20,7 +20,7 @@ private
   forall' : Term -> Term -> Term
   forall' ty next = con (quote Predicate.Forall) (argTy ∷ argNext ∷ [])
     where argTy = arg (arg-info hidden relevant) ty
-          argNext = arg (arg-info visible relevant) (lam visible next)
+          argNext = arg (arg-info visible relevant) (lam visible (abs "x" next))
 
   not : Term -> Term
   not next = con (quote Not) [ argNext ]
@@ -38,7 +38,7 @@ private
 
   exists : (t : Term) -> Term
   exists t = con (quote Predicate.Exists) [ arg1 ]
-    where arg1 = arg (arg-info visible relevant) (lam visible t)
+    where arg1 = arg (arg-info visible relevant) (lam visible (abs "x" t))
 
 --------------------------------------------------------------------------------
 -- -- Conversion error messages
@@ -110,8 +110,8 @@ private
   supportedTerm (def f args) with name2Special f
   supportedTerm (def f args) | just x = supportedSpecial x args
   supportedTerm (def f args) | nothing = ⊤
-  supportedTerm (lam v t) = supportedTerm t
-  supportedTerm (pi t₁ (el s t)) = supportedTerm t 
+  supportedTerm (lam v (abs s t)) = supportedTerm t
+  supportedTerm (pi t₁ (abs s (el s₁ t))) = supportedTerm t 
   supportedTerm (sort x) = NotSupported (sort x)
   supportedTerm unknown = NotSupported unknown
   supportedTerm (pat-lam cs as) = DontKnowRightNow (pat-lam cs as)
@@ -134,7 +134,7 @@ supported (el s t) = supportedTerm t
 -- These functions produce a 'Term' that when unquoted gives the
 -- correspondent property.
 --------------------------------------------------------------------------------
-private 
+mutual 
   convertTerm : (t : Term) -> {isSup : supportedTerm t} -> Term
   convertSpecial : (s : Special) -> (args : List (Arg Term)) -> {isS : supportedSpecial s args} -> Term
   convertArg : (a : Arg Term) -> (i : Arg-info) -> {isS : a has i} -> Term
@@ -175,8 +175,8 @@ private
   convertTerm (def f args) {isS} with name2Special f
   convertTerm (def f args) {isS} | just x = convertSpecial x args {isS}
   convertTerm (def f args) | nothing = property (def f args)
-  convertTerm (lam v t) {isS} = convertTerm t {isS}
-  convertTerm (pi (arg i (el s ty)) (el s₁ t)) {isS} = forall' ty (convertTerm t {isS})
+  convertTerm (lam v (abs s t)) {isS} = convertTerm t {isS}
+  convertTerm (pi (arg i (el s ty)) (abs s₁ (el s₂ t))) {isS} = forall' ty (convertTerm t {isS})
   convertTerm (sort x) {}
   convertTerm (pat-lam cs as) {}
   convertTerm (lit l) = lit l
