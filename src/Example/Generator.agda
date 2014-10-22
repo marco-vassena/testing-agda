@@ -25,6 +25,11 @@ open import Test.Input.Generator.Base
 even-gen : GeneratorD ℕ Even
 even-gen = ⟦ iterate (P.map (suc ∘ suc) isEven+2) (, isEven0) ⟧P
 
+even-A-gen : GeneratorA ℕ Even
+even-A-gen zero = isEven0 ∷ (♯ [])
+even-A-gen (suc zero) = []
+even-A-gen (suc (suc n)) = C.map isEven+2 (even-A-gen n)
+
 -- Generates proof objects for all numbers ≤ n
 -- This is more difficult because it is a specialization of the generic 
 -- binary relation ≤ and particularly the right hand side of ≤ changes in the
@@ -109,6 +114,13 @@ sorted-gen' n = ⟦ Input cons-gen ((, nil) ∷ singles n) ⟧SG
 -- | Produces all the sorted lists of arbitrary length using numbers up to n, without duplicates
 sorted-gen : ℕ -> GeneratorD (List ℕ) Sorted
 sorted-gen n = ⟦ (sorted-gen' n) ⟧P
+
+sorted-A-gen : GeneratorA (List ℕ) Sorted
+sorted-A-gen [] = nil ∷ (♯ [])
+sorted-A-gen (x ∷ []) = (singleton x) ∷ (♯ [])
+sorted-A-gen (x ∷ y ∷ xs) with x ≤? y
+sorted-A-gen (x ∷ y ∷ xs) | yes p = C.map (cons p) (sorted-A-gen (y ∷ xs))
+sorted-A-gen (x ∷ y ∷ xs) | no ¬p = []
 
 -- | Generates boolean values
 bool-gen : SimpleGenerator Bool
