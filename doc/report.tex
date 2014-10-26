@@ -12,7 +12,7 @@
 \usepackage{autofe}
 \usepackage{fancyvrb}
 \usepackage{pifont}% http://ctan.org/pkg/pifont
-
+\usepackage[parfill]{parskip}
 
 \newcommand{\cmark}{\ding{51}}%
 \newcommand{\xmark}{\ding{55}}%
@@ -300,41 +300,41 @@ The only flaw of this runner it's that it is not able to compare the leaves of t
 The module \texttt{Test.Base} defines the data-type \texttt{Result} which represents a normalized outcome of testing a predicate and it is used internally in the testing framework
 
 \begin{verbatim}
-  data Internal.Result : BListTree Set -> Set₁ where
+  data Internal.Result : BListTree Set → Set₁ where
     -- The possible outcomes for a universally quantified property
-    Forall : (A : Set) -> Result xs -> Result (A ∷ xs)
-    NotFor : A -> Result xs -> Result (A ∷ xs)
+    Forall : (A : Set) → Result xs → Result (A ∷ xs)
+    NotFor : A → Result xs → Result (A ∷ xs)
     Trivial : Result (A ∷ xs)  -- Empty search space
 
     -- The possible outcomes for an existentially quantified property
-    Exists : A -> Result xs -> Result (A ∷ xs)
-    NotExists : (A : Set) -> Result xs -> Result (A ∷ xs)
+    Exists : A → Result xs → Result (A ∷ xs)
+    NotExists : (A : Set) → Result xs → Result (A ∷ xs)
     Impossible : Result (A ∷ xs)  -- Empty search space
     ...	
     -- The possible outcomes for a property
-    Hold : Set -> Result []
-    DoesNotHold : Set -> Result []
+    Hold : Set → Result []
+    DoesNotHold : Set → Result []
 \end{verbatim}
 
 The module \texttt{Test.Result} contains a variant of result, which is used to give feedback to the user. It is obtained by post-processing the internal result, obtained by the \texttt{test'} function discussed in \ref{sec:testing}.
 
 \begin{verbatim}
-data Result : BListTree Set -> Set₁ where
-   ForAll : (A : Set) -> Result xs -> Result (A ∷ xs)
-   ∃ : ValueOrSet A -> Result xs -> Result (A ∷ xs)
-   ¬∃ : (A : Set) -> Result xs -> Result (A ∷ xs)
+data Result : BListTree Set → Set₁ where
+   ForAll : (A : Set) → Result xs → Result (A ∷ xs)
+   ∃ : ValueOrSet A → Result xs → Result (A ∷ xs)
+   ¬∃ : (A : Set) → Result xs → Result (A ∷ xs)
    Impossible : Result xs
    Trivial : Result xs
    ...
     -- The possible outcomes for a property
-   Hold : Set -> Result []
-   DoesNotHold : Set -> Result []
+   Hold : Set → Result []
+   DoesNotHold : Set → Result []
    ✓ : Result []
    ✗ : Result []
    
-data ValueOrSet : Set -> Set₁ where
-  ⟨_⟩ : {A : Set} -> A -> ValueOrSet A
-  <_> : (A : Set) -> ValueOrSet A
+data ValueOrSet : Set → Set₁ where
+  ⟨_⟩ : {A : Set} → A → ValueOrSet A
+  <_> : (A : Set) → ValueOrSet A
 
 \end{verbatim}
 
@@ -344,14 +344,14 @@ The function \texttt{normalize} and \texttt{hidden} convert the internal result 
 
 
 \begin{verbatim}
-hide : Internal.Result xs -> Result xs
+hide : Internal.Result xs → Result xs
 hide (Internal.Hold x) = ✓
 hide (Internal.DoesNotHold x) = ✗
 hide (Internal.NotFor x r) = ∃ < _ > (hide r)
 hide (Internal.Exists x r) = ∃ < _ > (hide r)
 ...
 
-normalize : Internal.Result xs -> Result xs
+normalize : Internal.Result xs → Result xs
 normalize (Internal.Forall A x) = hide (Internal.Forall A x)
 normalize (Internal.NotExists A x) = hide (Internal.NotExists A x)
 normalize (Internal.NotFor x r) = ∃ ⟨ x ⟩ (normalize r)
@@ -378,21 +378,34 @@ This feature exploits agda's \texttt{Reflection} mechanism and in this section t
 \subsection{Basic Conversion}
 The function \texttt{convert} produces a \texttt{Predicate} in the form of a quoted term, which can be unquoted to retrieve the actual predicate.
 \begin{verbatim}
-convert : (name : Name) -> {isS : supported (type name)} -> Term
+convert : (name : Name) → {isS : supported (type name)} → Term
 convert name {isS} with type name
 convert name {isS} | el s t = convertTerm t {isS}
 \end{verbatim}
 The primitive \texttt{type} retrieves the type representation of a given \texttt{Name}, then the term consisting of the signature of the lemma at hand becomes available and it's converted using \texttt{convertedTerm}.
 Since a \texttt{Term} represents an arbitrary agda term, the implicit proof object \texttt{isS} is needed to restrict the domain of supported terms to those that can actually be turned into predicates. This is achieved using a type-level function:
 \begin{verbatim}
-supported : Type -> Set
+data NotSupported : Term → Set where
+
+supportedTerm : Term → Set
+supportedTerm (var x args) = NotSupported (var x args)
+supportedTerm (con c args) = NotSupported (con c args)
+supportedTerm (def f args) = ⊤
+supportedTerm (lam v t) = supportedTerm t
+supportedTerm (pi t₁ (el s t)) = supportedTerm t 
+supportedTerm (sort x) = NotSupported (sort x)
+supportedTerm unknown = NotSupported unknown
+supportedTerm (pat-lam cs as) = NotSupported (pat-lam cs as)
+supportedTerm (lit _) = ⊤
+
+supported : Type → Set
 supported (el s t) = supportedTerm t
 \end{verbatim}
 This technique is needed because agda is a total language, thus arbitrary runtime failure is not an option. Nevertheless those proofs don't need to be carried out by the user explicitly: either they are inferred automatically or result in a type error.
 
 The signature is converted inspecting its term representation.
 \begin{verbatim}
-convertTerm : (t : Term) -> {isS : supportedTerm t} -> Term
+convertTerm : (t : Term) → {isS : supportedTerm t} → Term
 convertTerm (var x args) {}
 convertTerm (con c args) {}
 convertTerm (def f args) {isS} = property (def f args)
@@ -407,25 +420,11 @@ The absurd pattern \texttt{\{\}} is used to rule out those spurious cases, which
 The function \texttt{supportedTerm} is defined recursively on the given term, thus the proof object at each level is reduced as well during type-checking, producing proofs object for the recursive call in \texttt{convertTerm}. The two base cases are literals (\texttt{lit}) and identifiers applied to a list of arguments (\texttt{def f args}). The former are left untouched, whereas the latter are converted using the \texttt{Property} constructor, because they are set and thus, in this setting, actual predicate.
 Dependent types (\texttt{pi}) are converted using universal quantification.
 The functions \texttt{property} and \texttt{forall'} correspond to the constructors \texttt{Property} and \texttt{Forall} on the \texttt{Term} level.
-\begin{verbatim}
-data NotSupported : Term -> Set where
-
-supportedTerm : Term -> Set
-supportedTerm (var x args) = NotSupported (var x args)
-supportedTerm (con c args) = NotSupported (con c args)
-supportedTerm (def f args) = ⊤
-supportedTerm (lam v t) = supportedTerm t
-supportedTerm (pi t₁ (el s t)) = supportedTerm t 
-supportedTerm (sort x) = NotSupported (sort x)
-supportedTerm unknown = NotSupported unknown
-supportedTerm (pat-lam cs as) = NotSupported (pat-lam cs as)
-supportedTerm (lit _) = ⊤
-\end{verbatim}
 
 \paragraph{Example}
 Suppose to have the lemma:
 \begin{verbatim}
-lemma : (n : ℕ) -> Even n
+lemma : (n : ℕ) → Even n
 lemma = {!!}
 \end{verbatim}
 Than the corresponding predicate \texttt{Forall n $\sim$ Property (Even n)} can be simply obtained by \texttt{unquote (convert (quote lemma))}.
@@ -452,62 +451,483 @@ A technical problem is that \texttt{Name} is a primitive type, on which direct p
 
 \begin{verbatim}
 data Special : Set where
-	Not : Special
+    Not : Special
     Or : Special
     And : Special
     Exists : Special
 
-name2Special : Name -> Maybe Special
+name2Special : Name → Maybe Special
 name2Special name = lookup {dec = _≟-Name_} name special
-	where special = ((quote ¬_) , Not) ∷ (quote ∃ , Exists) ∷ 
-             		          ((quote _×_) , And) ∷ (quote _⊎_ , Or) ∷ [] 
+    where special = ((quote ¬_) , Not) ∷ (quote ∃ , Exists) ∷ 
+                    ((quote _×_) , And) ∷ (quote _⊎_ , Or) ∷ [] 
 \end{verbatim}
 
 \paragraph{Example}
 Consider the lemma:
 \begin{verbatim}
-lemma' : (n : ℕ) -> (Even n) ⊎ (¬ (Even n))
+lemma' : (n : ℕ) → (Even n) ⊎ (¬ (Even n))
 lemma' = {!!}
 \end{verbatim}
 This is converted to \texttt{Forall n $\sim$ (Property (Even n)) ∨ Not (Property (Even n))} by  \texttt{unquote (convert (quote lemma4))}. Again no proof whatsoever needs to be specified to use \texttt{convert}.
 
 \section{Generator}
-Generators definition.
+In the second part of the experimentation project we focused on the problem of writing generators of input values to be used in the testing framework.
+We did not manage to completely automate the implementation of generators, nevertheless some interesting insight are presented in this section, especially regarding the nature of dependent types and the productivity of generators.
 
-%\subsection{•}
-Generators for simple types: SimpleGenerator.
+\subsection{Basic generators}
+A generator of a given type is a collection of values of that type.
+Therefore the first step is to define what is to choose a suitable container for such a collection. The alternatives considered are \texttt{List}, \texttt{Stream} and \texttt{Colist}. A list is a finite collection, which is not suitable for recursive data types, as they have infinite inhabitants. A stream is an infinite collection of values, which however is a bit overkilled for simple data types, which have a finite number of inhabitants. In order to get the best of both worlds we chose to use colist, which is a list defined coinductively and therefore can be either finite or infinite.
 
-\subsection{Dependent types generator}
-Nature of dependent types : Provide additional information, Represent constructively properties about values.
-Generators for dependent types: Angelic and Demoniac generators.
-Implementing one generator or the other is easier based on the nature of the dependent type at hand.
-Example.
+\begin{verbatim}
+data Colist (A : Set) : Set where
+  []  : Colist A
+  _∷_ : (x : A) (xs : ∞ (Colist A)) → Colist A
+\end{verbatim}
+The symbol \texttt{∞} is the delay operator, thus the tail of the list is regarded as a suspended computation. The operators \texttt{♯} and \texttt{♭} respectively suspends a computation and forces a delayed computation.
+\begin{verbatim}
+postulate
+  ♯_ : ∀ {a} {A : Set a} → A → ∞ A
+  ♭  : ∀ {a} {A : Set a} → ∞ A → A
+\end{verbatim}  
+Generators for non-dependent types are thus defined as a simple type synonym:
+\begin{verbatim}
+SimpleGenerator : Set → Set
+SimpleGenerator A = Colist A
+\end{verbatim}
+
+\paragraph{Example}
+A trivial generator for boolean values : 
+\begin{verbatim}
+bool-gen : SimpleGenerator Bool
+bool-gen = true ∷ ♯ (false ∷ ♯ [])
+\end{verbatim}
+
+\subsection{Generators for dependent types}
+In this section we will focus on generators for dependent types.
+
+\paragraph{Motivation}
+One of the motivation that led us to investigate such generators, comes from a typical use case in non-dependently typed programming languages. Consider  testing the property that \texttt{insert} preserves sortedness in a library like quickcheck:
+\begin{verbatim}
+propSortedInsert :: Int  → [ Int ] → Property
+propSortedInsert x xs = sorted xs ==> (sorted (insert x xs))
+\end{verbatim}
+The well-known issue with this definition is that randomly generated lists are unlikely to be sorted, thus the right hand side of the implication will be tested with few sorted lists, before the generator gets exhausted.
+Usually this problem is tackled defining ad-hoc new types and implementing custom generators, which is usually hard and time-consuming.
+However in a dependently typed setting it is possible to define a dependent data type that expresses such property:
+\begin{verbatim}
+data Sorted : List ℕ → Set where
+  nil : Sorted []
+  singleton : n → Sorted (n ∷ []) 
+  cons : x ≤ y → Sorted (y ∷ xs) → Sorted (x ∷ y ∷ xs)
+\end{verbatim}
+Given a list \texttt{xs}, a value of type \texttt{Sorted xs} is the proof that \texttt{xs} is sorted.
+If we could write a generator for this data-type, than it would be possible to extract the indexed list, which would be sorted by construction.
+
+\paragraph{Definition}
+Firstly we need to adapt the generator definition to cope with the additional dependency. The first consideration is that a dependent type can be represented by an index \texttt{I} and a type level function of type \texttt{I → Set}, which given an index produces a type. Thus our generators will be parametrized over these two components.
+Here we propose two alternative definitions and in the following we will analyze their difference and implications. We will refer to the first as angelic and to the second as demoniac generator.
+\begin{verbatim}
+GeneratorA : (I : Set) → (p : I → Set) → Set
+GeneratorA I p = ∀ (i : I) → Colist (p i)
+
+GeneratorD : (I : Set) → (p : I → Set) → Set
+GeneratorD I p = Colist (∃ p)
+\end{verbatim}
+The crucial difference is what kind of interface they provide to the user.
+In the angelic version the user gets to choose the index \texttt{i}, which determines the (unique) type of the returned values. In the demoniac version the user does not, but rather is given an heterogeneous collection of values, in which the index \texttt{I} may have different values, and thus the value different types. Even if colist are homogeneous collections, this is still possible as the common trait of such values is exactly represented by the existential \texttt{∃ p}, which is implemented as a dependent pair. The first component is the (variable) index, the second is a value of the type obtained applying \texttt{p} to such index.
+
+\subsection{Nature of dependent types}
+An interesting insight is that such duality actually reflects a double nature of dependent types themselves. 
+A dependent type can simply carry around additional information about some object, which nevertheless has its own importance.
+On the other hand a dependent type can model constructively some additional property of an object.
+
+\paragraph{Example}
+The data type \texttt{Vector} is an example of the first kind.
+Vectors are isomorphic to lists, but additionally keep track of the number of elements contained, thus its index type is $\mathbb{N}$.
+\begin{verbatim}
+data Vec (A : Set) : ℕ → Set where
+  []  : Vec A zero
+  _∷_ : (x : A) (xs : Vec A n) → Vec A (suc n)
+\end{verbatim}
+
+The data type \texttt{Even} is an example of the second kind.
+Its index is a natural numbers and the fact that for some \texttt{n} there is a value of type \texttt{Even n} is the proof that \texttt{n} is even, or in other words \texttt{n} has the property of being even.
+The constructors can be read as the rules that (inductively) define eveness.
+\begin{verbatim}
+data Even  : ℕ → Set where
+  isEven0  : Even 0
+  isEven+2 : Even n → Even (suc (suc n))
+\end{verbatim}
+
+\subsection{Discussion and implications}
+In this section we will compare the two interfaces and their relation with the two flavors of dependent types.
+
+\paragraph{Angelic generator}
+The angelic version is a suitable interface to generate dependent types of the first kind, but very unsatisfactory for the second kind.
+The index in the first case is just an additional attribute, thus the \texttt{GeneratorA} interfaces simply requires to select among all the possible values those for which the attribute has a certain value. Of course this needs to be implemented in a constructive fashion that requires to understand the interactions and the dependencies around the index, which it is rather hard to generalize. 
+
+\paragraph{Example}
+It is straightforward to define the angelic generator for vectors \footnote{This definition would not actually pass the productivity checker. How this can be fixed is explained in section \ref{sec:Productivity}}.
+\begin{verbatim}
+vec-A-gen : {{g : SimpleGenerator A}} → GeneratorA ℕ (Vec A)
+vec-A-gen {{g = _}}          zero = [] ∷ (♯ [])
+vec-A-gen {{g = []}}      (suc n) = []
+vec-A-gen {{g = x ∷ xs}} (suc n) = concatMap cons (vec-A-gen {{x ∷ xs}} n)
+    where cons v = map (∷ v) (x ∷ xs)
+\end{verbatim}
+In the first case the empy vector \texttt{[]} is the only inhabitant of \texttt{Vec} with zero element. In the third case a non empty vector is obtained by combining a vector of lower dimension (recursive call) with an \texttt{A} element. Furthermore it generates all the vectors of that length exploring all the possible combinations. In the second case the empty colist is returned, as it is impossible to generate a non-empty vector if no object is available.
+
+On the other hand consider writing a \texttt{GeneratorA} for the \texttt{Even} data type.
+\begin{verbatim}
+even-A-gen : GeneratorA ℕ Even
+even-A-gen zero = isEven0 ∷ (♯ [])
+even-A-gen (suc zero) = []
+even-A-gen (suc (suc n)) = C.map isEven+2 (even-A-gen n)
+\end{verbatim}
+What the signature requires is that for any natural number \texttt{n} a collection of proofs that it is even must be returned.
+Although this definition it is valid and correct with respect to its specification
+it is not the best answer if the goal is to generated even numbers.
+Indeed a eveness proof exists if and only if the given number is even in the first place. Therefore in such cases an angelic generator becomes merely a decision procedure that checks whether a property holds for a certain object or not.
+
+\paragraph{Demoniac Generator}
+On the contrary the demoniac version is particularly apt for the second kind of dependent type. The advantage is that the constructors' signatures, which can be read as production rules, already describe how to construct proofs objects, manipulating their index.
+Moreover note that when a proof data-type is defined, much care is usually taken to use as few constructors as possible, in order to represent the property completely, yet without any redundancy, simply and possibly inductively. For instance we could have added the constructor
+ \texttt{isEven*2 :\ \{n\} → Even (n * 2)}, however this property could be derived from the other two.
+
+\paragraph{Example}
+This is a generator for \texttt{Even} objects:
+\begin{verbatim}
+even-gen : GeneratorD ℕ Even
+even-gen = go (0 , isEven0)
+  where go : ∃ Even → GeneratorD ℕ Even
+        go (n , p) = (n , p) ∷ (♯ (go ((suc (suc n)) , (isEven+2 p))))
+\end{verbatim}
+Following the \texttt{Even} definition, the base case is given by the seed 0, and the recursive case produces a new even object from the previous one.
+
+\paragraph{Conclusion}
+In order to show the essential dissimilarity of the two types of generators we will show how it is not possible to write a \emph{total} converter from one type to the other.
+\begin{verbatim}
+angelic2demoniac : SimpleGenerator I → GeneratorA I P → GeneratorD I P
+angelic2demoniac is a = concatMap f is
+   where f i = map (λ p → (i ,  p)) (a i) 
+\end{verbatim}
+As it will be explained in more detail in section \ref{sec:Productivity}, this definition is possibly non productive. Consider the angelic generator
+\begin{verbatim}
+empty-gen : Generator I P
+empty-gen i = [] 
+\end{verbatim}
+Converting this generator will result in a looping computation that will never produce any result.
+
+Consider instead the opposite converter, in which we reasonably assume decidable equality over the index type \texttt{I} with the binary operator \texttt{\_≟\_ :\ Decidable (\_≡\_  \{I\})}.
+\begin{verbatim}
+demoniac2angelic : GeneratorD I P → GeneratorA I P
+demoniac2angelic [] i = []
+demoniac2angelic ((i₁ , p) ∷ xs) i₂ with i₁ ≟ i₂
+demoniac2angelic  ((i₁ , p) ∷ xs) .i₁ | yes refl = p ∷ ♯ (demoniac2angelic (♭ xs) i₁)
+demoniac2angelic ((i₁ , p) ∷ xs) i₂ | no ¬p = demoniac2angelic (♭ xs) i₂
+\end{verbatim}
+Given an index \texttt{i} the function looks up for it in the demoniac generator. If one is found the corresponding proof object is produced and we lookup for further (possibly different) proof objects with the same index.
+If the demoniac generator is finite, eventually the first case will match and the corresponding angelic generator will be finite. The non-termination comes from the last case. There we corecursively call \texttt{demoniac2angel} without producing any intermediate value, (contrary to the second case, that call is unguarded) which could possibly lead to a non terminating computation.
+As an example consider converting \texttt{even-gen} using this function and trying to query the proof object that 1 is even. Clearly there is no such proof in \texttt{even-gen}, however the computation will endlessly search for it in the infinite collection of eveness proofs.  
+ 
+Our conclusion is that using an angelic generator for the second kind of dependent types is in essence equivalent to filtering input values using the implication construct \texttt{==>}. In both cases we don't have any control on the input, thus we can merely check the validity of the property, if this is not the case the result is the empty colist, or similarly that input value is discarded.
+Instead using the demoniac generator in such cases is more similar to defining an ad-hoc new type and custom generators with some important benefits.
+The expressiveness of dependent types considerably helps the user in writing such generators, because it exposes those crucial aspects of the property at hand.
 
 \subsection{Productivity}
-Limitations of productivity checker.
-Danielsson workaround.
-Additional contribution:
-	concatMap / concatMap'
-Productivity data type
-	Sound, but incomplete version
-	Sound and complete version
-		
+\label{sec:Productivity}
+Agda requires definitions to be total. When dealing with coinduction, corecursive functions don't need to terminate, but need to be productive.
+As an approximation of productivity agda requires that corecursive definitions are guarded by coinductive constructors. This (syntactical) approximation is sometimes so constrictive that many simple valid definitions are rejected as non-productive. In order to overcome these limitations the following tricks can be exploited. Our work draws from \cite{DAN10} and extend it, increasing 
+the expressivity of the technique adopted.
+
+\paragraph{Example}
+A basic use case, discussed also in \cite{DAN10} is the definition of a colist
+containing all the natural numbers:
+\begin{verbatim}
+nats : Colist ℕ
+nats = 0 ∷ ♯ (map suc nats)
+\end{verbatim}
+This definition is productive, but it is not guarded because \texttt{map} is not a constructor of \texttt{Colist}. 
+
+\paragraph{Workaround}
+Usually this kind of issue pops out every time a corecursive call is further manipulated using, for instance, high order functions.
+The trick devised by Danielsson consists in defining an ad hoc data type, or problem-specific language, in which the required abstractions (such as high-order functions) are constructors and a relative interpreter which converts it to the original data-type.
+The problem-specific language enforces guardness, as the abstractions now are constructors, whereas the interpreter expresses their semantics during the conversion.
+
+Following \cite{DAN10} we defined our initial domain specific language as
+\begin{verbatim}
+data ColistP {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
+  [] : ColistP A
+  _∷_ : (x : A) (xs : ∞ (ColistP A)) → ColistP A
+  zipWith : (f : B → C → A) (xs : ColistP B) (ys : ColistP C) → ColistP A
+  map : (f : B → A) (xs : ColistP B) → ColistP A
+  _++_ : ColistP A -> ColistP A -> ColistP A
+\end{verbatim}	
+And the corresponding weak head normal form:
+\begin{verbatim}
+data ColistW {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
+  [] : ColistW A
+  _∷_ : (x : A) (xs : ColistP A) → ColistW A
+\end{verbatim}
+The function \texttt{whnf} reduces a \texttt{ColistP} to the weak head normal form. Note that this is defined by \emph{structural recursion}:
+\begin{verbatim}
+whnf : ColistP A → ColistW A
+whnf []                       = [] 
+whnf (x ∷ xs)                = x ∷ ♭ xs
+whnf (zipWith f xs ys)        = zipWithW f (whnf xs) (whnf ys)
+whnf (map f xs)               = mapW f (whnf xs)
+whnf (xs ++ ys)               = (whnf xs) ++W (whnf ys)
+\end{verbatim}
+In the first two cases the constructors of \texttt{ColistW} are used directly, as they are their direct translation.
+In the remaining cases the functions \texttt{zipWithW}, \texttt{mapW}, \texttt{++W}, actually express the semantics of their constructor counterpart.
+\begin{verbatim}
+zipWithW : (A → B → C) → ColistW A → ColistW B → ColistW C
+zipWithW f (x ∷ xs) (y ∷ ys) = f x y ∷ zipWith f xs ys
+zipWithW f _ _ = []
+
+mapW : (A → B) → ColistW A → ColistW B
+mapW f [] = []
+mapW f (x ∷ xs) = f x ∷ map f xs
+
+_++W_ : ColistW A -> ColistW A -> ColistW A
+[] ++W ys = ys
+(x ∷ xs) ++W [] = x ∷ xs
+(x ∷ xs) ++W (y ∷ ys) = x ∷ (xs ++ (y ∷ (♯ ys)))
+\end{verbatim}
+Note that these functions manipulate and process \texttt{ColistW} objects, therefore in the non-empty cases they actually perform only one step of the computation on the head of the colist, 
+relying on the same abstractions of \texttt{ColistP} for its tail.
+ 
+Now in order to produce an actual \texttt{Colist} the following mutually recursive interpreters are defined. Note that these definitions are instead \emph{corecursive}:
+\begin{verbatim}
+mutual
+  ⟦_⟧W : ColistW A → Colist A
+  ⟦ x ∷ xs ⟧W = x ∷ ♯ ⟦ xs ⟧P
+  ⟦ [] ⟧W = []
+
+  ⟦_⟧P : ColistP A → Colist A
+  ⟦ xs ⟧P = ⟦ whnf xs ⟧W
+\end{verbatim}
+Starting with \texttt{⟦\_⟧P}, the \texttt{ColistP} is first reduced to weak head normal form using \texttt{whnf} and then interpreted using \texttt{⟦\_⟧W}.
+An empty \texttt{ColistW} can be directly converted to the \texttt{Colist} counterpart. In the non-empty case a value can be produced and its tail,
+being a \texttt{ColistP}, can be further unwrapped using the \texttt{⟦\_⟧P} interpreter. Note that this definition is guarded (and thus productive), so it is accepted.
+
+\paragraph{Example}
+The previous example can be fixed using this framework:
+\begin{verbatim}
+nats₁ : Colist ℕ
+nats₁ = ⟦ natsP ⟧P
+  where natsP : ColistP ℕ
+        natsP = 0 ∷ ♯ (map suc natsP)
+\end{verbatim}
+
+\paragraph{Shortcoming}
+Even though this framework provides several function, a quite important one is not (yet) included: \texttt{concatMap}.
+This function is particularly important when writing generators, because often it's possible to reuse a generated value to produce more new values, thus improving the overall quality of the generator.
+An attempt to define \texttt{concatMap} immediately reveals the central issue, which is not guardness, but productivity itself.
+\begin{verbatim}
+concatMap : (f : A -> Colist A) -> Colist A -> Colist A
+concatMap f [] = []
+concatMap f (x ∷ xs) with f x
+concatMap f (x ∷ xs) | [] = concatMap f (♭ xs)
+concatMap f (x ∷ xs) | y ∷ ys = ...
+\end{verbatim}
+When the result of \texttt{f x} is the empty colist, a problem arises.
+The recursive call to \texttt{concatMap} is not guarded, therefore it does not output any intermediate result and then it is rejected as possibly non productive.
+The problem is that in general there is no evidence that such definitions should be actually productive.
+As an example consider the following definition:
+\begin{verbatim}
+loop : Colist ℕ
+loop = concatMap (const []) nats
+\end{verbatim}
+The application of the constant function to any element will never produce an intermediate value and since \texttt{nats} it's an infinite colist, 
+this definition will never terminate either.
+
+\paragraph{Further Contribution}
+In this section we propose two techniques that allow to express the semantics of \texttt{concatMap} in a total and productive fashion.
+This is achieved extending the definition of \texttt{ColistP}, nevertheless the proposed solutions work for plain \texttt{Colist} as well, but may suffer of the guardness issue presented in \ref{sec:Productivity}. 
+
+\paragraph{Sound solution}
+A possible solution to this problem is to require that the function used with \texttt{concatMap} always returns a non empty list.
+This is a sound, but very incomplete solution: it is straightforward to show that if a function \texttt{f} is always productive, then any expression like \texttt{concatMap f xs} is also productive, however this restricts considerably the collection of functions that can be actually used.
+The data-type \texttt{ColistP} is extended with a new constructor \texttt{concatMap}:
+\begin{verbatim}
+data ColistP {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
+  ...
+  concatMap : (f : B -> ColistP A) -> {isP : IsProductive f} -> 
+  					           ColistP B -> ColistP A
+\end{verbatim}
+Where\texttt{IsProductive} is defined as:
+\begin{verbatim}
+nonEmptyW : ColistW A -> Set
+nonEmptyW [] = ⊥
+nonEmptyW (x ∷ xs) = ⊤
+
+IsProductive : (f : A -> ColistP B) -> Set₁
+IsProductive {A = A} f = (a : A) -> nonEmptyW (whnf (f a))
+\end{verbatim}
+Exploiting dependent types \texttt{IsProductive} requires that for an arbitrary
+element of type \texttt{A}, the colist returned by applying the function \texttt{f} to it, must be non-empty. This is expressed by the type level function \texttt{nonEmptyW} which returns the empty type \texttt{⊥} for empty colists, and the unit type otherwise.
+Note that in order to distinguish easily between those two cases we need to reduce \texttt{f a} to weak head normal form using \texttt{whnf}.
+Pattern matching directly on \texttt{ColistP} is inconvenient, because it has several constructs, most of which require to recursively inspect their arguments to determine the emptiness of the final colist.
+Nevertheless the presence of \texttt{whnf} does not represent an issue in practice, because during type checking normalization and beta-reduction silently takes place, thus its presence goes usually unnoticed.
+Finally we adapt the definition of \texttt{whnf} accordingly:
+\begin{verbatim}
+concatMapW : (f : A -> ColistP B) -> {isP : IsProductive f} -> ColistW A -> ColistW B
+concatMapW f [] = []
+concatMapW f {isP} (x ∷ xs) with whnf (f x) | isP x
+concatMapW f {isP} (x ∷ xs) | [] | ()
+concatMapW f {isP} (x ∷ xs) | y ∷ ys | tt = y ∷ (ys ++ (concatMap f {isP} xs))
+
+whnf : ColistP A → ColistW A
+whnf (concatMap f {isP} xs)   = concatMapW f {isP} (whnf xs)
+\end{verbatim}
+In the non empty case the result of \texttt{f x} is reduced to weak head normal form and then inspected together with the proof object resulting from \texttt{isP x}.
+The first problematic case is now ruled out with an absurd pattern \texttt{()}, because the type of \texttt{isP x} is the empty type when the function produces an empty list on the same input value. Note that the result must be reduced to weak head normal form, as \texttt{IsProductive} requires.
+The last case is guarded because \texttt{++} and now \texttt{concatMap} are constructors and it is furthermore productive because the value \texttt{y} is produced.
+
+\paragraph{Example}
+Consider again an alternative definition of a colist containing all the natural numbers:
+\begin{verbatim}
+nats₂ : Colist ℕ
+nats₂ = ⟦ natsP ⟧P
+  where f : ℕ -> ColistP ℕ
+        f n = (suc n) ∷ (♯ [])
+
+        natsP : ColistP ℕ
+        natsP = concatMap f (0 ∷ ♯ natsP)
+\end{verbatim}
+The proof object \texttt{IsProductive f} is automatically inferred.
+
+\paragraph{Discussion}
+First of all note that \texttt{IsProductive} doesn't take into consideration the actual colist on which the \texttt{concatMap} is applied, which further reduces the number of well-behaved, i.e. non-looping, instances of \texttt{concatMap} supported by this technique.
+For instance when the input colist is finite, the actual function can safely 	be non productive, because the input colist will be consumed in a finite number of steps. Furthermore a possibly non-productive function could be successfully used with \texttt{concatMap} if we ensure that an intermediate value is produced in a finite number of steps. To overcome these limitations we propose a more complete definition of productivity in the following paragraph.
+Nevertheless this sound approximation could be of practical use for some simple cases. In particular the proof object \texttt{IsProductive}, requires only to inspect the definition of the function and most of the time can be automatically inferred, relieving the user of this burden.
+
+\paragraph{Complete solution}
+Moved by the restrictions of the previous solution, we have investigated a better definition of productivity.
+We have extended the \texttt{ColistP} data type with another constructor \texttt{concatMap'}.
+\begin{verbatim}
+data ColistP {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
+  ...
+  concatMap' : (f : B -> ColistP A) -> (xs : ColistP B) -> 
+               {isP : Prod' f (whnf xs)} -> ColistP A
+\end{verbatim}
+The object \texttt{Prod' f xs} is the proof that the application of the function \texttt{f} over each element of the colist \texttt{xs} is overall productive.
+\begin{verbatim}
+data Prod' (f : A -> ColistP B) : (xs : ColistW A) -> Set₁ where
+  Base : Prod' f []
+  Skip : Prod' f (whnf xs) -> Prod' f (x ∷ xs)
+  Now : ∞ (Prod' f (whnf  xs)) -> nonEmptyW (whnf (f x)) -> Prod' f (x ∷ xs)
+\end{verbatim}
+One of the peculiarity of this definition is that it mixes inductive and coinductive constructors, which is inspired by \cite{DAN09}.
+The \texttt{Base} constructors allows to build a productivity proof for any
+function, as long as the input colist is finite, which was a limitation of the previous solution.
+The constructor \texttt{Now} carries the witness that for the current head of the colist an intermediate result is produced. Note that this constructor is \emph{coinductive}, because the productivity proof for the tail of the list is wrapped by the delay operator \texttt{∞}, which allows for instance an infinite corecursive nesting of \texttt{Now} constructors. This is safe because \texttt{concatMap} is well behaved as long as the function is productive.
+On the other hand the constructor \texttt{Skip} represents a possibly non-productive step: given a productive object an arbitrary element is prepended to the colist. The reader might doubt about the correctness of this definition because it seems it would allow to build a \texttt{Prod'} object for any function and any colist.
+In fact the correctness of this definition is somewhat hidden in the fact that \texttt{Skip} is an \emph{inductive} constructor. 
+It is indeed possible to always use the \texttt{Skip} constructor, no matter the actual productivity of the function at hand, if the input colist is finite, because in this case it will be possible to use the \texttt{Base} constructor eventually.
+If the input colist is infinite however, an infinite number of skips would be required, but in a total setting this can be encoded using coinduction only, therefore \texttt{Skip} cannot be abused for that, as such use is rejected by the termination checker.
+The following examples show this central difference:
+\begin{verbatim}
+f : ℕ -> ColistP ℕ
+f n = n ∷ (♯ [])
+
+nows : ∀ xs -> Prod' f xs
+nows [] = Base
+nows (x ∷ xs) = Now (♯ nows (whnf xs)) _
+
+bad : ∀ xs -> Prod' f xs
+bad [] = Base
+bad (x ∷ xs) = Skip (bad (whnf xs))
+\end{verbatim}
+The example \texttt{nows} is correct because the corecursive call is guarded by the coinductive constructor \texttt{Now}, which will produce for an infinite \texttt{xs} an infinite nesting of \texttt{Now} constructors.
+The example \texttt{bad} does not pass the termination checker.
+The second case contains a corecursive call, but \texttt{Skip} is not a coinductive constructor, therefore it is rejected.
+
+The definition of \texttt{whnf} is extended to handle this alternative version of \texttt{concatMap}:
+\begin{verbatim}
+concatMapW' : (f : A -> ColistP B) -> (xs : ColistW A) -> {isP : Prod' f xs} -> ColistW B
+concatMapW' f .[] {Base} = []
+concatMapW' f (x ∷ xs) {Skip isP} = concatMapW' f (whnf xs) {isP}
+concatMapW' f (x ∷ xs) {Now isP nonNull} with whnf (f x)
+concatMapW' f (x ∷ xs) {Now isP ()} | []
+concatMapW' f (x ∷ xs) {Now isP tt} | y ∷ ys = y ∷ (ys ++ concatMap' f xs {♭ isP})
+
+whnf : ColistP A → ColistW A
+...
+whnf (concatMap' f xs {isP})  = concatMapW' f (whnf xs) {isP}
+\end{verbatim}
+The function is defined by case analysis on the productivity proof object, furthermore since \texttt{Prod'} is defined mixing induction and coinduction, also \texttt{concatMapW'} mix recursive calls and coinduction. 
+The case with \texttt{Now} is similar to the previous version of \texttt{concatMapW}. Additionally in the last case the wrapped proof object is recombined again with \texttt{concatMap'} to deal with the tail of the colist. The operator \texttt{♭} is needed because \texttt{Now} is a coinductive constructor. More interesting is the \texttt{Skip} case, in which nothing is produced and \texttt{concatMapW'} is called recursively.
+This works because the constructor \texttt{Skip} is inductive and in that case the proof object \texttt{isP} is structurally smaller than \texttt{Skip isP}, therefore such recursive call is accepted by the termination checker.
+
+\paragraph{Discussion}
+We claim that the solution here presented is sound and complete, meaning that all the well-behaved uses of \texttt{concatMap} can be expressed with this technique. It is however rather hard to proof this meta-property using the target language itself. Intuitively a well behaved use of \texttt{concatMap} must produce a result in a finite number of steps. Due to its \emph{inductive} definition only a finite number of skips can be introduced, after which either something is produced (\texttt{Now}), or the input colist is exhausted (\texttt{Base}).
+Unfortunately a greater burden is put on the user, namely to prove for any single use of \texttt{concatMap} its productivity, which can be hard. % TODO example? guideline?
+Another drawback of this solution is that it does not cope well with self generative colists. In lazy functional languages it is quite common to define an infinite (co)list, specifying its prefix and (co)recursively generating its tail manipulating it. For instance consider once again:
+\begin{verbatim}
+natsP : ColistP ℕ
+natsP = 0 ∷ ♯ (concatMap' f  natsP) { ? })
+   where f : ℕ -> ColistP ℕ
+         f n = n ∷ (♯ [])
+\end{verbatim}
+In this case is rather cumbersome to prove productivity, because the input colist is only partially defined and its tail is undefined until the proof object, that we are trying to construct, it's produced.
+The mutual dependency between the input colist and the proof object is a non trivial issue, which also gives an hard time to the type checker itself.
+
+\paragraph{Self Generative terms}
+To overcome this specific problem we have defined an ad-hoc data type \texttt{SG} that encodes this recursion scheme and a corresponding interpreter \texttt{⟦\_⟧SG} which captures its semantics. 
+\begin{verbatim}
+data SG (A : Set) : (f : A -> ColistP A) -> Set₁ where
+  Input : ∀ (f : A -> ColistP A) -> (xs : ColistW A) -> SG A f
+  
+⟦_⟧SG : SG A f -> ColistP A
+⟦ Input _ [] ⟧SG = []
+⟦ Input f (x ∷ xs) ⟧SG = x ∷ ♯ (⟦ Input f (whnf (xs ++ f x))⟧SG)
+\end{verbatim}
+In the \texttt{SG} data type the function and the prefix colist are specified.
+In the interpreter \texttt{⟦\_⟧SG}, the list of the \texttt{SG} data type is used as a queue, the head element is produced and the colist resulting from applying the function to it it's appended. Each element in the queue is processed in this fashion exactly once.
+
+\paragraph{Discussion}
+The conversion from the direct use of \texttt{concatMap} to the \texttt{SG} equivalent is straightforward. Remarkably this approach does not require any proof whatsoever. The reason is that this new definition is a forcibly total 
+correspondent of the original pattern. Well behaved, i.e.\ non-looping, self generative terms always produce an infinite colist. This is not the case when  overall fewer values are produced than consumed, in which case the term will loop, waiting to consume a term that will never be produced.
+In the interpreter this situation is handled properly in the first cases, resulting in a finite colist. Our claim is that \texttt{SG} and its interpreter are equivalent to well-behaved self generative terms. Moreover, since endless looping is not usually the intended meaning of any program, we believe that this alternative represents a safer recursion scheme.
+
+\paragraph{Example}
+In the following examples we assume to have available a primitive \texttt{concatMap}. The term \texttt{bar₁} after producing some numbers, will get stuck looping, due to the definition of \texttt{count}, which is not productive when \texttt{n} is 0. On the other hand, \texttt{bar₂} will terminate after producing in the same order exactly the same numbers produced by \texttt{bar₁}.
+\begin{verbatim}
+count : ℕ -> ColistP ℕ
+count zero = []
+count (suc n) = n ∷ ♯ (count n)
+
+bar₁ , bar₂ : ColistP ℕ
+bar₁ n = n ∷ ♯ (concatMap count (bar₁ n))
+bar₂ n = ⟦ Input count (n ∷ ♯ []) ⟧SG
+\end{verbatim}
+
 \section{Complete Test Case ?}
 Lambda-calculus, small step semantics, deterministic proof.
 
 \section{Further Work}
-This project leaves room for further extensionsq to the library.
+This project leaves room for further extensions to the library.
 \begin{itemize}
-	\item The library currently supports only decidable properties. It would be useful handle also partially-decidable properties and investigate alternative approaches for undecidable properties.
-The framework currently supports only decidable properties, because in this setting it is always clear the distinction between a success and a failure.
-However further extensions might tackle the problem of testing undecidable or only partially decidable properties.
-
+	\item The framework currently supports only decidable properties, because in this setting it is always clear the distinction between a success and a failure. 	It would be useful handle also partially-decidable properties and investigate alternative approaches for undecidable properties.	
+	\item The user needs to write custom generator for each data-type under testing. Even if the library gives support in writing such generators, it would be very useful to derive generators for non-dependent types automatically using a generic approach. Generic approaches for generating dependent types would be another interesting topic to investigate.
 	
-	
-	\item The user needs to write custom generator for each data-type under testing. The library could give support in writing such generators, or even generate them using a generic approach. Particularly relevant in this setting is the generation of dependent values.
 	\item A crucial aspect of this library is giving precise, readable and informative feedback to the user. Adding more constructors to the \texttt{Predicate}, rather then just mapping them to basic constructors (as it happens for conjunction, implication and bi-implication, could certainly improve the quality of the results, because they could be tailored for each constructor. The normalization of the internal \texttt{Result} data type could also be improved further with this goal in mind.
-\item Note that this implies that in general is not possible to analyze a predicate for finding out information about its structure. This is one of the major drawback of this data structure.
-
 \end{itemize}
+
+\begin{thebibliography}{1}
+
+\bibitem{DAN10}
+	Beating the Productivity Checker Using Embedded Languages
+	Nils Anders Danielsson
+	In the proceedings of the Workshop on Partiality and Recursion in Interactive Theorem Provers (PAR 2010), EPTCS 43, 2010.
+
+\bibitem{DAN09}
+	Mixing Induction and Coinduction
+	Nils Anders Danielsson and Thorsten Altenkirch
+	Draft, 2009
+
+\end{thebibliography}
 
 \end{document}
