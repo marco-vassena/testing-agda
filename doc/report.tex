@@ -476,7 +476,7 @@ We did not manage to completely automate the implementation of generators, never
 
 \subsection{Basic generators}
 A generator of a given type is a collection of values of that type.
-Therefore the first step is to define what is a suitable container for such a collection. The alternatives considered are \texttt{List}, \texttt{Stream} and \texttt{Colist}. A list is a finite collection, which is not suitable for recursive data types, as they have infinite inhabitants. A stream is an infinite collection of values, which however is a bit overkilled for simple data types, which have a finite number of inhabitants. In order to get the best of both worlds we chose to use colist, which is a list defined coinductively and therefore can be either finite or infinite.
+Therefore the first step is to define what is to choose a suitable container for such a collection. The alternatives considered are \texttt{List}, \texttt{Stream} and \texttt{Colist}. A list is a finite collection, which is not suitable for recursive data types, as they have infinite inhabitants. A stream is an infinite collection of values, which however is a bit overkilled for simple data types, which have a finite number of inhabitants. In order to get the best of both worlds we chose to use colist, which is a list defined coinductively and therefore can be either finite or infinite.
 
 \begin{verbatim}
 data Colist (A : Set) : Set where
@@ -637,32 +637,297 @@ The expressiveness of dependent types considerably helps the user in writing suc
 \subsection{Productivity}
 \label{sec:Productivity}
 Agda requires definitions to be total. When dealing with coinduction, corecursive functions don't need to terminate, but need to be productive.
-As an approximation of productivity agda requires that corecursive definitions are guarded by coinductive constructors. This approximation is sometimes constrictive, therefore tricks are exploited to ensure the productivity of certain definitions.
+As an approximation of productivity agda requires that corecursive definitions are guarded by coinductive constructors. This (syntactical) approximation is sometimes so constrictive that many simple valid definitions are rejected as non-productive. In order to overcome these limitations the following tricks can be exploited. Our work draws from \cite{DAN10} and extend it, increasing 
+the expressivity of the technique adopted.
 
-Limitations of productivity checker.
-Danielsson workaround.
-Additional contribution:
-	concatMap / concatMap'
-Productivity data type
-	Sound, but incomplete version
-	Sound and complete version
-		
+\paragraph{Example}
+A basic use case, discussed also in \cite{DAN10} is the definition of a colist
+containing all the natural numbers:
+\begin{verbatim}
+nats : Colist ℕ
+nats = 0 ∷ ♯ (map suc nats)
+\end{verbatim}
+This definition is productive, but it is not guarded because \texttt{map} is not a constructor of \texttt{Colist}. 
+
+\paragraph{Workaround}
+Usually this kind of issue pops out every time a corecursive call is further manipulated using, for instance, high order functions.
+The trick devised by Danielsson consists in defining an ad hoc data type, or problem-specific language, in which the required abstractions (such as high-order functions) are constructors and a relative interpreter which converts it to the original data-type.
+The problem-specific language enforces guardness, as the abstractions now are constructors, whereas the interpreter expresses their semantics during the conversion.
+
+Following \cite{DAN10} we defined our initial domain specific language as
+\begin{verbatim}
+data ColistP {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
+  [] : ColistP A
+  _∷_ : (x : A) (xs : ∞ (ColistP A)) → ColistP A
+  zipWith : (f : B → C → A) (xs : ColistP B) (ys : ColistP C) → ColistP A
+  map : (f : B → A) (xs : ColistP B) → ColistP A
+  _++_ : ColistP A -> ColistP A -> ColistP A
+\end{verbatim}	
+And the corresponding weak head normal form:
+\begin{verbatim}
+data ColistW {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
+  [] : ColistW A
+  _∷_ : (x : A) (xs : ColistP A) → ColistW A
+\end{verbatim}
+The function \texttt{whnf} reduces a \texttt{ColistP} to the weak head normal form. Note that this is defined by \emph{structural recursion}:
+\begin{verbatim}
+whnf : ColistP A → ColistW A
+whnf []                       = [] 
+whnf (x ∷ xs)                = x ∷ ♭ xs
+whnf (zipWith f xs ys)        = zipWithW f (whnf xs) (whnf ys)
+whnf (map f xs)               = mapW f (whnf xs)
+whnf (xs ++ ys)               = (whnf xs) ++W (whnf ys)
+\end{verbatim}
+In the first two cases the constructors of \texttt{ColistW} are used directly, as they are their direct translation.
+In the remaining cases the functions \texttt{zipWithW}, \texttt{mapW}, \texttt{++W}, actually express the semantics of their constructor counterpart.
+\begin{verbatim}
+zipWithW : (A → B → C) → ColistW A → ColistW B → ColistW C
+zipWithW f (x ∷ xs) (y ∷ ys) = f x y ∷ zipWith f xs ys
+zipWithW f _ _ = []
+
+mapW : (A → B) → ColistW A → ColistW B
+mapW f [] = []
+mapW f (x ∷ xs) = f x ∷ map f xs
+
+_++W_ : ColistW A -> ColistW A -> ColistW A
+[] ++W ys = ys
+(x ∷ xs) ++W [] = x ∷ xs
+(x ∷ xs) ++W (y ∷ ys) = x ∷ (xs ++ (y ∷ (♯ ys)))
+\end{verbatim}
+Note that these functions manipulate and process \texttt{ColistW} objects, therefore in the non-empty cases they actually perform only one step of the computation on the head of the colist, 
+relying on the same abstractions of \texttt{ColistP} for its tail.
+ 
+Now in order to produce an actual \texttt{Colist} the following mutually recursive interpreters are defined. Note that these definitions are instead \emph{corecursive}:
+\begin{verbatim}
+mutual
+  ⟦_⟧W : ColistW A → Colist A
+  ⟦ x ∷ xs ⟧W = x ∷ ♯ ⟦ xs ⟧P
+  ⟦ [] ⟧W = []
+
+  ⟦_⟧P : ColistP A → Colist A
+  ⟦ xs ⟧P = ⟦ whnf xs ⟧W
+\end{verbatim}
+Starting with \texttt{⟦\_⟧P}, the \texttt{ColistP} is first reduced to weak head normal form using \texttt{whnf} and then interpreted using \texttt{⟦\_⟧W}.
+An empty \texttt{ColistW} can be directly converted to the \texttt{Colist} counterpart. In the non-empty case a value can be produced and its tail,
+being a \texttt{ColistP}, can be further unwrapped using the \texttt{⟦\_⟧P} interpreter. Note that this definition is guarded (and thus productive), so it is accepted.
+
+\paragraph{Example}
+The previous example can be fixed using this framework:
+\begin{verbatim}
+nats₁ : Colist ℕ
+nats₁ = ⟦ natsP ⟧P
+  where natsP : ColistP ℕ
+        natsP = 0 ∷ ♯ (map suc natsP)
+\end{verbatim}
+
+\paragraph{Shortcoming}
+Even though this framework provides several function, a quite important one is not (yet) included: \texttt{concatMap}.
+This function is particularly important when writing generators, because often it's possible to reuse a generated value to produce more new values, thus improving the overall quality of the generator.
+An attempt to define \texttt{concatMap} immediately reveals the central issue, which is not guardness, but productivity itself.
+\begin{verbatim}
+concatMap : (f : A -> Colist A) -> Colist A -> Colist A
+concatMap f [] = []
+concatMap f (x ∷ xs) with f x
+concatMap f (x ∷ xs) | [] = concatMap f (♭ xs)
+concatMap f (x ∷ xs) | y ∷ ys = ...
+\end{verbatim}
+When the result of \texttt{f x} is the empty colist, a problem arises.
+The recursive call to \texttt{concatMap} is not guarded, therefore it does not output any intermediate result and then it is rejected as possibly non productive.
+The problem is that in general there is no evidence that such definitions should be actually productive.
+As an example consider the following definition:
+\begin{verbatim}
+loop : Colist ℕ
+loop = concatMap (const []) nats
+\end{verbatim}
+The application of the constant function to any element will never produce an intermediate value and since \texttt{nats} it's an infinite colist, 
+this definition will never terminate either.
+
+\paragraph{Further Contribution}
+In this section we propose two techniques that allow to express the semantics of \texttt{concatMap} in a total and productive fashion.
+This is achieved extending the definition of \texttt{ColistP}, nevertheless the proposed solutions work for plain \texttt{Colist} as well, but may suffer of the guardness issue presented in \ref{sec:Productivity}. 
+
+\paragraph{Sound solution}
+A possible solution to this problem is to require that the function used with \texttt{concatMap} always returns a non empty list.
+This is a sound, but very incomplete solution: it is straightforward to show that if a function \texttt{f} is always productive, then any expression like \texttt{concatMap f xs} is also productive, however this restricts considerably the collection of functions that can be actually used.
+The data-type \texttt{ColistP} is extended with a new constructor \texttt{concatMap}:
+\begin{verbatim}
+data ColistP {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
+  ...
+  concatMap : (f : B -> ColistP A) -> {isP : IsProductive f} -> 
+  					           ColistP B -> ColistP A
+\end{verbatim}
+Where\texttt{IsProductive} is defined as:
+\begin{verbatim}
+nonEmptyW : ColistW A -> Set
+nonEmptyW [] = ⊥
+nonEmptyW (x ∷ xs) = ⊤
+
+IsProductive : (f : A -> ColistP B) -> Set₁
+IsProductive {A = A} f = (a : A) -> nonEmptyW (whnf (f a))
+\end{verbatim}
+Exploiting dependent types \texttt{IsProductive} requires that for an arbitrary
+element of type \texttt{A}, the colist returned by applying the function \texttt{f} to it, must be non-empty. This is expressed by the type level function \texttt{nonEmptyW} which returns the empty type \texttt{⊥} for empty colists, and the unit type otherwise.
+Note that in order to distinguish easily between those two cases we need to reduce \texttt{f a} to weak head normal form using \texttt{whnf}.
+Pattern matching directly on \texttt{ColistP} is inconvenient, because it has several constructs, most of which require to recursively inspect their arguments to determine the emptiness of the final colist.
+Nevertheless the presence of \texttt{whnf} does not represent an issue in practice, because during type checking normalization and beta-reduction silently takes place, thus its presence goes usually unnoticed.
+Finally we adapt the definition of \texttt{whnf} accordingly:
+\begin{verbatim}
+concatMapW : (f : A -> ColistP B) -> {isP : IsProductive f} -> ColistW A -> ColistW B
+concatMapW f [] = []
+concatMapW f {isP} (x ∷ xs) with whnf (f x) | isP x
+concatMapW f {isP} (x ∷ xs) | [] | ()
+concatMapW f {isP} (x ∷ xs) | y ∷ ys | tt = y ∷ (ys ++ (concatMap f {isP} xs))
+
+whnf : ColistP A → ColistW A
+whnf (concatMap f {isP} xs)   = concatMapW f {isP} (whnf xs)
+\end{verbatim}
+In the non empty case the result of \texttt{f x} is reduced to weak head normal form and then inspected together with the proof object resulting from \texttt{isP x}.
+The first problematic case is now ruled out with an absurd pattern \texttt{()}, because the type of \texttt{isP x} is the empty type when the function produces an empty list on the same input value. Note that the result must be reduced to weak head normal form, as \texttt{IsProductive} requires.
+The last case is guarded because \texttt{++} and now \texttt{concatMap} are constructors and it is furthermore productive because the value \texttt{y} is produced.
+
+\paragraph{Example}
+Consider again an alternative definition of a colist containing all the natural numbers:
+\begin{verbatim}
+nats₂ : Colist ℕ
+nats₂ = ⟦ natsP ⟧P
+  where f : ℕ -> ColistP ℕ
+        f n = (suc n) ∷ (♯ [])
+
+        natsP : ColistP ℕ
+        natsP = concatMap f (0 ∷ ♯ natsP)
+\end{verbatim}
+The proof object \texttt{IsProductive f} is automatically inferred.
+
+\paragraph{Discussion}
+First of all note that \texttt{IsProductive} doesn't take into consideration the actual colist on which the \texttt{concatMap} is applied, which further reduces the number of well-behaved, i.e. non-looping, instances of \texttt{concatMap} supported by this technique.
+For instance when the input colist is finite, the actual function can safely 	be non productive, because the input colist will be consumed in a finite number of steps. Furthermore a possibly non-productive function could be successfully used with \texttt{concatMap} if we ensure that an intermediate value is produced in a finite number of steps. To overcome these limitations we propose a more complete definition of productivity in the following paragraph.
+Nevertheless this sound approximation could be of practical use for some simple cases. In particular the proof object \texttt{IsProductive}, requires only to inspect the definition of the function and most of the time can be automatically inferred, relieving the user of this burden.
+
+\paragraph{Complete solution}
+Moved by the restrictions of the previous solution, we have investigated a better definition of productivity.
+We have extended the \texttt{ColistP} data type with another constructor \texttt{concatMap'}.
+\begin{verbatim}
+data ColistP {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
+  ...
+  concatMap' : (f : B -> ColistP A) -> (xs : ColistP B) -> 
+               {isP : Prod' f (whnf xs)} -> ColistP A
+\end{verbatim}
+The object \texttt{Prod' f xs} is the proof that the application of the function \texttt{f} over each element of the colist \texttt{xs} is overall productive.
+\begin{verbatim}
+data Prod' (f : A -> ColistP B) : (xs : ColistW A) -> Set₁ where
+  Base : Prod' f []
+  Skip : Prod' f (whnf xs) -> Prod' f (x ∷ xs)
+  Now : ∞ (Prod' f (whnf  xs)) -> nonEmptyW (whnf (f x)) -> Prod' f (x ∷ xs)
+\end{verbatim}
+One of the peculiarity of this definition is that it mixes inductive and coinductive constructors, which is inspired by \cite{DAN09}.
+The \texttt{Base} constructors allows to build a productivity proof for any
+function, as long as the input colist is finite, which was a limitation of the previous solution.
+The constructor \texttt{Now} carries the witness that for the current head of the colist an intermediate result is produced. Note that this constructor is \emph{coinductive}, because the productivity proof for the tail of the list is wrapped by the delay operator \texttt{∞}, which allows for instance an infinite corecursive nesting of \texttt{Now} constructors. This is safe because \texttt{concatMap} is well behaved as long as the function is productive.
+On the other hand the constructor \texttt{Skip} represents a possibly non-productive step: given a productive object an arbitrary element is prepended to the colist. The reader might doubt about the correctness of this definition because it seems it would allow to build a \texttt{Prod'} object for any function and any colist.
+In fact the correctness of this definition is somewhat hidden in the fact that \texttt{Skip} is an \emph{inductive} constructor. 
+It is indeed possible to always use the \texttt{Skip} constructor, no matter the actual productivity of the function at hand, if the input colist is finite, because in this case it will be possible to use the \texttt{Base} constructor eventually.
+If the input colist is infinite however, an infinite number of skips would be required, but in a total setting this can be encoded using coinduction only, therefore \texttt{Skip} cannot be abused for that, as such use is rejected by the termination checker.
+The following examples show this central difference:
+\begin{verbatim}
+f : ℕ -> ColistP ℕ
+f n = n ∷ (♯ [])
+
+nows : ∀ xs -> Prod' f xs
+nows [] = Base
+nows (x ∷ xs) = Now (♯ nows (whnf xs)) _
+
+bad : ∀ xs -> Prod' f xs
+bad [] = Base
+bad (x ∷ xs) = Skip (bad (whnf xs))
+\end{verbatim}
+The example \texttt{nows} is correct because the corecursive call is guarded by the coinductive constructor \texttt{Now}, which will produce for an infinite \texttt{xs} an infinite nesting of \texttt{Now} constructors.
+The example \texttt{bad} does not pass the termination checker.
+The second case contains a corecursive call, but \texttt{Skip} is not a coinductive constructor, therefore it is rejected.
+
+The definition of \texttt{whnf} is extended to handle this alternative version of \texttt{concatMap}:
+\begin{verbatim}
+concatMapW' : (f : A -> ColistP B) -> (xs : ColistW A) -> {isP : Prod' f xs} -> ColistW B
+concatMapW' f .[] {Base} = []
+concatMapW' f (x ∷ xs) {Skip isP} = concatMapW' f (whnf xs) {isP}
+concatMapW' f (x ∷ xs) {Now isP nonNull} with whnf (f x)
+concatMapW' f (x ∷ xs) {Now isP ()} | []
+concatMapW' f (x ∷ xs) {Now isP tt} | y ∷ ys = y ∷ (ys ++ concatMap' f xs {♭ isP})
+
+whnf : ColistP A → ColistW A
+...
+whnf (concatMap' f xs {isP})  = concatMapW' f (whnf xs) {isP}
+\end{verbatim}
+The function is defined by case analysis on the productivity proof object, furthermore since \texttt{Prod'} is defined mixing induction and coinduction, also \texttt{concatMapW'} mix recursive calls and coinduction. 
+The case with \texttt{Now} is similar to the previous version of \texttt{concatMapW}. Additionally in the last case the wrapped proof object is recombined again with \texttt{concatMap'} to deal with the tail of the colist. The operator \texttt{♭} is needed because \texttt{Now} is a coinductive constructor. More interesting is the \texttt{Skip} case, in which nothing is produced and \texttt{concatMapW'} is called recursively.
+This works because the constructor \texttt{Skip} is inductive and in that case the proof object \texttt{isP} is structurally smaller than \texttt{Skip isP}, therefore such recursive call is accepted by the termination checker.
+
+\paragraph{Discussion}
+We claim that the solution here presented is sound and complete, meaning that all the well-behaved uses of \texttt{concatMap} can be expressed with this technique. It is however rather hard to proof this meta-property using the target language itself. Intuitively a well behaved use of \texttt{concatMap} must produce a result in a finite number of steps. Due to its \emph{inductive} definition only a finite number of skips can be introduced, after which either something is produced (\texttt{Now}), or the input colist is exhausted (\texttt{Base}).
+Unfortunately a greater burden is put on the user, namely to prove for any single use of \texttt{concatMap} its productivity, which can be hard. % TODO example? guideline?
+Another drawback of this solution is that it does not cope well with self generative colists. In lazy functional languages it is quite common to define an infinite (co)list, specifying its prefix and (co)recursively generating its tail manipulating it. For instance consider once again:
+\begin{verbatim}
+natsP : ColistP ℕ
+natsP = 0 ∷ ♯ (concatMap' f  natsP) { ? })
+   where f : ℕ -> ColistP ℕ
+         f n = n ∷ (♯ [])
+\end{verbatim}
+In this case is rather cumbersome to prove productivity, because the input colist is only partially defined and its tail is undefined until the proof object, that we are trying to construct, it's produced.
+The mutual dependency between the input colist and the proof object is a non trivial issue, which also gives an hard time to the type checker itself.
+
+\paragraph{Self Generative terms}
+To overcome this specific problem we have defined an ad-hoc data type \texttt{SG} that encodes this recursion scheme and a corresponding interpreter \texttt{⟦\_⟧SG} which captures its semantics. 
+\begin{verbatim}
+data SG (A : Set) : (f : A -> ColistP A) -> Set₁ where
+  Input : ∀ (f : A -> ColistP A) -> (xs : ColistW A) -> SG A f
+  
+⟦_⟧SG : SG A f -> ColistP A
+⟦ Input _ [] ⟧SG = []
+⟦ Input f (x ∷ xs) ⟧SG = x ∷ ♯ (⟦ Input f (whnf (xs ++ f x))⟧SG)
+\end{verbatim}
+In the \texttt{SG} data type the function and the prefix colist are specified.
+In the interpreter \texttt{⟦\_⟧SG}, the list of the \texttt{SG} data type is used as a queue, the head element is produced and the colist resulting from applying the function to it it's appended. Each element in the queue is processed in this fashion exactly once.
+
+\paragraph{Discussion}
+The conversion from the direct use of \texttt{concatMap} to the \texttt{SG} equivalent is straightforward. Remarkably this approach does not require any proof whatsoever. The reason is that this new definition is a forcibly total 
+correspondent of the original pattern. Well behaved, i.e.\ non-looping, self generative terms always produce an infinite colist. This is not the case when  overall fewer values are produced than consumed, in which case the term will loop, waiting to consume a term that will never be produced.
+In the interpreter this situation is handled properly in the first cases, resulting in a finite colist. Our claim is that \texttt{SG} and its interpreter are equivalent to well-behaved self generative terms. Moreover, since endless looping is not usually the intended meaning of any program, we believe that this alternative represents a safer recursion scheme.
+
+\paragraph{Example}
+In the following examples we assume to have available a primitive \texttt{concatMap}. The term \texttt{bar₁} after producing some numbers, will get stuck looping, due to the definition of \texttt{count}, which is not productive when \texttt{n} is 0. On the other hand, \texttt{bar₂} will terminate after producing in the same order exactly the same numbers produced by \texttt{bar₁}.
+\begin{verbatim}
+count : ℕ -> ColistP ℕ
+count zero = []
+count (suc n) = n ∷ ♯ (count n)
+
+bar₁ , bar₂ : ColistP ℕ
+bar₁ n = n ∷ ♯ (concatMap count (bar₁ n))
+bar₂ n = ⟦ Input count (n ∷ ♯ []) ⟧SG
+\end{verbatim}
+
 \section{Complete Test Case ?}
 Lambda-calculus, small step semantics, deterministic proof.
 
 \section{Further Work}
-This project leaves room for further extensionsq to the library.
+This project leaves room for further extensions to the library.
 \begin{itemize}
-	\item The library currently supports only decidable properties. It would be useful handle also partially-decidable properties and investigate alternative approaches for undecidable properties.
-The framework currently supports only decidable properties, because in this setting it is always clear the distinction between a success and a failure.
-However further extensions might tackle the problem of testing undecidable or only partially decidable properties.
-
+	\item The framework currently supports only decidable properties, because in this setting it is always clear the distinction between a success and a failure. 	It would be useful handle also partially-decidable properties and investigate alternative approaches for undecidable properties.	
+	\item The user needs to write custom generator for each data-type under testing. Even if the library gives support in writing such generators, it would be very useful to derive generators for non-dependent types automatically using a generic approach. Generic approaches for generating dependent types would be another interesting topic to investigate.
 	
-	
-	\item The user needs to write custom generator for each data-type under testing. The library could give support in writing such generators, or even generate them using a generic approach. Particularly relevant in this setting is the generation of dependent values.
 	\item A crucial aspect of this library is giving precise, readable and informative feedback to the user. Adding more constructors to the \texttt{Predicate}, rather then just mapping them to basic constructors (as it happens for conjunction, implication and bi-implication, could certainly improve the quality of the results, because they could be tailored for each constructor. The normalization of the internal \texttt{Result} data type could also be improved further with this goal in mind.
-\item Note that this implies that in general is not possible to analyze a predicate for finding out information about its structure. This is one of the major drawback of this data structure.
-
 \end{itemize}
+
+\begin{thebibliography}{1}
+
+\bibitem{DAN10}
+	Beating the Productivity Checker Using Embedded Languages
+	Nils Anders Danielsson
+	In the proceedings of the Workshop on Partiality and Recursion in Interactive Theorem Provers (PAR 2010), EPTCS 43, 2010.
+
+\bibitem{DAN09}
+	Mixing Induction and Coinduction
+	Nils Anders Danielsson and Thorsten Altenkirch
+	Draft, 2009
+
+\end{thebibliography}
 
 \end{document}
