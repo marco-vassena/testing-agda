@@ -121,9 +121,12 @@ foo = ⟦ Input f (0 ∷ []) ⟧SG
   where f : ℕ -> ColistP ℕ
         f n = (n + 1) ∷ (♯ ((n + 3) ∷ ♯ []))
 
--- bar n = n ∷ ♯ (concatMap count (bar n)) 
+
+-- bar n = n ∷ ♯ (concatMap count (bar n))
+-- This term would eventually be looping using concatMap
+-- Here it terminates gracefully
 bar : ℕ -> ColistP  ℕ
 bar n = ⟦ Input₁ count n ⟧SG
   where count : ℕ -> ColistP ℕ
         count zero = []
-        count (suc n₁) = suc n₁ ∷ ♯ (count n₁)
+        count (suc n₁) = n₁ ∷ ♯ (count n₁)
