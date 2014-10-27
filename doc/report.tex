@@ -901,7 +901,7 @@ count (suc n) = n ∷ ♯ (count n)
 
 bar₁ , bar₂ : ColistP ℕ
 bar₁ n = n ∷ ♯ (concatMap count (bar₁ n))
-bar₂ n = ⟦ Input count (n ∷ ♯ []) ⟧SG
+bar₂ n = ⟦ Input count (n ∷ []) ⟧SG
 \end{verbatim}
 
 \section{Complete Test Case ?}
