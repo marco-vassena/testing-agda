@@ -1,4 +1,5 @@
 -- | This module allows to test properties using Streams as source of input values.
+-- This module is intended to be imported qualified.
 
 module Test.Input.Stream where
 
