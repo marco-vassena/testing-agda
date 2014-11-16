@@ -1,3 +1,7 @@
+-- | This module provides useful tools to write productive generators.
+-- Part of this module is drawn from `Beating the Productivity Checker' 
+-- `Mixing Induction and Coinduction' by Danielsson.
+
 module Test.Input.Generator.Base where
 
 open import Coinduction
@@ -14,6 +18,7 @@ open import Level as L
 
 mutual
 
+  -- | The language of colist programs 
   data ColistP {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
     [] : ColistP A
     _∷_     : (x : A) (xs : ∞ (ColistP A)) → ColistP A
@@ -24,23 +29,35 @@ mutual
     concatMap : {B : Set ℓ} -> (f : B -> ColistP A) -> {isP : IsProductive f} -> ColistP B -> ColistP A
     concatMap' : {B : Set ℓ} -> (f : B -> ColistP A) -> (xs : ColistP B) -> {isP : Prod' f (whnf xs)} -> ColistP A
 
+  -- | A colist reduced to weak head normal form
   data ColistW {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
     [] : ColistW A
     _∷_ : (x : A) (xs : ColistP A) → ColistW A
+  
+  --------------------------------------------------------------------------------
+  -- Productivity data
+  --------------------------------------------------------------------------------
 
+  -- | Is a colist empty ? 
   nonEmptyW : ∀ {ℓ} {A : Set ℓ} -> ColistW A -> Set
   nonEmptyW [] = ⊥
   nonEmptyW (x ∷ xs) = ⊤
 
+  -- | Defines a sound, but rather incomplete approximation of productive function
   IsProductive : ∀ {ℓ} {A B : Set ℓ} -> (f : A -> ColistP B) -> Set ℓ 
-  IsProductive {A = A} f = (a : A) -> nonEmptyW (whnf (f a))  -- Sound (but not complete) approximation of productive function
+  IsProductive {A = A} f = (a : A) -> nonEmptyW (whnf (f a))
 
-  -- Productive data-type
+  -- | A proof data type that represents completely a productive function applied to some colist.
   data Prod' {ℓ} {A B : Set ℓ} (f : A -> ColistP B) : (xs : ColistW A) -> Set (L.suc ℓ) where
      Base : Prod' f []
      Skip : {x : A} {xs : (ColistP A)} -> Prod' f (whnf xs) -> Prod' f (x ∷ xs)
      Now : {x : A} {xs : (ColistP A)} -> ∞ (Prod' f (whnf  xs)) -> nonEmptyW (whnf (f x)) -> Prod' f (x ∷ xs)
 
+  --------------------------------------------------------------------------------
+  -- Semantics functions
+  --------------------------------------------------------------------------------
+
+  -- | Reduces a colist to weak head normal form 
   whnf : ∀ {ℓ} {A : Set ℓ} → ColistP A → ColistW A
   whnf []                       = [] 
   whnf (x ∷ xs)                 = x ∷ ♭ xs
@@ -78,19 +95,23 @@ mutual
   concatMapW' f (x ∷ xs) {Now isP tt} | y ∷ ys = y ∷ (ys ++ concatMap' f xs {♭ isP})
 
 mutual
+  -- | Converter from a whnf colist to plain colist
   ⟦_⟧W : ∀ {ℓ} {A : Set ℓ} → ColistW A → Colist A
   ⟦ x ∷ xs ⟧W = x ∷ ♯ ⟦ xs ⟧P
   ⟦ [] ⟧W = []
 
+  -- | Converter from a language of colist programs to plain colist
   ⟦_⟧P : ∀ {ℓ} {A : Set ℓ} → ColistP A → Colist A
   ⟦ xs ⟧P = ⟦ whnf xs ⟧W
 
+-- | Converts a plain colist to the language of colist programs
 fromColist : ∀ {ℓ} {A : Set ℓ} -> Colist A -> ColistP A
 fromColist [] = []
 fromColist (x ∷ xs) = x ∷ (♯ (fromColist (♭ xs)))
 
 open import Data.List using (List ; _∷_ ; [])
 
+-- | Converts a plain list to the language of colist programs
 fromList :  ∀ {ℓ} {A : Set ℓ} -> List A -> ColistP A
 fromList [] = []
 fromList (x ∷ xs) = x ∷ (♯ (fromList xs))
@@ -104,6 +125,8 @@ cycle {A = A} xs {p} | y ∷ ys | tt = y ∷ ♯ (go (whnf ys))
         go [] = cycle xs {p}
         go (z ∷ zs) = z ∷ ♯ (go (whnf zs))
 
+-- An infinite colist cosisting of :
+-- x ∷ f x ∷ f (f x) ∷ ...
 iterate : ∀ {ℓ} {A : Set ℓ} -> (A -> A) -> A -> ColistP A
 iterate f x = x ∷ ♯ (iterate f (f x))
 
@@ -126,6 +149,7 @@ data Prod {ℓ} {A B : Set ℓ} (f : A -> Colist B) : (xs : Colist A) -> Set (L.
   Skip : {x : A} {xs : ∞ (Colist A)} -> Prod f (♭ xs) -> Prod f (x ∷ xs)
   Now : {x : A} {xs : ∞ (Colist A)} -> ∞ (Prod f (♭ xs)) -> NonNull (f x) -> Prod f (x ∷ xs)
 
+-- | concatMap can be defined totally, given a productive proof
 concatMapC : ∀ {ℓ} {A B : Set ℓ} -> (f : A -> Colist B) -> (xs : Colist A) -> {isP : Prod f xs} -> Colist B
 concatMapC f .[] {Base} = []
 concatMapC f (x ∷ xs) {Skip isP} = concatMapC f (♭ xs) {isP}

@@ -21,39 +21,40 @@ open import Example.Even using (Even ; isEven+2 ; isEven0)
 open import Test.Input.Generator
 open import Test.Input.Generator.Base
 
--- Generator of Even numbers
-even-gen : GeneratorD ℕ Even
-even-gen = ⟦ iterate (P.map (suc ∘ suc) isEven+2) (, isEven0) ⟧P
+-- Demoniac generator of eveness proofs
+even-genD : GeneratorD ℕ Even
+even-genD = ⟦ iterate (P.map (suc ∘ suc) isEven+2) (, isEven0) ⟧P
 
-even-A-gen : GeneratorA ℕ Even
-even-A-gen zero = isEven0 ∷ (♯ [])
-even-A-gen (suc zero) = []
-even-A-gen (suc (suc n)) = C.map isEven+2 (even-A-gen n)
+-- Angelic generator of eveness proofs.
+-- Negative example: one and only one proof can be produced if 
+-- the number is even in the first place
+even-genA : GeneratorA ℕ Even
+even-genA zero = isEven0 ∷ (♯ [])
+even-genA (suc zero) = []
+even-genA (suc (suc n)) = C.map isEven+2 (even-genA n)
 
 -- Generates proof objects for all numbers ≤ n
 -- This is more difficult because it is a specialization of the generic 
 -- binary relation ≤ and particularly the right hand side of ≤ changes in the
 -- definitions.
 -- Furthermore we are exploiting specific information about the ≤ relation in ℕ.
-≤-gen : (n : ℕ) -> GeneratorD ℕ (flip _≤_ n)
-
-
-≤-gen n = go 0
+≤-genD : (n : ℕ) -> GeneratorD ℕ (flip _≤_ n)
+≤-genD n = go 0
   where go : ℕ -> GeneratorD ℕ (flip _≤_ n)
         go m with m ≤? n      -- BAD : This requires ≤ to be decidable and it's not different from the ⇒ construct
         go m | yes p = (_ , p) ∷ ♯ (go (suc m))
         go m | no ¬p = []
 
--- Angelic version: basically a decision procedure
-≤-A-gen : (n : ℕ) -> GeneratorA ℕ (flip _≤_ n)
-≤-A-gen n zero = z≤n ∷ (♯ [])
-≤-A-gen zero (suc m) = []
-≤-A-gen (suc n) (suc m) = C.map s≤s (≤-A-gen n m)
+-- Angelic generator of ≤ proofs.
+-- This is another negative example of a bad choice of interface.
+≤-genA : (n : ℕ) -> GeneratorA ℕ (flip _≤_ n)
+≤-genA n zero = z≤n ∷ (♯ [])
+≤-genA zero (suc m) = []
+≤-genA (suc n) (suc m) = C.map s≤s (≤-genA n m)
 
-
+-- Another similar generator for ≤ relation : numbers greater or equal than n 
 -- Here instead we are following the pattern given by the constructors of ≤.
--- This is easier here because of ≤ definition for the lhs.
-
+-- This is easier here because of ≤ definition for the lhs of ≤.
 ≤-gen' : (n : ℕ) ->  GeneratorD ℕ (_≤_ n)
 ≤-gen' zero = ⟦ gen0 ⟧P
   where gen0 : ColistP (∃ (_≤_ zero))
@@ -81,6 +82,7 @@ even-A-gen (suc (suc n)) = C.map isEven+2 (even-A-gen n)
 open import Data.Fin using (Fin)
 import Data.Fin as F
 
+-- Angelic generator for 
 fin-A-gen : GeneratorA ℕ Fin
 fin-A-gen zero = []
 fin-A-gen (suc n) = F.zero ∷ (♯ (C.map F.suc (fin-A-gen n)))
@@ -94,7 +96,7 @@ fin-D-gen' = ⟦ (Input₁ f (1 , F.zero)) ⟧SG
 fin-D-gen : GeneratorD ℕ Fin
 fin-D-gen = ⟦ fin-D-gen' ⟧P
 
--- I will consider only ℕ to make things easier for the time being
+-- Proof objected that the indexed list is sorted.
 data Sorted : List ℕ -> Set where
   nil : Sorted []
   singleton : ∀ n -> Sorted (n ∷ []) 
@@ -108,8 +110,8 @@ sorted-gen' n = ⟦ Input cons-gen ((, nil) ∷ singles n) ⟧SG
         
         cons-gen : ∃ Sorted -> ColistP (∃ Sorted)
         cons-gen ([] , nil) = []
-        cons-gen (.m ∷ [] , singleton m) = map (λ x → , (cons (proj₂ x) (singleton m))) (fromColist (≤-gen m))
-        cons-gen ( ._ , cons {n} leq p) = map (λ x → , (cons (proj₂ x) (cons leq p))) (fromColist (≤-gen n))
+        cons-gen (.m ∷ [] , singleton m) = map (λ x → , (cons (proj₂ x) (singleton m))) (fromColist (≤-genD m))
+        cons-gen ( ._ , cons {n} leq p) = map (λ x → , (cons (proj₂ x) (cons leq p))) (fromColist (≤-genD n))
 
 -- | Produces all the sorted lists of arbitrary length using numbers up to n, without duplicates
 sorted-gen : ℕ -> GeneratorD (List ℕ) Sorted
@@ -168,7 +170,7 @@ vec-A-gen {{g}} = ⟦_⟧P ∘ (vec-A-gen' {{g}})
 
 -- Each number successor of Even is Odd
 odd-gen : GeneratorD ℕ (¬_ ∘ Even)
-odd-gen = C.map (P.map suc next-odd) even-gen
+odd-gen = C.map (P.map suc next-odd) even-genD
   where next-odd : ∀ {n} -> Even n -> ¬ (Even (suc n))
         next-odd isEven0 ()
         next-odd (isEven+2 p) (isEven+2 x) = next-odd p x
