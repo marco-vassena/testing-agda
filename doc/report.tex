@@ -38,7 +38,7 @@
 \maketitle
 
 \section{Introduction}
-Inspired by libraries like Quickcheck, Smallcheck and FEAT, the goal of this experimentation project is to design and implement a library for testing decidable properties for Agda, a total, dependently typed functional programming language.
+Inspired by libraries like Quickcheck \cite{QUICK}, Smallcheck \cite{SMALL} and FEAT \cite{FEAT}, the goal of this experimentation project is to design and implement a library for testing decidable properties for Agda \cite{AGDA}, a total, dependently typed functional programming language.
 
 \subsection{Motivation}
 Under the Curry-Howard correspondence, it is possible to use Agda to formally prove arbitrary properties. The reader might then wonder what would be the benefit of a testing library in such a setting. Proving properties is in general hard and time-consuming, therefore it could be useful, before undertaking this demanding task, to verify that the property at hand holds with concrete input values. This sanity-check can be achieved by means of this library and could quickly spot erroneous definitions and invalid or incomplete theorems.
@@ -51,10 +51,13 @@ The library is organized as follows:
 	\item \texttt{Test.Converter}. Automatic conversion from lemmas' type signature to predicate.
 	\item \texttt{Test.Input}. Provides input values to the testing framework.
 	\item \texttt{Test.Tester}. Testing framework.
-	\item \texttt{Test.Runner}. Different ways to run tests.
+	\item \texttt{Test.Runner}. Different drivers to run the tests.
 	\item \texttt{Example} Contains several simple examples about how to use the library.
+\end{itemize}
+
+In the agda code included in this report, implicit parameters will be omitted to avoid clutter, whenever it is possible to understand their type from the context.
 	
-\subsection{Predicate}
+	\subsection{Predicate}
 \label{sec:predicate}
 The \texttt{Predicate} data-type is a universe that represents first order logic predicates.
 
@@ -87,8 +90,7 @@ Other derived combinators have been defined on top of the \texttt{Predicate}
 data type, such as implication, conjunction and double implication.
 
 \paragraph{Example}
-The following is an example of the predicate $\forall n \in \mathbb{N} . \exists m \in \mathbb{N} . Even (n + m)$. The \texttt{BListTree} constructor \texttt{\_::\_} (cons) fixes the type of the variables quantified.  
-
+The following is an example of the predicate $\forall n \in \mathbb{N} . \exists m \in \mathbb{N} . Even (n + m)$.
 \begin{lstlisting}
 example1 : Predicate ($\mathbb{N}$ :: $\mathbb{N}$ :: [])
 example1 = Forall ($\lambda$ n $\rightarrow$ (Exists $\lambda$ m $\rightarrow$
@@ -106,7 +108,6 @@ example2 : Predicate ($\mathbb{N}$ :: ([] , []))
 example2 = Forall n $\sim$ Property (Even n) $\vee$ 
                        Not (Property (Even n))
 \end{lstlisting}
-\end{itemize}
 
 \subsection{Testing framework}
 \label{sec:testing}
@@ -223,7 +224,7 @@ The module \texttt{Test.Runner} defines different runners, which are functions u
 A runner is a type level function that calls the underlying testing framework and returns, based on the test outcome, a suitable type that provides readable feedback to the user.
 As an example consider \texttt{run}, which is the basic runner which simply returns when the property turned out to hold or not.
 \begin{code}
-run : ∀ {xs} → Testable xs → Set
+run : Testable xs → Set
 run (Test u on input by check) with test u check input
 run (Test u on input by check) | inj₁ _ = Fail
 run (Test u on input by check) | inj₂ _ = Succeed
@@ -257,7 +258,7 @@ A test suite consists then of an Agda module containing such definitions and run
 The module defines other runners explained in the following.
 The runner \texttt{runVerbose} additionally returns also the actual \texttt{Result} produced by the testing framework, which is either a witness of the correctness of the property or a counterexample.
 \begin{code}
-runVerbose : ∀ {xs} → Testable xs → Set₁
+runVerbose : Testable xs → Set₁
 runVerbose (Test u on input by check) with test u check input
 runVerbose (Test u on input by check) | inj₁ r = Fail: r
 runVerbose (Test u on input by check) | inj₂ r = Succeed: r
@@ -265,19 +266,19 @@ runVerbose (Test u on input by check) | inj₂ r = Succeed: r
 Special care have been put in making the feedback as useful and readable as possible for the user. This is discussed in more detail in section 	\ref{sec:Result}.
 The data-types \texttt{Fail:} and \texttt{Succeed:} are variants of \texttt{Fail} and \texttt{Succeed} indexed over some \texttt{Result} value.
 \begin{code}
-data Fail: : ∀ {xs} → Result xs → Set₁ where
-  Failed : ∀ {xs} (r : Result xs) → Fail: {xs} r
+data Fail: : Result xs → Set₁ where
+  Failed : (r : Result xs) → Fail: r
 
-data Succeed: : ∀ {xs} → Result xs → Set₁ where
-  Pass : ∀ {xs} (r : Result xs) → Succeed: {xs} r
+data Succeed: : Result xs → Set₁ where
+  Pass : (r : Result xs) → Succeed: r
 \end{code}
 As an example consider again testing the trivial property:
 \begin{code}
 test-trivial' : runVerbose (Test trivial on [] by dec-trivial)
 test-trivial' = Pass (Hold Unit)
 \end{code}
-Note that from the definition of \texttt{Succeed:} and \texttt{Fail:}, there is only one possible inhabitant for any of these types instantiated with some result. Therefore agda's \texttt{auto} feature should be able to automatically infer it, which was the case in a 	previous version of this library. 
-Unfortunately this turned out not to work anymore when the index \texttt{BListTree} was added to \texttt{Result}. This is currently tracked as a \href{http://code.google.com/p/agda/issues/detail?id=1223}{bug} in the agda bug-tracker.It's nevertheless possible to manually fill such holes copying the witness or counterexample from the goal type.
+Note that when some result is set as index of either \texttt{Succeed:} or \texttt{Fail:}, then there is only one possible inhabitant for any of these types. Therefore agda's \texttt{auto} feature should be able to automatically infer it, which was the case in a 	previous version of this library. 
+Unfortunately this turned out not to work anymore when the index \texttt{BListTree} was added to \texttt{Result}. This is currently tracked as a \href{http://code.google.com/p/agda/issues/detail?id=1223}{bug} in the agda bug-tracker. It's nevertheless possible to manually fill such holes copying the witness or counterexample from the goal type.
 The runners \texttt{pass} and \texttt{fail} require the test to respectively pass and fail. The runner \texttt{skip} does not run the test at all.
 The runners \texttt{pass\_With\_Using} and \texttt{fail\_With\_Using} are variants of the runners \texttt{pass} and \texttt{fail} in which the user specifies not only whether the test should pass or not, but also with which outcome.
 These runners require decidable equality over the types involved in the property, which are contained in a \texttt{Comparator} object.
@@ -297,7 +298,7 @@ The only flaw of this runner it's that it is not able to compare the leaves of t
 
 \subsection{Result}
 \label{sec:Result}
-The module \texttt{Test.Base} defines the data-type \texttt{Result} which represents a normalized outcome of testing a predicate and it is used internally in the testing framework
+The module \texttt{Test.Base} defines the data-type \texttt{Result} which represents the possible outcomes of testing a predicate and it is used internally in the testing framework
 
 \begin{verbatim}
   data Internal.Result : BListTree Set → Set₁ where
@@ -360,7 +361,7 @@ normalize (Internal.Hold x) = Hold x
 normalize (Internal.DoesNotHold x) = DoesNotHold x
 ...
 \end{verbatim}
-The \texttt{hide} maps each constructor of the internal result data type to the correspondent exposed version, erasing any actual value.
+The function \texttt{hide} maps each constructor of the internal result data type to the correspondent exposed version, erasing any actual value.
 Therefore in the cases \texttt{NotFor x r} and \texttt{Exists x r}, \texttt{x} is hidden and substituted with its type. 
 Also the leaf nodes \texttt{Hold} or \texttt{DoesNotHold} are replaced with an appropriate symbol, because the set wrapped in those constructors could possibly contain actual values that need to be hidden.
 The function \texttt{normalize} converts the internal result to the exposed version, making sure to hide unimportant details, when necessary using \texttt{hide}. For instance in case of universal quantification success (\texttt{Forall}) and existential quantification failure (\texttt{NotExists}) the remaining part of the result value needs to be hidden, as they are just a trace of the testing process, not bearing any meaning.
@@ -476,7 +477,7 @@ We did not manage to completely automate the implementation of generators, never
 
 \subsection{Basic generators}
 A generator of a given type is a collection of values of that type.
-Therefore the first step is to define what is to choose a suitable container for such a collection. The alternatives considered are \texttt{List}, \texttt{Stream} and \texttt{Colist}. A list is a finite collection, which is not suitable for recursive data types, as they have infinite inhabitants. A stream is an infinite collection of values, which however is a bit overkilled for simple data types, which have a finite number of inhabitants. In order to get the best of both worlds we chose to use colist, which is a list defined coinductively and therefore can be either finite or infinite.
+Therefore the first step is to choose a suitable container for such a collection. The alternatives considered are \texttt{List}, \texttt{Stream} and \texttt{Colist}. A list is a finite collection, which is not suitable for recursive data types, as they have infinite inhabitants. A stream is an infinite collection of values, which however is a bit overkilled for simple data types, which have a finite number of inhabitants. In order to get the best of both worlds we chose to use colist, which is a list defined coinductively and therefore can be either finite or infinite.
 
 \begin{verbatim}
 data Colist (A : Set) : Set where
@@ -582,7 +583,7 @@ On the other hand consider writing a \texttt{GeneratorA} for the \texttt{Even} d
 even-A-gen : GeneratorA ℕ Even
 even-A-gen zero = isEven0 ∷ (♯ [])
 even-A-gen (suc zero) = []
-even-A-gen (suc (suc n)) = C.map isEven+2 (even-A-gen n)
+even-A-gen (suc (suc n)) = map isEven+2 (even-A-gen n)
 \end{verbatim}
 What the signature requires is that for any natural number \texttt{n} a collection of proofs that it is even must be returned.
 Although this definition it is valid and correct with respect to its specification
@@ -591,8 +592,7 @@ Indeed a eveness proof exists if and only if the given number is even in the fir
 
 \paragraph{Demoniac Generator}
 On the contrary the demoniac version is particularly apt for the second kind of dependent type. The advantage is that the constructors' signatures, which can be read as production rules, already describe how to construct proofs objects, manipulating their index.
-Moreover note that when a proof data-type is defined, much care is usually taken to use as few constructors as possible, in order to represent the property completely, yet without any redundancy, simply and possibly inductively. For instance we could have added the constructor
- \texttt{isEven*2 :\ \{n\} → Even (n * 2)}, however this property could be derived from the other two.
+Moreover note that when a proof data-type is defined, much care is usually taken to use as few constructors as possible, in order to represent the property completely, yet without any redundancy, simply and possibly inductively. For instance we could have added to the even data type the constructor \texttt{isEven*2 :\ \{n\} → Even (n * 2)}, however this property could be derived from the other two.
 
 \paragraph{Example}
 This is a generator for \texttt{Even} objects:
@@ -611,7 +611,9 @@ angelic2demoniac : SimpleGenerator I → GeneratorA I P → GeneratorD I P
 angelic2demoniac is a = concatMap f is
    where f i = map (λ p → (i ,  p)) (a i) 
 \end{verbatim}
-As it will be explained in more detail in section \ref{sec:Productivity}, this definition is possibly non productive. Consider the angelic generator
+For any index of \texttt{is} the angelic generator is used to produce a colist of 
+values, which are paired with their correspondent index by \texttt{f}, and then all concatenated together.
+As it will be explained in more detail in section \ref{sec:Productivity}, this definition is possibly non productive. Consider the angelic generator:
 \begin{verbatim}
 empty-gen : Generator I P
 empty-gen i = [] 
@@ -634,10 +636,10 @@ Our conclusion is that using an angelic generator for the second kind of depende
 Instead using the demoniac generator in such cases is more similar to defining an ad-hoc new type and custom generators with some important benefits.
 The expressiveness of dependent types considerably helps the user in writing such generators, because it exposes those crucial aspects of the property at hand.
 
-\subsection{Productivity}
+\section{Productivity}
 \label{sec:Productivity}
 Agda requires definitions to be total. When dealing with coinduction, corecursive functions don't need to terminate, but need to be productive.
-As an approximation of productivity agda requires that corecursive definitions are guarded by coinductive constructors. This (syntactical) approximation is sometimes so constrictive that many simple valid definitions are rejected as non-productive. In order to overcome these limitations the following tricks can be exploited. Our work draws from \cite{DAN10} and extend it, increasing 
+As an approximation of productivity corecursive definitions must be guarded by coinductive constructors. This (syntactical) approximation is sometimes so constrictive that many simple valid definitions are rejected as non-productive. In order to overcome these limitations the following tricks can be exploited. Our work draws from \cite{DAN10} and extend it, increasing 
 the expressivity of the technique adopted.
 
 \paragraph{Example}
@@ -649,7 +651,7 @@ nats = 0 ∷ ♯ (map suc nats)
 \end{verbatim}
 This definition is productive, but it is not guarded because \texttt{map} is not a constructor of \texttt{Colist}. 
 
-\paragraph{Workaround}
+\subsection{Guarded programs}
 Usually this kind of issue pops out every time a corecursive call is further manipulated using, for instance, high order functions.
 The trick devised by Danielsson consists in defining an ad hoc data type, or problem-specific language, in which the required abstractions (such as high-order functions) are constructors and a relative interpreter which converts it to the original data-type.
 The problem-specific language enforces guardness, as the abstractions now are constructors, whereas the interpreter expresses their semantics during the conversion.
@@ -742,9 +744,10 @@ loop = concatMap (const []) nats
 The application of the constant function to any element will never produce an intermediate value and since \texttt{nats} it's an infinite colist, 
 this definition will never terminate either.
 
-\paragraph{Further Contribution}
+\subsection{Further Contribution}
 In this section we propose two techniques that allow to express the semantics of \texttt{concatMap} in a total and productive fashion.
-This is achieved extending the definition of \texttt{ColistP}, nevertheless the proposed solutions work for plain \texttt{Colist} as well, but may suffer of the guardness issue presented in \ref{sec:Productivity}. 
+This is achieved extending the definition of \texttt{ColistP}, nevertheless the proposed solutions work for plain \texttt{Colist} as well, but may suffer of the guardness issue presented in \ref{sec:Productivity}. Finally we introduce
+an alternative recursive scheme \texttt{SG}, that expresses safely the semantics of \texttt{concatMap} over self-generative colists.
 
 \paragraph{Sound solution}
 A possible solution to this problem is to require that the function used with \texttt{concatMap} always returns a non empty list.
@@ -779,6 +782,7 @@ concatMapW f {isP} (x ∷ xs) | [] | ()
 concatMapW f {isP} (x ∷ xs) | y ∷ ys | tt = y ∷ (ys ++ (concatMap f {isP} xs))
 
 whnf : ColistP A → ColistW A
+...
 whnf (concatMap f {isP} xs)   = concatMapW f {isP} (whnf xs)
 \end{verbatim}
 In the non empty case the result of \texttt{f x} is reduced to weak head normal form and then inspected together with the proof object resulting from \texttt{isP x}.
@@ -823,7 +827,7 @@ One of the peculiarity of this definition is that it mixes inductive and coinduc
 The \texttt{Base} constructors allows to build a productivity proof for any
 function, as long as the input colist is finite, which was a limitation of the previous solution.
 The constructor \texttt{Now} carries the witness that for the current head of the colist an intermediate result is produced. Note that this constructor is \emph{coinductive}, because the productivity proof for the tail of the list is wrapped by the delay operator \texttt{∞}, which allows for instance an infinite corecursive nesting of \texttt{Now} constructors. This is safe because \texttt{concatMap} is well behaved as long as the function is productive.
-On the other hand the constructor \texttt{Skip} represents a possibly non-productive step: given a productive object an arbitrary element is prepended to the colist. The reader might doubt about the correctness of this definition because it seems it would allow to build a \texttt{Prod'} object for any function and any colist.
+On the other hand the constructor \texttt{Skip} represents a possibly non-productive step: given a productive object an arbitrary element is prepended to the colist. The reader might doubt about the correctness of this constructor	 because it seems it would allow to build a \texttt{Prod'} object for any function and any colist.
 In fact the correctness of this definition is somewhat hidden in the fact that \texttt{Skip} is an \emph{inductive} constructor. 
 It is indeed possible to always use the \texttt{Skip} constructor, no matter the actual productivity of the function at hand, if the input colist is finite, because in this case it will be possible to use the \texttt{Base} constructor eventually.
 If the input colist is infinite however, an infinite number of skips would be required, but in a total setting this can be encoded using coinduction only, therefore \texttt{Skip} cannot be abused for that, as such use is rejected by the termination checker.
@@ -863,7 +867,7 @@ This works because the constructor \texttt{Skip} is inductive and in that case t
 
 \paragraph{Discussion}
 We claim that the solution here presented is sound and complete, meaning that all the well-behaved uses of \texttt{concatMap} can be expressed with this technique. It is however rather hard to proof this meta-property using the target language itself. Intuitively a well behaved use of \texttt{concatMap} must produce a result in a finite number of steps. Due to its \emph{inductive} definition only a finite number of skips can be introduced, after which either something is produced (\texttt{Now}), or the input colist is exhausted (\texttt{Base}).
-Unfortunately a greater burden is put on the user, namely to prove for any single use of \texttt{concatMap} its productivity, which can be hard. % TODO example? guideline?
+Unfortunately a greater burden is put on the user, namely to prove for any single use of \texttt{concatMap'} its productivity, which can be hard. % TODO example? guideline?
 Another drawback of this solution is that it does not cope well with self generative colists. In lazy functional languages it is quite common to define an infinite (co)list, specifying its prefix and (co)recursively generating its tail manipulating it. For instance consider once again:
 \begin{verbatim}
 natsP : ColistP ℕ
@@ -903,27 +907,45 @@ bar₁ , bar₂ : ColistP ℕ
 bar₁ n = n ∷ ♯ (concatMap count (bar₁ n))
 bar₂ n = ⟦ Input count (n ∷ []) ⟧SG
 \end{verbatim}
-
-\section{Complete Test Case ?}
-Lambda-calculus, small step semantics, deterministic proof.
-
+	
 \section{Further Work}
 This project leaves room for further extensions to the library.
 \begin{itemize}
 	\item The framework currently supports only decidable properties, because in this setting it is always clear the distinction between a success and a failure. 	It would be useful handle also partially-decidable properties and investigate alternative approaches for undecidable properties.	
 	\item The user needs to write custom generator for each data-type under testing. Even if the library gives support in writing such generators, it would be very useful to derive generators for non-dependent types automatically using a generic approach. Generic approaches for generating dependent types would be another interesting topic to investigate.
 	
-	\item A crucial aspect of this library is giving precise, readable and informative feedback to the user. Adding more constructors to the \texttt{Predicate}, rather then just mapping them to basic constructors (as it happens for conjunction, implication and bi-implication, could certainly improve the quality of the results, because they could be tailored for each constructor. The normalization of the internal \texttt{Result} data type could also be improved further with this goal in mind.
+	\item A crucial aspect of this library is giving precise, readable and informative feedback to the user. Adding more constructors to the \texttt{Predicate}, rather then just mapping them to basic constructors (as it happens for conjunction, implication and bi-implication), could certainly improve the quality of the results, because they could be tailored for each constructor. The normalization of the internal \texttt{Result} data type could also be improved further with this goal in mind.
 \end{itemize}
 
 \begin{thebibliography}{1}
+		
+	\bibitem{QUICK}
+	QuickCheck: A Lightweight Tool for Random Testing of Haskell Programs,
+	Koen Claessen, John Hughes
+	ICFP 2000, Montreal, Canada.
+	
+	\bibitem{SMALL}
+	SmallCheck and Lazy SmallCheck, automatic exhaustive testing for small values,
+	Colin Runciman, Matthew Naylor, Fredrik Lindblad.
+	Haskell Symposium 2008, Victoria BC.
+	
+	\bibitem{FEAT}
+	Feat: Functional Enumeration of Algebraic Types,
+  	Dureg{\aa}rd, Jonas   and   Jansson, Patrik   and   Wang, Meng,
+  	Proceedings of the 2012 symposium on Haskell, 61--72,
+	Copenhagen, Denmark
+	2012, ACM.
 
-\bibitem{DAN10}
+	\bibitem{AGDA}
+	A Brief Overview of Agda – A Functional Language with Dependent Types,
+	Ana Bove, Peter Dybjer, and Ulf Norell.
+	
+	\bibitem{DAN10}
 	Beating the Productivity Checker Using Embedded Languages
 	Nils Anders Danielsson
 	In the proceedings of the Workshop on Partiality and Recursion in Interactive Theorem Provers (PAR 2010), EPTCS 43, 2010.
 
-\bibitem{DAN09}
+	\bibitem{DAN09}
 	Mixing Induction and Coinduction
 	Nils Anders Danielsson and Thorsten Altenkirch
 	Draft, 2009
