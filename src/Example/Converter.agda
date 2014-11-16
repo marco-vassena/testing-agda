@@ -34,7 +34,21 @@ lemma5 : Data.Product.∃ (λ n → Even n)
 lemma5 = {!!}
 
 lemma6 : (n : ℕ) -> Even n × (¬ (Even n))
-lemma6 = {!!} 
+lemma6 = {!!}
+
+lemma7 : Data.Product.∃ (λ n → Data.Product.∃ (λ m → Even (n + m)))
+lemma7 = {!!}
+
+lemma8 : Data.Product.∃ (λ n -> (Even n ⊎ Even (n + 1)))
+lemma8 = {!!}
+
+lemma9 : Data.Product.∃ (λ n -> (m : ℕ) -> (Even n ⊎ Even (n + m)))
+lemma9 = {!!}
+
+open import Function
+
+lemma10 : Data.Product.∃ (λ n -> ¬ (Even n))
+lemma10 = {!!}
 
 --------------------------------------------------------------------------------
 -- Unit tests
@@ -52,9 +66,21 @@ test3 = refl
 test4 : unquote (convert (quote lemma4)) ≡ (Forall n ~ (Property (Even n)) ∨ Not (Property (Even n)))
 test4 = refl
 
--- FIX this test fails. Looks like an agda bug
 test5 : unquote (convert (quote lemma5)) ≡ (Predicate.Exists n ~ Property (Even n))
 test5 = refl
 
-test6 : unquote (convert (quote lemma6)) ≡ (Forall n ~ Property (Even n) ∧ Not (Property (Even n)))
-test6 = refl
+-- TODO add special construct for ×
+test6 : {!!} -- unquote (convert (quote lemma6)) ≡ (Forall n ~ Property (Even n) ∧ Not (Property (Even n)))
+test6 = {!!}
+
+test7 : unquote (convert (quote lemma7)) ≡ (Predicate.Exists n ~ Predicate.Exists m ~ Property (Even (n + m)))
+test7 = refl
+
+test8 : unquote (convert (quote lemma8)) ≡ (Predicate.Exists n ~ (Property (Even n) ∨ Property (Even (n + 1))))
+test8 = refl
+
+test9 : unquote (convert (quote lemma9)) ≡ (Predicate.Exists n ~ Predicate.Forall m ~ (Property (Even n) ∨ Property (Even (n + m))))
+test9 = refl
+
+test10 : unquote (convert (quote lemma10)) ≡ (Predicate.Exists n ~ Not (Property (Even n)))
+test10 = refl

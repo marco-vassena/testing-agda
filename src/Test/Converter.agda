@@ -40,6 +40,32 @@ private
   exists t = con (quote Predicate.Exists) [ arg1 ]
     where arg1 = arg (arg-info visible relevant) (lam visible (abs "x" t))
 
+  implicit-var : Arg Term
+  implicit-var = arg (arg-info visible relevant) (var 0 [])
+
+  -- Add an argument to the list of argument of def terms.
+  -- This is needed because η-reduced reflected terms are not applied to their argument.
+  -- This enforces the application, making those terms well typed.
+  saturate-args : List (Arg Term) -> List (Arg Term)
+  saturate : Term -> Term
+ 
+  saturate-args [] = []
+  saturate-args (arg i x ∷ xs) = arg i (saturate x) ∷ saturate-args xs
+
+  saturate (var x args) = var x (saturate-args args)
+  saturate (con c args) = con c (saturate-args args)
+  saturate (def f args) = def f (implicit-var ∷ args)
+  saturate (lam v (abs s x)) = lam v (abs s (saturate x))
+  saturate (pat-lam cs args) = pat-lam cs args
+  saturate (pi t (abs s (el s₁ t₁))) = pi t (abs s (el s₁ (saturate t₁)))
+  saturate (sort s) = sort s
+  saturate (lit l) = lit l
+  saturate unknown = unknown
+
+  exists-η : (t : Term) -> Term
+  exists-η t = con (quote Predicate.Exists) [ arg1 ]
+    where  arg1 = arg (arg-info visible relevant) (lam visible (abs "x" (saturate t)))
+
 --------------------------------------------------------------------------------
 -- -- Conversion error messages
 --------------------------------------------------------------------------------
@@ -67,13 +93,14 @@ private
   data Special : Term -> Set where
     Or : ∀ {x₁ x₂ x₃ x₄} -> Special (def (quote _⊎_) (x₁ ∷ x₂ ∷ x₃ ∷ x₄ ∷ []))
     Not : ∀ {i s ty s₁ s₂} -> Special (pi (arg i (el s ty)) (abs s₁ (el s₂ ((def (quote ⊥) [])))))
-    Exists : ∀ {x₁ x₂ x₃ i f args} -> Special (def (quote Σ) (x₁ ∷ x₂ ∷ x₃ ∷ arg i (def f args) ∷ []))
-    And : ∀ {x₁ x₂ x₃ i v t} -> Special ((def (quote Σ) (x₁ ∷ x₂ ∷ x₃ ∷ arg i (lam v t) ∷ [])))
+    -- η-reduced version of ∃
+    Exists-η : ∀ {x₁ x₂ x₃ i f args} -> Special (def (quote Σ) (x₁ ∷ x₂ ∷ x₃ ∷ arg i (def f args) ∷ []))
+    Exists : ∀ {x₁ x₂ x₃ i v t} -> Special ((def (quote Σ) (x₁ ∷ x₂ ∷ x₃ ∷ arg i (lam v t) ∷ [])))
 
   isSpecial : (t : Term) -> Maybe (Special t)
   isSpecial (def f args) with f ≟-Name (quote Σ)
-  isSpecial (def .(quote Σ) (x₁ ∷ x₂ ∷ x₃ ∷ arg i (def f args) ∷ [])) | yes refl = just Exists
-  isSpecial (def .(quote Σ) (x₁ ∷ x₂ ∷ x₃ ∷ arg i (lam v t) ∷ [])) | yes refl = just And
+  isSpecial (def .(quote Σ) (x₁ ∷ x₂ ∷ x₃ ∷ arg i (def f args) ∷ [])) | yes refl = just Exists-η
+  isSpecial (def .(quote Σ) (x₁ ∷ x₂ ∷ x₃ ∷ arg i (lam v t) ∷ [])) | yes refl = just Exists
   isSpecial (def f _) | yes p = nothing
   isSpecial (def f args) | no ¬p with f ≟-Name (quote _⊎_)
   isSpecial (def .(quote _⊎_) (x ∷ x₁ ∷ x₂ ∷ x₃ ∷ [])) | no ¬p | yes refl = just Or
@@ -85,43 +112,11 @@ private
   isSpecial (pi _ _) = nothing
   isSpecial _ = nothing
 
-
-  -- | Lower the De Brujin indexes of the given term by one position.
-  -- The goal is to correct the indices for the function introduced by ∑ (indirectly by ×). 
-  fixIndices : Term -> Term
-  fixSortIndices : Sort -> Sort
-  fixTypeIndices : Type -> Type
-  fixArgTermIndices : List (Arg Term) -> List (Arg Term)
-
-  fixSortIndices (set t) = set (fixIndices t)
-  fixSortIndices (lit n) = lit n
-  fixSortIndices unknown = unknown
-  
-  fixTypeIndices (el s t) = el (fixSortIndices s) (fixIndices t)
-  
-  fixArgTermIndices [] = []
-  fixArgTermIndices (arg i x ∷ args) = (arg i (fixIndices x)) ∷ (fixArgTermIndices args)
-
-  fixClauseIndices : List Clause -> List Clause
-  fixClauseIndices [] = []
-  fixClauseIndices (clause pats body ∷ xs) = (clause pats (fixIndices body)) ∷ (fixClauseIndices xs)
-  fixClauseIndices (absurd-clause pats ∷ xs) = (absurd-clause pats) ∷ (fixClauseIndices xs)
-
-  fixIndices (var x args) = var (x ∸ 1) (fixArgTermIndices args)
-  fixIndices (con c args) = con c (fixArgTermIndices args)
-  fixIndices (def f args) = def f (fixArgTermIndices args)
-  fixIndices (lam v (abs s x)) = lam v (abs s (fixIndices x))
-  fixIndices (pat-lam cs args) = pat-lam (fixClauseIndices cs) (fixArgTermIndices args)
-  fixIndices (pi (arg i ty) (abs s₁ t₂)) = pi (arg i (fixTypeIndices t₂)) (abs s₁ (fixTypeIndices t₂))
-  fixIndices (sort s) = sort (fixSortIndices s)
-  fixIndices (lit l) = lit l
-  fixIndices unknown = unknown
-
   supportedTerm t with isSpecial t
   supportedTerm ._ | just (Or {x₃ = arg i₁ x₁} {x₄ = arg i₂ x₂}) = (supportedTerm x₁) × (supportedTerm x₂) 
   supportedTerm ._ | just (Not {ty = ty}) = supportedTerm ty
-  supportedTerm ._ | just (Exists {f = f} {args = args}) = supportedTerm (def f args)
-  supportedTerm ._ | just (And {x₃ = arg i t₁} {t = abs s t₂}) = (supportedTerm t₁) × (supportedTerm t₂)
+  supportedTerm ._ | just (Exists-η {f = f} {args = args}) = supportedTerm (def f args)
+  supportedTerm ._ | just (Exists {v = v} {t = t}) = supportedTerm (lam v t)
   supportedTerm (var x args) | nothing = NotSupported (var x args)
   supportedTerm (con c args) | nothing = NotSupported (con c args)
   supportedTerm (def f args) | nothing = ⊤
@@ -146,8 +141,8 @@ private
   convertTerm t {isS} with isSpecial t
   convertTerm ._ {isS₁ , isS₂} | just (Or {x₃ = arg i₁ x₁} {arg i₂ x₂}) = or (convertTerm x₁ {isS₁}) (convertTerm x₂ {isS₂})
   convertTerm ._ {isS} | just (Not {ty = ty}) = not (convertTerm ty {isS})
-  convertTerm ._ {isS} | just (Exists {f = f} {args = args}) = exists (convertTerm (def f args) {isS})
-  convertTerm ._ {isS₁ , isS₂} | just (And {x₃ = arg i t₁} {t = abs s t₂}) = and (convertTerm t₁ {isS₁}) (fixIndices (convertTerm t₂ {isS₂}))
+  convertTerm ._ {isS} | just (Exists-η {f = f} {args = args}) = exists-η (convertTerm (def f args) {isS})
+  convertTerm ._ {isS} | just (Exists {v = v} {t = t}) = exists (convertTerm (lam v t) {isS}) -- and (convertTerm t₁ {isS₁}) (fixIndices (convertTerm t₂ {isS₂}))
   convertTerm (var x args) {} | nothing
   convertTerm (con c args) {} | nothing
   convertTerm (def f args) {isS} | nothing = property (def f args)
