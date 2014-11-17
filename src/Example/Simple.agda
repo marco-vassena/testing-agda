@@ -13,21 +13,25 @@ open import Relation.Binary.PropositionalEquality hiding ( [_] )
 -- Constant properties
 --------------------------------------------------------------------------------
 
+-- It always holds
 trivial : Predicate []
 trivial = Property Unit
 
 dec-trivial : ⟦ trivial ⟧
 dec-trivial = yes unit
 
+-- The test succeeds
 test-trivial : runVerbose (Test trivial on [] by dec-trivial)
 test-trivial = Pass (Hold Unit)
 
+-- It never holds
 impossible : Predicate []
 impossible = Property ⊥
 
 dec-impossible : ⟦ impossible ⟧
 dec-impossible = no (λ z → z)
 
+-- Running the test shows a failure
 test-impossible : runVerbose (Test impossible on [] by dec-impossible)
 test-impossible = Failed (DoesNotHold ⊥)
 
@@ -41,6 +45,7 @@ skip-impossible = Skipped
 ex1 : Predicate (ℕ ∷ []) 
 ex1 = Forall {ℕ} (λ n -> Property (n ≡ n))
 
+-- ex1 using the pretty syntax
 pretty-ex1 : Predicate (ℕ ∷ [])
 pretty-ex1 = Forall n ~ (Property (n ≡ n))
 

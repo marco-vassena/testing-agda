@@ -5,10 +5,10 @@ module Example.Runner where
 open import Test.Base
 open import Test.Input.Stream
 open import Test.Runner
-open import Test.Tester using ( [_] ; Testable)
+open import Test.Tester using ( [_] ; Testable ; ⟦_⟧)
 open import Test.Input
 open import Test.Result
-open import Example.Even using (Even ; isEven? ; nats)
+open import Example.Even
 open import Example.Simple using (impossible ; dec-impossible)
 
 
@@ -16,39 +16,46 @@ open import Data.Nat
 open import Data.Empty
 open import Data.Stream
 
-double-even : pass (Test Forall n ~ Property (Even (n + n)) on [ nats ] 
-                   by (λ n → isEven? (n + n)))
-double-even = Pass
+pass-doubleEven : pass (Test doubleEven on [ nats ] by isDoubleEven?)
+pass-doubleEven = Pass
 
-next-even : fail (Test Forall n ~ Property (Even (n + 1)) on [ nats ]
-                 by (λ n → isEven? (n + 1)))
-next-even = Pass
+nextEven : Predicate (ℕ ∷ [])
+nextEven = Forall n ~ Property (Even (n + 1))
+
+isNextEven? : ⟦ nextEven ⟧
+isNextEven? n = isEven? (n + 1) 
+
+fail-nextEven : fail (Test nextEven on [ nats ] by isNextEven?)
+fail-nextEven = Pass
 
 --------------------------------------------------------------------------------
 -- fail_With_Using
 --------------------------------------------------------------------------------
 
-impossible-fail : fail (Test impossible on [] by dec-impossible) With DoesNotHold ⊥ Using []
-impossible-fail = Pass
+fail-impossible : fail (Test impossible on [] by dec-impossible) With DoesNotHold ⊥ Using []
+fail-impossible = Pass
 
--- | The real type wrapped in DoesNotHold and Hold is not really checked, so this test succeeds.
+-- | The acutal type wrapped in DoesNotHold and Hold is not really checked, so this test succeeds.
+-- It ought instead to fail complaining about how ⊥ is different from Even 2. Being those sets
+-- it's not possible to compare them directly: only the type-checker can.
 impossible-bug : fail (Test impossible on [] by dec-impossible) With DoesNotHold (Even 2) Using []
 impossible-bug = Pass
 
-test-all-even : Stream ℕ -> Testable (ℕ ∷ [])
-test-all-even xs = Test (Forall n ~ Property (Even n)) on [ xs ] by isEven?
+-- Produces a testable with a given stream of input values
+allEvenWith : Stream ℕ -> Testable (ℕ ∷ [])
+allEvenWith xs = Test allEven on [ xs ] by isEven?
 
-all-even-pass : fail (test-all-even nats)
+all-even-pass : fail (allEvenWith nats)
                  With ∃ ⟨ 1 ⟩ (DoesNotHold (Even 1)) 
                  Using (_≟_ ∷ [])
 all-even-pass = Pass
 
-all-even-fail : fail (test-all-even nats)
+all-even-fail : fail (allEvenWith nats)
                  With ∃ ⟨ 2 ⟩ (DoesNotHold (Even 2)) 
                  Using (_≟_ ∷ [])
 all-even-fail = Expected (∃ ⟨ 2 ⟩ (DoesNotHold (Even 2))) Got (∃ ⟨ 1 ⟩ (DoesNotHold (Even 1))) 
 
-all-even-fail2 : fail (test-all-even (evens nats))
+all-even-fail2 : fail (allEvenWith (evens nats))
                  With ∃ ⟨ 1 ⟩ (DoesNotHold (Even 1)) 
                  Using (_≟_ ∷ [])
 all-even-fail2 = Failed (ForAll ℕ ✓)

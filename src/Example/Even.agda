@@ -18,6 +18,7 @@ nats = go 0
     go : ℕ -> Stream ℕ
     go n = n ∷ ♯ (go (n + 1))
 
+-- Even n is the proof that n is even
 data Even  : ℕ → Set where
   isEven0  : Even 0
   isEven+2 : ∀ {n} → Even n → Even (suc (suc n))
@@ -36,31 +37,49 @@ isEven? (suc (suc n)) | no ¬p = no ( \ p -> ¬p (unpack p) )
 -- Even properties
 --------------------------------------------------------------------------------
 
-test-even-double : run (Test Forall (λ n → Property (Even (n + n))) on [ nats ] by (λ n → isEven? (n + n)))
-test-even-double = Pass
+doubleEven : Predicate (ℕ ∷ [])
+doubleEven = Forall n ~ Property (Even (n + n))
 
-test-all-even : runVerbose (Test (Forall (λ n → Property (Even n))) on [ nats ] by isEven?)
-test-all-even = Failed (∃ ⟨ 1 ⟩ (DoesNotHold (Even 1)))
+isDoubleEven? : ⟦ doubleEven ⟧
+isDoubleEven? n = isEven? (n + n)
 
-test-all-even-evens : run (Test Forall (λ n → Property (Even n)) on  [ evens nats ] by isEven?)
-test-all-even-evens = Pass
+test-doubleEven : run (Test doubleEven on [ nats ] by isDoubleEven?)
+test-doubleEven = Pass
 
-test-some-even : runVerbose (Test Exists (λ n → Property (Even n)) on [ nats ] by isEven?)
-test-some-even = Pass (∃ ⟨ 0 ⟩ (Hold (Even 0)))
+allEven : Predicate (ℕ ∷ [])
+allEven = Forall n ~ Property (Even n) 
 
-test-some-even-odds : run (Test (Exists (λ n → Property (Even n))) on [ odds nats ] by isEven?)
-test-some-even-odds = Failed
+test-allEven : runVerbose (Test allEven on [ nats ] by isEven?)
+test-allEven = Failed (∃ ⟨ 1 ⟩ (DoesNotHold (Even 1)))
+
+-- `Testing shows the presence, not the absence of bugs'
+-- The same property (∀ n . Even n) pass using only even numbers
+test-allEven-evens : run (Test allEven on [ evens nats ] by isEven?)
+test-allEven-evens = Pass
+
+test-someEven : runVerbose (Test (Exists n ~ Property (Even n)) 
+                            on [ nats ] 
+                            by isEven?)
+test-someEven = Pass (∃ ⟨ 0 ⟩ (Hold (Even 0)))
+
+test-someEven-odds : run (Test (Exists n ~ Property (Even n)) 
+                           on [ odds nats ] 
+                           by isEven?)
+test-someEven-odds = Failed
+
+isSumEven? : (n : ℕ) -> (m : ℕ) -> Dec (Even (n + m))
+isSumEven? n m = isEven? (n + m)
 
 -- The order of the quantifiers is relevant:
 -- For some fixed n, does it hold for all m that Even (n + m) ?
-test-idem : runVerbose (Test Exists (λ n → Forall (λ m -> Property (Even (n + m)))) 
-                       on nats ∷ (nats ∷ [])
-                       by (λ n m → isEven? (n + m)))
+test-idem : runVerbose (Test Exists n ~ Forall m ~ Property (Even (n + m))
+                        on nats ∷ (nats ∷ [])
+                        by isSumEven?)
 test-idem = Failed (¬∃ ℕ (∃ < ℕ > ✗))
 
 -- Changing the order instead the property holds.
 -- For all n, m can be found such that Even (n + m)
 test-idem2 : runVerbose (Test Forall n ~ Exists m ~ Property (Even (n + m)) 
-                        on nats ∷ (nats ∷ []) 
-                        by (λ n m → isEven? (n + m)))
+                         on nats ∷ (nats ∷ []) 
+                         by isSumEven?)
 test-idem2 = Pass (ForAll ℕ (∃ < ℕ > ✓))
