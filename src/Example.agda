@@ -16,3 +16,12 @@ open import Example.Combinator
 
 -- Shows how to automatically convert the signature of a lemma in the corresponding Predicate 
 open import Example.Converter
+
+-- Examples of writing productive terms.
+open import Example.ColistP
+
+-- Examples of writing productive generators.
+open import Example.Generator
+
+-- A non-trivial angelic generator for λ-terms
+open import Example.Lambda

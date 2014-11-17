@@ -5,28 +5,69 @@ open import Data.Colist using (Colist ; [] ; _∷_ ; _≈_)
 open import Data.Nat
 open import Function
 open import Test.Input.Generator.Base
+open import Data.Unit
+open import Relation.Nullary
+
+-- | Productive definition of the fibonacci series.
+fib : Colist ℕ
+fib = ⟦ fibP ⟧P
+  where fibP : ColistP ℕ
+        fibP = 0 ∷ ♯ zipWith _+_ fibP (1 ∷ ♯ fibP)
+
+natsP : ColistP ℕ
+natsP = iterate suc zero
+
+nats : Colist ℕ
+nats = ⟦ natsP ⟧P
 
 --------------------------------------------------------------------------------
 -- Example with IsProductive
 --------------------------------------------------------------------------------
 
-fib : Colist ℕ
-fib = ⟦ fibP ⟧P 
-  where fibP : ColistP ℕ
-        fibP = 0 ∷ ♯ zipWith _+_ fibP (1 ∷ ♯ fibP)
+-- If a function is productive (never returns an empty colist), its IsProductive 'proof'
+-- typically follows the definition of the function.
+-- Consider wrap as an example: 
 
-nats' : ColistP ℕ
-nats' = iterate suc zero
+data A : Set where
+  B : A
+  C : A
 
-nats : Colist ℕ
-nats = ⟦ nats' ⟧P
+wrap : A -> ColistP A
+wrap B = B ∷ ♯ []
+wrap C = C ∷ ♯ []
 
--- Does not type check because const [] is not productive
+productive-wrap : IsProductive wrap
+productive-wrap B = tt
+productive-wrap C = tt
+
+--------------------------------------------------------------------------------
+-- An example of non productive function
+
+empty : ℕ -> ColistP ℕ
+empty = const []
+
+empty-non-prod : ¬ (IsProductive empty)
+empty-non-prod p = p 0  -- A counter example
+
+-- Does not type check because empty is not productive
 -- non-productive : Colist ℕ
--- non-productive = ⟦ concatMap (const []) nats' ⟧P
+-- non-productive = ⟦ concatMap empty natsP ⟧P
+
+-- Another example
+maybe-wrap : A -> ColistP A
+maybe-wrap B = []
+maybe-wrap C = C ∷ ♯ []
+
+maybe-wrap-non-prod : ¬ (IsProductive maybe-wrap)
+maybe-wrap-non-prod p = p B -- the only counter example
+
+--------------------------------------------------------------------------------
+-- | Sometimes IsProductive can be automatically inferred, as it happens here.
+one : ℕ -> ColistP ℕ 
+one = const (1 ∷ (♯ []))
 
 productive : Colist ℕ
-productive = ⟦ concatMap (const (1 ∷ (♯ []))) nats' ⟧P
+productive = ⟦ concatMap one natsP ⟧P
 
 --------------------------------------------------------------------------------
 -- Examples with Prod data-type
@@ -35,17 +76,35 @@ productive = ⟦ concatMap (const (1 ∷ (♯ []))) nats' ⟧P
 ones : Colist ℕ
 ones = 1 ∷ ♯ ones
 
-ones-prod : Prod (λ n → n ∷ ♯ []) ones
-ones-prod = Now (♯ ones-prod) _
+singleton : ℕ -> Colist ℕ
+singleton n = n ∷ ♯ []
+
+-- The proof it's very easy in this case, because singleton itself is productive
+singleton-prod : ∀ xs -> Prod singleton xs
+singleton-prod [] = Base
+singleton-prod (x ∷ xs) = Now (♯ (singleton-prod (♭ xs))) _
+
+-- concatMap singleton ones is productive
+ones-prod : Prod singleton ones
+ones-prod = singleton-prod ones
+
+--------------------------------------------------------------------------------
+-- A more involved example, in which
+-- it's not trivial to proof the productivity.
 
 open import Example.Even using (isEven? ; Even ; isEven0 ; isEven+2)
 open import Relation.Nullary
 open import Data.Bool
 
+-- A function that returns an empty colist for odd numbers 
 evens : ℕ -> Colist ℕ
 evens n with isEven? n
 evens n | yes p = n ∷ (♯ [])
 evens n | no ¬p = [] 
+
+-- concatMap evens xs it's in general non productive.
+-- Therefore we model colists for which it is productive.
+-- To keep it simple here we consider a colist of numbers alternatively even.
 
 -- Even n if on true, ¬ Even otherwise
 evenOrOdd : Bool -> (n : ℕ) -> Set
@@ -60,7 +119,8 @@ data EvenOddSeqence : Bool -> Colist ℕ -> Set where
 open import Data.Empty using (⊥-elim)
 open import Data.Sum using (inj₁ ; inj₂ ; _⊎_)
 import Data.Sum as S
-          
+
+-- Auxiliary proofs: they handle both cases of EvenOddSequences starting either with an odd or an even.
 even : ∀ {ns} -> EvenOddSeqence true ns -> Prod evens ns
 odd : ∀ {ns} -> EvenOddSeqence false ns -> Prod evens ns
 even [] = Base
@@ -113,6 +173,10 @@ example₁ = concatMapC evens nats {isP}
 
 --------------------------------------------------------------------------------
 -- Examples with self-generative colist
+-- Note that no proof is required because a well-defined total semantics 
+-- is given to ⟦_⟧SG.
+-- Precisely any well-behaved definition is equivalently produced by ⟦_⟧SG (infinite colists)
+-- For a looping definition ⟦_⟧SG will produce a finite colist.
 --------------------------------------------------------------------------------
 
 -- foo = 0 ∷ ♯ (concatMap f foo)
@@ -123,8 +187,8 @@ foo = ⟦ Input f (0 ∷ []) ⟧SG
 
 
 -- bar n = n ∷ ♯ (concatMap count (bar n))
--- This term would eventually be looping using concatMap
--- Here it terminates gracefully
+-- Depending on n this term would eventually be looping using concatMap directly.
+-- Here it terminates gracefully producing a finite colist.
 bar : ℕ -> ColistP  ℕ
 bar n = ⟦ Input₁ count n ⟧SG
   where count : ℕ -> ColistP ℕ

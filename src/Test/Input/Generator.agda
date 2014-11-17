@@ -6,7 +6,7 @@ open import Function
 open import Coinduction
 
 --------------------------------------------------------------------------------
--- Definitions of generator
+-- Generator interfaces
 --------------------------------------------------------------------------------
 
 -- | Generator for non dependent types
@@ -14,7 +14,7 @@ SimpleGenerator : Set -> Set
 SimpleGenerator A = Colist A
 
 -- | Generators for dependent types
--- Angelic interface : the user choses the index
+-- Angelic interface : the user chooses the index
 GeneratorA : (I : Set) -> (p : (i : I) -> Set) -> Set
 GeneratorA I p = ∀ (i : I) -> Colist (p i)
 

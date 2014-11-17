@@ -21,6 +21,31 @@ open import Example.Even using (Even ; isEven+2 ; isEven0)
 open import Test.Input.Generator
 open import Test.Input.Generator.Base
 
+--------------------------------------------------------------------------------
+-- Examples of generators for non dependent types
+--------------------------------------------------------------------------------
+
+-- | Generates boolean values
+bool-gen : SimpleGenerator Bool
+bool-gen = true ∷ ♯ (false ∷ ♯ [])
+
+-- | Generates all the natural numbers
+nat-gen : SimpleGenerator ℕ
+nat-gen = ⟦ iterate suc 0 ⟧P
+
+list-gen' : {A : Set} {{ g : SimpleGenerator A }} -> ColistP (List A)
+list-gen' {A} {{g}} = ⟦ Input₁ f [] ⟧SG
+  where f : List A -> ColistP (List A)
+        f xs = map (flip _∷_ xs) (fromColist g)
+
+-- | Given a generator for A produces a Generator for lists of A.
+list-gen : {A : Set} {{ g : SimpleGenerator A }} -> SimpleGenerator (List A)
+list-gen {{ g }} = ⟦ list-gen' {{ g }} ⟧P
+
+--------------------------------------------------------------------------------
+-- Generators for dependent types
+--------------------------------------------------------------------------------
+
 -- Demoniac generator of eveness proofs
 even-genD : GeneratorD ℕ Even
 even-genD = ⟦ iterate (P.map (suc ∘ suc) isEven+2) (, isEven0) ⟧P
@@ -61,7 +86,7 @@ even-genA (suc (suc n)) = C.map isEven+2 (even-genA n)
         gen0 = (zero , z≤n) ∷ (♯ (map (λ x → suc (proj₁ x) , z≤n) gen0))
 ≤-gen' (suc n) = C.map (P.map suc s≤s) (≤-gen' n)
 
--- In this case the ≤′ definition is even more suitable.
+-- In this case the ≤′ definition is more suitable.
 ≤′-gen : (n : ℕ) -> GeneratorD ℕ (_≤′_ n)
 ≤′-gen n = ⟦ iterate (P.map suc ≤′-step) (n , ≤′-refl) ⟧P
 
@@ -82,17 +107,17 @@ even-genA (suc (suc n)) = C.map isEven+2 (even-genA n)
 open import Data.Fin using (Fin)
 import Data.Fin as F
 
--- Angelic generator for 
+-- Angelic generator for Fin
 fin-A-gen : GeneratorA ℕ Fin
 fin-A-gen zero = []
 fin-A-gen (suc n) = F.zero ∷ (♯ (C.map F.suc (fin-A-gen n)))
 
--- TODO improve, lots of duplicates
 fin-D-gen' : ColistP (∃ Fin)
 fin-D-gen' = ⟦ (Input₁ f (1 , F.zero)) ⟧SG
   where f : ∃ Fin -> ColistP (∃ Fin)
         f (n , fin) = (, (F.suc fin)) ∷ (♯ (((suc n) , F.zero) ∷ ♯ []))
 
+-- Demoniac generator for Fin
 fin-D-gen : GeneratorD ℕ Fin
 fin-D-gen = ⟦ fin-D-gen' ⟧P
 
@@ -117,28 +142,15 @@ sorted-gen' n = ⟦ Input cons-gen ((, nil) ∷ singles n) ⟧SG
 sorted-gen : ℕ -> GeneratorD (List ℕ) Sorted
 sorted-gen n = ⟦ (sorted-gen' n) ⟧P
 
+-- Angelic generator for proofs of sortedness.
+-- Negative example: one and only one proof exists
+-- if the given list is sorted in the first place.
 sorted-A-gen : GeneratorA (List ℕ) Sorted
 sorted-A-gen [] = nil ∷ (♯ [])
 sorted-A-gen (x ∷ []) = (singleton x) ∷ (♯ [])
 sorted-A-gen (x ∷ y ∷ xs) with x ≤? y
 sorted-A-gen (x ∷ y ∷ xs) | yes p = C.map (cons p) (sorted-A-gen (y ∷ xs))
 sorted-A-gen (x ∷ y ∷ xs) | no ¬p = []
-
--- | Generates boolean values
-bool-gen : SimpleGenerator Bool
-bool-gen = true ∷ ♯ (false ∷ ♯ [])
-
--- | Generates all the natural numbers
-nat-gen : SimpleGenerator ℕ
-nat-gen = ⟦ iterate suc 0 ⟧P
-
-list-gen' : {A : Set} {{ g : SimpleGenerator A }} -> ColistP (List A)
-list-gen' {A} {{g}} = ⟦ Input₁ f [] ⟧SG
-  where f : List A -> ColistP (List A)
-        f xs = map (flip _∷_ xs) (fromColist g)
-
-list-gen : {A : Set} {{ g : SimpleGenerator A }} -> SimpleGenerator (List A)
-list-gen {{ g }} = ⟦ list-gen' {{ g }} ⟧P
 
 -- In this case take will retrieve the length ℕ of the vectors which is not really
 -- what we wanted
@@ -147,10 +159,12 @@ vec-gen' {A} {{g = g}} = ⟦ Input₁ cons-gen (, []) ⟧SG
   where cons-gen : ∃ (Vec A) -> ColistP (∃ (Vec A))
         cons-gen (_ , xs) = map (λ x → , (x ∷ xs)) (fromColist g)
 
+-- | Demoniac generator for vectors
+-- Negative examples : what can be actually retrieved is the index, i.e.
+-- the length of the vector, which is instead discarded.
 vec-gen : ∀ {A} -> {{g : SimpleGenerator A}} -> GeneratorD ℕ (Vec A)
 vec-gen {{g}} = ⟦ vec-gen' {{g}} ⟧P
 
--- Angelic version
 vec-A-gen' : ∀ {A} -> {{g : SimpleGenerator A}} -> (n : ℕ) -> ColistP (Vec A n)
 vec-A-gen' zero = [] ∷ (♯ [])
 vec-A-gen' {{g = []}} (suc n) = []
@@ -161,16 +175,18 @@ vec-A-gen' {A} {{g = x ∷ xs}} (suc n) = concatMap gen { λ _ → _ } (vec-A-ge
 
         gen : Vec A n -> ColistP (Vec A (suc n))
         gen v = map (flip _∷_ v) ys
-        
+
+-- Angelic version for vectors
+-- Positive example : Given the index (the length of the vector) we can produce
+-- efficiently vectors of that length.
 vec-A-gen : ∀ {A} -> {{g : SimpleGenerator A}} -> GeneratorA ℕ (Vec A)
 vec-A-gen {{g}} = ⟦_⟧P ∘ (vec-A-gen' {{g}})
 
 --------------------------------------------------------------------------------
--- Example of using map and map'
 
--- Each number successor of Even is Odd
-odd-gen : GeneratorD ℕ (¬_ ∘ Even)
-odd-gen = C.map (P.map suc next-odd) even-genD
+-- Manipulating the eveness generator we can produce a generator for odd numbers. 
+odd-genD : GeneratorD ℕ (¬_ ∘ Even)
+odd-genD = C.map (P.map suc next-odd) even-genD
   where next-odd : ∀ {n} -> Even n -> ¬ (Even (suc n))
         next-odd isEven0 ()
         next-odd (isEven+2 p) (isEven+2 x) = next-odd p x
@@ -181,163 +197,27 @@ data _∈_ {A : Set} : A -> List A -> Set where
   there : ∀ x y {ys} -> x ∈ ys -> x ∈ (y ∷ ys) 
 
 -- TODO overly complicated
--- ∈-gen' : ∀ {A} -> {{g : SimpleGenerator A}} -> ColistP (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
--- ∈-gen' {{g = []}} = []
--- ∈-gen' {A} {{g = (g₁ ∷ gs)}} = (_ , (here g₁ [])) ∷ ♯ (hs ++ (concatMap (there-gen g₁ (♭ gs)) {isProd} (∈-gen' {{g₁ ∷ gs}})))
---   where hs = zipWith (λ x ys → , here x ys) (fromColist (g₁ ∷ gs)) (fromColist (list-gen {{g₁ ∷ gs}}))
+∈-genD' :  ∀ {A} -> {{g : SimpleGenerator A}} -> ColistP (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
+∈-genD' {{g = []}} = []
+∈-genD' {A} {{g = x ∷ xs}} = ⟦ (Input₁ (there-gen x (x ∷ xs)) (, (here x []))) ⟧SG
+  where there-gen :  A -> SimpleGenerator A -> ∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x)
+                                            -> ColistP (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
+        there-gen a [] ((y , ys) , p) = (, there a a (here a [])) ∷ ♯ []
+        there-gen a (y ∷ ys) ((x , xs) , p) = (, there x y p) ∷ ♯ there-gen a (♭ ys) ((x , xs) , p)
 
---         there-gen : A -> SimpleGenerator A -> ∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x)
---                                            -> ColistP (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
---         there-gen a [] p  = (_ , (there a a (here a []))) ∷ ♯ []
---         there-gen a (y ∷ ys) ((x , xs) , p) = (_ , there x y p) ∷ ♯ (there-gen a (♭ ys) ((x , xs) , p)) 
-
---         isProd : IsProductive (there-gen g₁ (♭ gs))
---         isProd _ with ♭ gs
---         isProd _ | [] = _
---         isProd _ | x ∷ xs = _
-
--- ∈-gen :  ∀ {A} -> {{g : SimpleGenerator A}} -> Colist (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
--- ∈-gen {{ g }} = ⟦ (∈-gen' {{ g }}) ⟧P
+∈-genD :  ∀ {A} -> {{g : SimpleGenerator A}} -> Colist (∃ {A = A × List A} (λ x → proj₁ x ∈ proj₂ x))
+∈-genD {{ g }} = ⟦ (∈-genD' {{ g }}) ⟧P
 
 open import Relation.Binary.PropositionalEquality
 
--- I have used ℕ here because they can be compared
-∈-gen : (x : ℕ) -> GeneratorA (List ℕ) ( _∈_ x )
-∈-gen x = ⟦_⟧P ∘ (∈-gen' x)
-  where ∈-gen' : (x : ℕ ) (xs : List ℕ) -> ColistP (x ∈ xs)
-        ∈-gen' x [] = []
-        ∈-gen' x (y ∷ xs) with x Data.Nat.≟ y
-        ∈-gen' x (.x ∷ xs) | yes refl = (here x xs) ∷ (♯ (map (there x x) (∈-gen' x xs)))
-        ∈-gen' x (y ∷ xs) | no _ = map (there x y) (∈-gen' x xs)
+-- Angelic Generator for ∈ proofs.
+-- Negative example : it basically checks whether the
+-- given values is present in the list or not.
+∈-genA : (x : ℕ) -> GeneratorA (List ℕ) ( _∈_ x )
+∈-genA x = ⟦_⟧P ∘ (∈-genA' x)
+  where ∈-genA' : (x : ℕ ) (xs : List ℕ) -> ColistP (x ∈ xs)
+        ∈-genA' x [] = []
+        ∈-genA' x (y ∷ xs) with x Data.Nat.≟ y
+        ∈-genA' x (.x ∷ xs) | yes refl = (here x xs) ∷ (♯ (map (there x x) (∈-genA' x xs)))
+        ∈-genA' x (y ∷ xs) | no _ = map (there x y) (∈-genA' x xs)
 
--- Basically the same. It's not even necessary to use ColistP
-∈-gen2 : (xs : List ℕ) -> GeneratorA ℕ (flip _∈_ xs)
-∈-gen2 xs = ∈-gen' xs
-  where ∈-gen' : (xs : List ℕ) (x : ℕ) -> Colist (x ∈ xs)
-        ∈-gen' [] x = []
-        ∈-gen' (y ∷ xs) x with x Data.Nat.≟ y
-        ∈-gen' (.x ∷ xs) x | yes refl = (here x xs) ∷ ♯ (C.map (there x x) (∈-gen' xs x))
-        ∈-gen' (y ∷ xs) x | no ¬p = C.map (there x y) (∈-gen' xs x)
-
-
--- TODO move to new example module
---------------------------------------------------------------------------------
--- Generators for λ-terms
---------------------------------------------------------------------------------
-
--- Unit and function types are supported.
-data Type : Set where
- O    : Type
- _=>_ : Type -> Type -> Type
-
-ty-gen' : ColistP Type
-ty-gen' = O ∷ ♯ (concatMap funTy {isProd} ty-gen')
-  where funTy : Type -> ColistP Type
-        funTy O = (O => O) ∷ (♯ [])
-        funTy (ty₁ => ty₂) = (ty₁ => (ty₁ => ty₂)) ∷ (♯ (( (ty₁ => ty₂) => ty₂) ∷ (♯ ((ty₁ => ty₂) => (ty₁ => ty₂) ∷ ♯ []))))
-
-        isProd : IsProductive funTy
-        isProd O = _
-        isProd (ty => ty₁) = _
-
--- | Simple Generator for Types.
-ty-gen : SimpleGenerator Type
-ty-gen = ⟦ ty-gen' ⟧P
-
--- | Equality on types is Decidable.
-_≟-ty_ : (t1 : Type) -> (t2 : Type) -> Dec (t1 ≡ t2)
-O ≟-ty O = yes refl
-O ≟-ty (t2 => t3) = no (λ ())
-(t1 => t2) ≟-ty O = no (λ ())
-(t1 => t2) ≟-ty (t3 => t4) with t1 ≟-ty t3 | t2 ≟-ty t4
-(t1 => t2) ≟-ty (.t1 => .t2) | yes refl | yes refl = yes refl
-(t1 => t2) ≟-ty (.t1 => t4) | yes refl | no ¬p = no (lemma2 ¬p)
-  where lemma2 : ∀ {t1 t2 t3 t4} -> ¬ (t2 ≡ t4) -> (t1 => t2) ≡ (t3 => t4) -> ⊥
-        lemma2 ¬p refl = ¬p refl 
-(t1 => t2) ≟-ty (t3 => t4) | no ¬p | _ = no (lemma1 ¬p) 
-  where lemma1 : ∀ {t1 t2 t3 t4} -> ¬ (t1 ≡ t3) -> (t1 => t2) ≡ (t3 => t4) -> ⊥
-        lemma1 ¬p refl = ¬p refl 
-
--- Type context: the top of this list is the type of the innermost
--- abstraction variable, the next element is the type of the next
--- variable, and so on.
-Context : Set
-Context = List Type
-
--- Reference to a variable, bound during some abstraction.
-data Ref : Context -> Type -> Set where
- Top : forall {G u} -> Ref (u ∷ G) u
- Pop : forall {G u v} -> Ref G u -> Ref (v ∷ G) u
-
--- A term in the lambda calculus. The language solely consists of
--- abstractions, applications and variable references.
-data Term : Context -> Type -> Set where
- Abs : forall {G u v} -> Term (u ∷ G) v -> Term G (u => v)
- App : forall {G u v} -> Term G (u => v) -> Term G u -> Term G v
- Var : forall {G u} -> Ref G u -> Term G u
-
--- f x y , ∀ x ∈ xs ∀ y ∈ ys  
-combine' : ∀ {A B C : Set} -> (f : A -> B -> C) -> List A -> List B -> List C
-combine' {A} {B} {C} f xs ys = L.concatMap (λ x → L.map (f x) ys) xs
-
--- What can be produced via application or lookup in the given context
-data Productable (G : Context) (ty : Type) : Set where
-  Lookup : Ref G ty -> Productable G ty
-  Apply : ∀ {ty'} -> Productable G (ty' => ty) -> Productable G ty' -> Productable G ty
-
--- | Produces a term of the given type in the given context 
--- from a Productable proof object.
-produce : ∀ {G ty} -> Productable G ty -> Term G ty
-produce (Lookup x) = Var x
-produce (Apply f x) = App (produce f) (produce x)
-
--- If a term of some type can be produced in some environment, then it
--- can be produced in an increased environment.
-lift : ∀ {ty ty' G} -> Productable G ty -> Productable (ty' ∷ G) ty
-lift (Lookup x) = Lookup (Pop x)
-lift (Apply f x) = Apply (lift f) (lift x)
-
--- Compact representation of a function that produces ty given the types contained in ts
-_==>_ : List Type -> Type -> Type
-ts ==> ty = L.foldr _=>_ ty ts
-
--- | Determines whether a type ty' can produce another type by 0 or more applications.
--- If that is the case those types are collected and returned in a list inside the Maybe monad.
-subgoals : (ty ty' : Type) -> Maybe (List Type)
-subgoals ty ty' with ty ≟-ty ty'
-subgoals ty .ty | yes refl = just []
-subgoals ty O | no ¬p = nothing
-subgoals ty (ty' => ty'') | no ¬p = M.map (_∷_ ty') (subgoals ty ty'')
-
--- | Collects in a List all the terms of the given type in the given context.
-ref-genL : (G : Context) -> (ty : Type) -> List (Ref G ty)
-ref-genL [] i = []
-ref-genL (ty₁ ∷ G) ty₂ with ty₁ ≟-ty ty₂
-ref-genL (ty₁ ∷ G) .ty₁ | yes refl = Top ∷ (L.map Pop (ref-genL G ty₁))
-ref-genL (ty₁ ∷ G) ty₂ | no ¬p = L.map Pop (ref-genL G ty₂)
-
--- | Angelic generator for reference data-type
-ref-gen : (G : Context) -> GeneratorA Type (Ref G)
-ref-gen G ty = C.fromList (ref-genL G ty)
-
--- | Angelic generator for the Productable data type.
--- It returns a List because of productivity issues.
-productable-genL : (G : Context) -> (ty : Type) -> List (Productable G ty)
-productable-genL G ty = L.concatMap (λ ts → (apply-gen ts (lookup-gen _))) (L.gfilter (subgoals ty) G)
-  where lookup-gen : (ty : Type) -> List (Productable G ty)
-        lookup-gen ty = L.map Lookup (ref-genL G ty)
-
-        apply-gen : (ts : List Type) -> List (Productable G (ts ==> ty)) -> List (Productable G ty)
-        apply-gen [] ps = ps
-        apply-gen (ty₁ ∷ []) ps = combine' Apply ps (lookup-gen ty₁)
-        apply-gen (ty₁ ∷ ty₂ ∷ ts) ps = apply-gen (ty₂ ∷ ts) (combine' Apply ps xs₁)
-          where xs₁ = lookup-gen ty₁
-
--- | Angelic generator for the Productable data type.
-productable-gen : (G : Context) -> GeneratorA Type (Productable G)
-productable-gen G ty = C.fromList (productable-genL G ty)
-
--- | Angelic generator for the λ-terms of the given type in the given context.
-term-gen : (G : Context) -> GeneratorA Type (Term G)
-term-gen G O = C.map produce (productable-gen G O)
-term-gen G (ty₁ => ty₂) = C.map produce (productable-gen G _) C.++ C.map Abs (term-gen (ty₁ ∷ G) ty₂)
