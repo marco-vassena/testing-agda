@@ -1,5 +1,5 @@
--- | This module contains functions to test properties and data types to 
--- provide input values.
+-- | This module represents  the  testing framework, in which 
+-- predicates are unwrapped and tested agains the given input values
   
 module Test.Tester where
 
@@ -25,12 +25,16 @@ open import Relation.Nullary
 ⟦ p1 ∨ p2 ⟧ = ⟦ p1 ⟧ × ⟦ p2 ⟧
 ⟦ Property P ⟧ = Dec P
 
--- | Collects what is needed to test a property
+-- | It represents the minimal testable unit.
+-- It collects what is needed to test a property
 data Testable : (BListTree Set) -> Set₁ where
   Test_on_by_ : ∀ {xs} -> (u : Predicate xs) -> (input : Input List xs) -> (check : ⟦ u ⟧) -> Testable xs
 
 open Internal
 
+-- These functions test specific predicate constructs. They check that the semantics
+-- of those constructs is reflected by the input values. The Result returned is tagged,
+-- (left for failures, right for success). 
 test' : ∀ {xs} (u : Predicate xs) -> ⟦ u ⟧ -> Input List xs -> Result xs ⊎ Result xs
 test∀ : ∀ {xs} {A : Set} (u : Predicate (A ∷ xs)) {p : is∀ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
 test∃ : ∀ {xs} {A : Set} (u : Predicate (A ∷ xs)) {p : is∃ u} -> ⟦ u ⟧ -> List A -> Input List xs -> Result (A ∷ xs) ⊎ Result (A ∷ xs)
@@ -89,6 +93,8 @@ test' (Property P) (no ¬p) [] = inj₁ (DoesNotHold P)
 open import Test.Result using (normalize)
 import Test.Result as V
 
+-- | Entry point of the testing framework.
+-- Tests the predicate agains the input values and reports the normalized outcome.
 test : ∀ {xs} (u : Predicate xs) -> ⟦ u ⟧ -> Input List xs -> V.Result xs ⊎ V.Result xs
 test p check input with test' p check input
 test p check input | inj₁ x = inj₁ (normalize x)

@@ -10,7 +10,7 @@ open import Test.Tester
 open import Data.Sum
 
 --------------------------------------------------------------------------------
--- Test case results
+-- Data types representing test case results
 --------------------------------------------------------------------------------
 
 -- Simple version
@@ -51,7 +51,7 @@ run (Test u on input by check) with test u check input
 run (Test u on input by check) | inj₁ _ = Fail
 run (Test u on input by check) | inj₂ _ = Succeed
 
--- Used to skip a test
+-- Used to skip a test.
 skip : ∀ {xs} -> Testable xs -> Set
 skip _ = Skip
 
@@ -74,6 +74,8 @@ open import Relation.Binary.PropositionalEquality
 open import Relation.Binary
 open import Reflection
 
+-- | A data type, similar to Input, that carries comparison functions, 
+-- over the types contained in a Predicate. 
 data Comparator : BListTree Set -> Set₁ where
   [] : Comparator []
   _∷_ : ∀ {xs} {A : Set} -> ( _≟_ : Decidable (_≡_ {A = A}))  -> Comparator xs -> Comparator (A ∷ xs)
@@ -84,7 +86,8 @@ toBool (yes p₁) = true
 toBool (no ¬p) = false
 
 -- | Compares two 'Result's.
--- At the moment comparing the final property is a problem because there we have just a Set.
+-- At the moment comparing the final property is a problem because they contain 'Set's
+-- over which only the type checker can decide equality.
 _==_by_ : ∀ {xs} -> (r1 : Result xs) -> (r2 : Result xs) -> Comparator xs -> Bool
 ForAll A r1 == ForAll .A r2 by (_≟_ ∷ comp) = r1 == r2 by comp
 Trivial == Trivial by comp = true

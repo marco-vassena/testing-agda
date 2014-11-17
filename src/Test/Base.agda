@@ -11,7 +11,7 @@ data BListTree {a} (A : Set a) : Set a where
 
 infixr 5 _∷_ 
 
--- Predicate Universe
+-- A Universe representing high order predicates
 data Predicate : (BListTree Set) -> Set₁ where
   Forall : {A : Set} -> ∀ {xs} -> (p : A -> Predicate xs) -> Predicate (A ∷ xs)
   Exists : {A : Set} -> ∀ {xs} -> (p : A -> Predicate xs) -> Predicate (A ∷ xs)
@@ -20,7 +20,11 @@ data Predicate : (BListTree Set) -> Set₁ where
   _∨_ : ∀ {xs ys} -> Predicate xs -> Predicate ys -> Predicate (xs , ys)
   Property : (P : Set) -> Predicate []
 
--- Implication
+--------------------------------------------------------------------------------
+-- Derived combinators
+--------------------------------------------------------------------------------
+
+-- Implication 
 _⇒_ : ∀ {xs ys} -> Predicate xs -> Predicate ys -> Predicate (xs , ys)
 p1 ⇒ p2 = (Not p1) ∨ p2
 
@@ -32,9 +36,14 @@ p1 ∧ p2 = Not ((Not p1) ∨ (Not p2))
 _⇔_ : ∀ {xs ys} -> Predicate xs -> Predicate ys -> Predicate ((xs , ys) , (ys , xs))
 p1 ⇔ p2 = (p1 ⇒ p2) ∧ (p2 ⇒ p1)
 
+--------------------------------------------------------------------------------
+
+-- Pretty syntax that hides the λ-expressions in quantifiers.
 syntax Exists (\x -> p) = Exists x ~ p
 syntax Forall (\x -> p) = Forall x ~ p
 syntax ExistsUnique (\x -> p) = Exists! x ~ p
+
+-- Auxiliary type level functions
 
 is∀ : ∀ {xs} -> Predicate xs -> Set
 is∀ (Forall p) = ⊤
@@ -50,6 +59,9 @@ is∃! _ = ⊥
 
 module Internal where
 
+  -- Represents the outcome of testing a Predicate.
+  -- This data type it's an intermediate result of the testing framework
+  -- and should not be used directly by the user, as it needs to refined.
   data Result : BListTree Set -> Set₁ where
     -- The possible results for a lemma with the ∀ quantifier
     Forall : ∀ {xs} (A : Set) -> Result xs -> Result (A ∷ xs)

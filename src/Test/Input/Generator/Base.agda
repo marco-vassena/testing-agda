@@ -19,6 +19,7 @@ open import Level as L
 mutual
 
   -- | The language of colist programs 
+  -- It contains common constructs used to manipulate colists. 
   data ColistP {ℓ} (A : Set ℓ) : Set (L.suc ℓ) where
     [] : ColistP A
     _∷_     : (x : A) (xs : ∞ (ColistP A)) → ColistP A
@@ -35,7 +36,7 @@ mutual
     _∷_ : (x : A) (xs : ColistP A) → ColistW A
   
   --------------------------------------------------------------------------------
-  -- Productivity data
+  -- Productivity data type
   --------------------------------------------------------------------------------
 
   -- | Is a colist empty ? 
@@ -47,7 +48,7 @@ mutual
   IsProductive : ∀ {ℓ} {A B : Set ℓ} -> (f : A -> ColistP B) -> Set ℓ 
   IsProductive {A = A} f = (a : A) -> nonEmptyW (whnf (f a))
 
-  -- | A proof data type that represents completely a productive function applied to some colist.
+  -- | A proof data type that represents completely a productive function applied to a colist.
   data Prod' {ℓ} {A B : Set ℓ} (f : A -> ColistP B) : (xs : ColistW A) -> Set (L.suc ℓ) where
      Base : Prod' f []
      Skip : {x : A} {xs : (ColistP A)} -> Prod' f (whnf xs) -> Prod' f (x ∷ xs)
@@ -67,6 +68,7 @@ mutual
   whnf (concatMap f {isP} xs)   = concatMapW f {isP} (whnf xs)
   whnf (concatMap' f xs {isP})  = concatMapW' f (whnf xs) {isP}
 
+  -- Semantics functions of the operators expressed in ColistP
   zipWithW : ∀ {ℓ} {A B C : Set ℓ} →
              (A → B → C) → ColistW A → ColistW B → ColistW C
   zipWithW f (x ∷ xs) (y ∷ ys) = f x y ∷ zipWith f xs ys
@@ -125,8 +127,8 @@ cycle {A = A} xs {p} | y ∷ ys | tt = y ∷ ♯ (go (whnf ys))
         go [] = cycle xs {p}
         go (z ∷ zs) = z ∷ ♯ (go (whnf zs))
 
--- An infinite colist cosisting of :
--- x ∷ f x ∷ f (f x) ∷ ...
+-- An infinite colist defined as :
+-- iterate f x ≡ x ∷ f x ∷ f (f x) ∷ ...
 iterate : ∀ {ℓ} {A : Set ℓ} -> (A -> A) -> A -> ColistP A
 iterate f x = x ∷ ♯ (iterate f (f x))
 
@@ -137,9 +139,10 @@ combine f xs ys | [] = []
 combine f xs _ | y ∷ ys = concatMap (λ x → map (f x) (fromColist (y ∷ ys))) xs
 
 --------------------------------------------------------------------------------
--- Productive data types for Colist
+-- Productive data types for standard Colist
 --------------------------------------------------------------------------------
 
+-- Is a colist non-empty?
 NonNull : ∀ {ℓ} {A : Set ℓ} -> Colist A -> Set
 NonNull xs = T (not (C.null xs))
 
@@ -164,7 +167,7 @@ nonEmptyW2NonNull : ∀ {ℓ} {A : Set ℓ} -> {xs : ColistW A} -> nonEmptyW xs 
 nonEmptyW2NonNull {xs = []} ()
 nonEmptyW2NonNull {xs = x ∷ xs} p = tt
 
--- Prod is as expressive as IsProductive (modulo ⟦_⟧P)
+-- Proof that Prod is as expressive as IsProductive (modulo ⟦_⟧P)
 IsProductive2Prod : ∀ {ℓ} {A B : Set ℓ} {f : A -> ColistP B} -> {xs : ColistP A} -> IsProductive f -> Prod (⟦_⟧P ∘ f) ⟦ xs ⟧P
 IsProductive2Prod {xs = xs} p with whnf xs
 IsProductive2Prod p | [] = Base
@@ -180,6 +183,15 @@ IsProductive2Prod' p | x ∷ xs | [] | ()
 IsProductive2Prod' {f = f} p | x ∷ xs | y ∷ ys | tt = Now (♯ IsProductive2Prod' {f = f} {xs = xs} p) (p x)
 
 --------------------------------------------------------------------------------
+-- Self-generative colists
+-- Proving the productiviy of self-referencing definitions such as
+-- foo = 0 ∷ 1 ∷ concatMap' f foo
+-- is usually very hard, due to the mutual dependency between the colist and the 
+-- proof itself.
+-- This section provides a simple, yet effective alternative that avoids the proof
+-- burden completely, defining an appropriate total semantics also for looping
+-- definitions.
+--------------------------------------------------------------------------------
 
 -- Self Generative data type.
 -- Represents a colist obtained repeatedly mapping f over the input colist. 
@@ -192,8 +204,10 @@ Input₁ f x = Input f (x ∷ [])
 
 -- | Expresses the semantics of concatMap f over a self generative colist.
 -- xs = ys ++ concatMap f xs ≡ ⟦ Input f ys ⟧SG
--- Note that a good behaviour is always defined for such definitions.
--- Furthermore no proofs about the generative function or the input colist are required. 
+-- Note that a good behaviour is always defined for such definitions, therefore
+-- no proofs about the generative function or the input colist are required.
+-- Particularly looping definition are 'closed' producing a finite colist.
+-- Otherwise the semantics corresponds exactly to the original definition. 
 ⟦_⟧SG : ∀ {ℓ} {A : Set ℓ} {f : A -> ColistP A} -> SG A f -> ColistP A
 ⟦ Input _ [] ⟧SG = []
 ⟦ Input f (x ∷ xs) ⟧SG = x ∷ ♯ (⟦ Input f (whnf (xs ++ f x))⟧SG)
