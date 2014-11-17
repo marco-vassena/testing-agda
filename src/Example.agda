@@ -6,4 +6,4 @@ open import Example.Simple
 open import Example.Even
 open import Example.Runner
 open import Example.Combinator
--- open import Example.Converter -- Strangely `--allow-unsolved-metas` does not work properly. 
+open import Example.Converter

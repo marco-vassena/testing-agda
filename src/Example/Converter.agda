@@ -1,6 +1,8 @@
 -- | This module shows how to use the automatic conversion feature
 -- to produce directly a predicate from a lemma under analysis.
 
+{-# OPTIONS --allow-unsolved-metas #-}
+
 module Example.Converter where
 
 open import Test
@@ -16,43 +18,34 @@ open import Relation.Nullary
 
 --------------------------------------------------------------------------------
 -- Example lemmas
+-- They are defined as postulates, because the goal is just to show
+-- how automatic conversion works.
+-- Normally they would contain holes in their definition.
 --------------------------------------------------------------------------------
 
-lemma1 : (n : ℕ) -> Even n
-lemma1 = {!!}
+postulate lemma1 : (n : ℕ) -> Even n
 
-lemma2 : (n : ℕ) -> (m : ℕ) -> Even (n + m)
-lemma2 = {!!}
+postulate lemma2 : (n : ℕ) -> (m : ℕ) -> Even (n + m)
 
-lemma3 : (n : ℕ) -> ¬ (Even n)
-lemma3 = {!!}
+postulate lemma3 : (n : ℕ) -> ¬ (Even n)
 
-lemma4 : (n : ℕ) -> (Even n) ⊎ (¬ (Even n))
-lemma4 = {!!}
+postulate lemma4 : (n : ℕ) -> (Even n) ⊎ (¬ (Even n))
 
-lemma5 : Data.Product.∃ (λ n → Even n)
-lemma5 = {!!}
+postulate lemma5 : Data.Product.∃ (λ n → Even n)
 
 -- | Note that the _×_ instance used in lemma6 is not from the standard library (Data.Product._×_) because
 -- that one is defined using the dependent pair Σ, the same used for defining also ∃.
 -- With the reflection facilities available at the moment it's not possible to distinguish the two uses,
 -- therefore an ad hoc definition of × has been provided and it's recognized by the Converter module. 
-lemma6 : (n : ℕ) -> Even n × (¬ (Even n))
-lemma6 = {!!}
+postulate lemma6 : (n : ℕ) -> Even n × (¬ (Even n))
 
-lemma7 : Data.Product.∃ (λ n → Data.Product.∃ (λ m → Even (n + m)))
-lemma7 = {!!}
+postulate lemma7 : Data.Product.∃ (λ n → Data.Product.∃ (λ m → Even (n + m)))
 
-lemma8 : Data.Product.∃ (λ n -> (Even n ⊎ Even (n + 1)))
-lemma8 = {!!}
+postulate lemma8 : Data.Product.∃ (λ n -> (Even n ⊎ Even (n + 1)))
 
-lemma9 : Data.Product.∃ (λ n -> (m : ℕ) -> (Even n ⊎ Even (n + m)))
-lemma9 = {!!}
+postulate lemma9 : Data.Product.∃ (λ n -> (m : ℕ) -> (Even n ⊎ Even (n + m)))
 
-open import Function
-
-lemma10 : Data.Product.∃ (λ n -> ¬ (Even n))
-lemma10 = {!!}
+postulate lemma10 : Data.Product.∃ (λ n -> ¬ (Even n))
 
 --------------------------------------------------------------------------------
 -- Unit tests
