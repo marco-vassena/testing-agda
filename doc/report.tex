@@ -41,7 +41,7 @@
 Inspired by libraries like Quickcheck \cite{QUICK}, Smallcheck \cite{SMALL} and FEAT \cite{FEAT}, the goal of this experimentation project is to design and implement a library for testing decidable properties for Agda \cite{AGDA}, a total, dependently typed functional programming language.
 
 \subsection{Motivation}
-Under the Curry-Howard correspondence, it is possible to use Agda to formally prove arbitrary properties. The reader might then wonder what would be the benefit of a testing library in such a setting. Proving properties is in general hard and time-consuming, therefore it could be useful, before undertaking this demanding task, to verify that the property at hand holds with concrete input values. This sanity-check can be achieved by means of this library and could quickly spot erroneous definitions and invalid or incomplete theorems.
+Under the Curry-Howard correspondence, Agda is a proof assistant that allows to formally prove properties about functions and data-types written in Agda. The reader might then wonder what would be the benefit of a testing library in such a setting. Proving properties is in general hard and time-consuming, therefore it could be useful, before undertaking this demanding task, to verify that the property at hand holds with concrete input values. This sanity-check can be achieved by means of this library and could quickly spot erroneous definitions and invalid or incomplete theorems.
 
 \section{Library}
 The library is organized as follows:
@@ -55,7 +55,7 @@ The library is organized as follows:
 	\item \texttt{Example} Contains several simple examples about how to use the library.
 \end{itemize}
 
-In the agda code included in this report, implicit parameters will be omitted to avoid clutter, whenever it is possible to understand their type from the context.
+In the Agda code included in this report, implicit parameters will be omitted to avoid clutter, whenever it is possible to understand their type from the context.
 	
 	\subsection{Predicate}
 \label{sec:predicate}
@@ -76,7 +76,8 @@ In other testing libraries predicates are limited to boolean formulas, in this s
 The constructors \texttt{Forall}, \texttt{Exists} and \texttt{ExistsUnique} add quantification to the \texttt{Predicate} data type.
 Exploiting the underlying high-order language, the quantification is represented as a continuation (lambda expression), which literally introduces a new variable in scope, available in the remaining part of the predicate and ultimately in  the type \texttt{P} inside a \texttt{Property}.
 
-The data type is indexed over a \texttt{BListTree} which keeps track of the types of the quantified variables and whose importance will be explained in the following.
+The data type is indexed over a \texttt{BListTree} which keeps track of the types of the quantified variables. They determine the types of the input values
+required to test a	 property \ref{sec:testing}.
 The definition of \texttt{BListTree} is straightforward:
 \begin{code}
 data BListTree {a} (A : Set a) : Set a where 
@@ -84,7 +85,8 @@ data BListTree {a} (A : Set a) : Set a where
   _∷_ : A → BListTree A → BListTree A
   _,_ : BListTree A → BListTree A → BListTree A
 \end{code}
-The constructor \texttt{\_::\_} is used when quantification adds a variable in scope, whereas the constructor \texttt{\_,\_} couples together the \texttt{BListTree} when two predicates are composed by the disjunction constructor \texttt{\_$\vee$\_}.
+The constructor \texttt{\_::\_} is used when quantification adds a variable in scope, whereas the constructor \texttt{\_,\_} couples together the \texttt{BListTree} when two predicates are composed by the disjunction constructor \texttt{\_$\vee$\_}. In the latter case we need to record the types
+for each branch, because they both might need to be tested.
 
 Other derived combinators have been defined on top of the \texttt{Predicate} 
 data type, such as implication, conjunction and double implication.
@@ -277,8 +279,8 @@ As an example consider again testing the trivial property:
 test-trivial' : runVerbose (Test trivial on [] by dec-trivial)
 test-trivial' = Pass (Hold Unit)
 \end{code}
-Note that when some result is set as index of either \texttt{Succeed:} or \texttt{Fail:}, then there is only one possible inhabitant for any of these types. Therefore agda's \texttt{auto} feature should be able to automatically infer it, which was the case in a 	previous version of this library. 
-Unfortunately this turned out not to work anymore when the index \texttt{BListTree} was added to \texttt{Result}. This is currently tracked as a \href{http://code.google.com/p/agda/issues/detail?id=1223}{bug} in the agda bug-tracker. It's nevertheless possible to manually fill such holes copying the witness or counterexample from the goal type.
+Note that when some result is set as index of either \texttt{Succeed:} or \texttt{Fail:}, then there is only one possible inhabitant for any of these types. Therefore Agda's \texttt{auto} feature should be able to automatically infer it, which was the case in a 	previous version of this library. 
+Unfortunately this turned out not to work anymore when the index \texttt{BListTree} was added to \texttt{Result}. This is currently tracked as a \href{http://code.google.com/p/Agda/issues/detail?id=1223}{bug} in the Agda bug-tracker. It's nevertheless possible to manually fill such holes copying the witness or counterexample from the goal type.
 The runners \texttt{pass} and \texttt{fail} require the test to respectively pass and fail. The runner \texttt{skip} does not run the test at all.
 The runners \texttt{pass\_With\_Using} and \texttt{fail\_With\_Using} are variants of the runners \texttt{pass} and \texttt{fail} in which the user specifies not only whether the test should pass or not, but also with which outcome.
 These runners require decidable equality over the types involved in the property, which are contained in a \texttt{Comparator} object.
@@ -294,11 +296,11 @@ data Comparator : BListTree Set → Set₁ where
   _,_ : Comparator xs → Comparator ys → Comparator (xs , ys)
 \end{code}
 The same overloaded constructors for a \texttt{BListTree} have been used to help the user's intuition, in the same way it has been done for the \texttt{Input} data type.
-The only flaw of this runner it's that it is not able to compare the leaves of the \texttt{Result} data type, namely \texttt{Hold} and \texttt{DoesNotHold}. The problem is that these constructors wraps types (\texttt{Set}) for which equality cannot be decided by the user, but only by the type checker. Currently it is not possible to overcome this limitation, therefore at the moment they are optimistically considered equal, even tough the actual set could be different from the expected one. Hopefully future versions of agda will provide some primitive to test for equality on the set level.
+The only flaw of this runner it's that it is not able to compare the leaves of the \texttt{Result} data type, namely \texttt{Hold} and \texttt{DoesNotHold}. The problem is that these constructors wraps types (\texttt{Set}) for which equality cannot be decided by the user, but only by the type checker. Currently it is not possible to overcome this limitation, therefore at the moment they are optimistically considered equal, even tough the actual set could be different from the expected one. Hopefully future versions of Agda will provide some primitive to test for equality on the set level.
 
 \subsection{Result}
 \label{sec:Result}
-The module \texttt{Test.Base} defines the data-type \texttt{Result} which represents the possible outcomes of testing a predicate and it is used internally in the testing framework
+The module \texttt{Test.Base} defines the data-type \texttt{Result} which represents the possible outcomes of testing a predicate. This data-type is used only internally because it contains partial results the testing process, which may not be sensible to show to the user of the library.
 
 \begin{verbatim}
   data Internal.Result : BListTree Set → Set₁ where
@@ -317,7 +319,7 @@ The module \texttt{Test.Base} defines the data-type \texttt{Result} which repres
     DoesNotHold : Set → Result []
 \end{verbatim}
 
-The module \texttt{Test.Result} contains a variant of result, which is used to give feedback to the user. It is obtained by post-processing the internal result, obtained by the \texttt{test'} function discussed in \ref{sec:testing}.
+The module \texttt{Test.Result} contains a variant of result, which is used to give feedback to the user. It is obtained by post-processing the internal result \ref{sec:HelpfulFeedback}.
 
 \begin{verbatim}
 data Result : BListTree Set → Set₁ where
@@ -339,10 +341,18 @@ data ValueOrSet : Set → Set₁ where
 
 \end{verbatim}
 
-The internal result cannot be used directly because it contains partial results of the testing process, which may not be sensible to show.
-More precisely in the result corresponding to a predicate the quantified variables will be bound to some specific values, which may be relevant or not, depending on the kinds of quantification used, their order and the outcome of the test itself.
-The function \texttt{normalize} and \texttt{hidden} convert the internal result to the exposed version, tackling this issue.
+\subsection{Helpful Feedback}
+\label{sec:HelpfulFeedback}
+After testing some property with \texttt{test'} discussed in \ref{sec:testing}, the quantified variables will be bound to some specific values, which may be interesting or not, depending on the kinds of quantification used, their order and the outcome of the test itself. 
+The need of two separate representations for result are best understood by means of an example.
 
+\paragraph{Example}
+Consider the property \texttt{Forall n $\sim$ Even n} tested on the values 0 ∷ 2 ∷ 4 ∷ []. The result of testing it with \texttt{test'} is \texttt{\texttt{inj₂} (Forall $\mathbb{N}$ (Hold (Even 4))}. The value \texttt{Even 4} is a remainder of the last input value tested, when checking the universal quantification. The conversion produces the more readable result 
+\texttt{ForAll < $\mathbb{N}$ > $\checkmark$}.
+On the other hand if the same property would have been tested on the values 0 ∷ 1 ∷ 2 ∷ [], the original result would have been \texttt{\texttt{inj₁} (NotFor 1 (DoesNotHold (Even 1))}, which is then converted to \texttt{$\exists$ $\langle$ 1 $\rangle$ Even 1}. In this case the input value 1 represents a counterexample to the universal quantification and therefore it's properly retained in the conversion.
+
+
+The function \texttt{normalize} and \texttt{hidden} convert the internal result to the exposed version, tackling this issue.
 
 \begin{verbatim}
 hide : Internal.Result xs → Result xs
@@ -367,14 +377,10 @@ Also the leaf nodes \texttt{Hold} or \texttt{DoesNotHold} are replaced with an a
 The function \texttt{normalize} converts the internal result to the exposed version, making sure to hide unimportant details, when necessary using \texttt{hide}. For instance in case of universal quantification success (\texttt{Forall}) and existential quantification failure (\texttt{NotExists}) the remaining part of the result value needs to be hidden, as they are just a trace of the testing process, not bearing any meaning.
 Note that when this is not the case the actual values are retained, as they provide useful feedback to the user.
 
-\paragraph{Example} 
-Consider the property \texttt{Forall n $\sim$ Even n} tested on the values 0 ∷ 2 ∷ 4 ∷ []. The result of testing it with \texttt{test'} is \texttt{\texttt{inj₂} (Forall $\mathbb{N}$ (Hold (Even 4))}. The value \texttt{Even 4} is a remained of the last input value tested, when checking the universal quantification. The conversion produces the more readable result 
-\texttt{ForAll < $\mathbb{N}$ > $\checkmark$}.
-On the other hand if the same property would have been tested on the values 0 ∷ 1 ∷ 2 ∷ [], the original result would have been \texttt{\texttt{inj₁} (NotFor 1 (DoesNotHold (Even 1))}, which is then converted to \texttt{$\exists$ $\langle$ 1 $\rangle$ Even 1}. In this case the input value 1 represents a counterexample to the universal quantification and therefore it's properly retained in the conversion.
 
 \section{Conversion}
 The library provides in the module \texttt{Test.Conversion} the function \texttt{convert} which can automatically derive predicates of a lemma under test. 
-This feature exploits agda's \texttt{Reflection} mechanism and in this section the conversion technique is explained in detail.
+This feature exploits Agda's \texttt{Reflection} mechanism and in this section the conversion technique is explained in detail.
 
 \subsection{Basic Conversion}
 The function \texttt{convert} produces a \texttt{Predicate} in the form of a quoted term, which can be unquoted to retrieve the actual predicate.
@@ -384,7 +390,7 @@ convert name {isS} with type name
 convert name {isS} | el s t = convertTerm t {isS}
 \end{verbatim}
 The primitive \texttt{type} retrieves the type representation of a given \texttt{Name}, then the term consisting of the signature of the lemma at hand becomes available and it's converted using \texttt{convertedTerm}.
-Since a \texttt{Term} represents an arbitrary agda term, the implicit proof object \texttt{isS} is needed to restrict the domain of supported terms to those that can actually be turned into predicates. This is achieved using a type-level function:
+Since a \texttt{Term} represents an arbitrary Agda term, the implicit proof object \texttt{isS} is needed to restrict the domain of supported terms to those that can actually be turned into predicates. This is achieved using a type-level function:
 \begin{verbatim}
 data NotSupported : Term → Set where
 
@@ -402,7 +408,7 @@ supportedTerm (lit _) = ⊤
 supported : Type → Set
 supported (el s t) = supportedTerm t
 \end{verbatim}
-This technique is needed because agda is a total language, thus arbitrary runtime failure is not an option. Nevertheless those proofs don't need to be carried out by the user explicitly: either they are inferred automatically or result in a type error.
+This technique is needed because Agda is a total language, thus arbitrary runtime failure is not an option. Nevertheless those proofs don't need to be carried out by the user explicitly: either they are inferred automatically or result in a type error.
 
 The signature is converted inspecting its term representation.
 \begin{verbatim}
@@ -430,7 +436,7 @@ lemma = {!!}
 \end{verbatim}
 Than the corresponding predicate \texttt{Forall n $\sim$ Property (Even n)} can be simply obtained by \texttt{unquote (convert (quote lemma))}.
 The primitive \texttt{quote} retrieves the representation of a definition as a value of the primitive type \texttt{Name}.
-The primitive \texttt{unquote} converts the representation of an agda term to its actual value, in this case a \texttt{Predicate}. Note that we did not need to specify the \texttt{supported} proof for \texttt{convert} as this could be reduced during type-checking to \texttt{$\top$} and thus automatically inferred.
+The primitive \texttt{unquote} converts the representation of an Agda term to its actual value, in this case a \texttt{Predicate}. Note that we did not need to specify the \texttt{supported} proof for \texttt{convert} as this could be reduced during type-checking to \texttt{$\top$} and thus automatically inferred.
 
 \subsection{Special Constructs}
 In order to convert signatures accurately some standard library constructs need to be handled properly. In particular $\neg$, $\exists$, $\biguplus$, $\times$ must be tracked and mapped to their \texttt{Predicate} counterpart.
@@ -526,7 +532,7 @@ If we could write a generator for this data-type, than it would be possible to e
 
 \paragraph{Definition}
 Firstly we need to adapt the generator definition to cope with the additional dependency. The first consideration is that a dependent type can be represented by an index \texttt{I} and a type level function of type \texttt{I → Set}, which given an index produces a type. Thus our generators will be parametrized over these two components.
-Here we propose two alternative definitions and in the following we will analyze their difference and implications. We will refer to the first as angelic and to the second as demoniac generator.
+Here we propose two alternative definitions and in the following we will analyze their difference and implications. We will refer to the first as angelic and to the second as demonic generator.
 \begin{verbatim}
 GeneratorA : (I : Set) → (p : I → Set) → Set
 GeneratorA I p = ∀ (i : I) → Colist (p i)
@@ -535,7 +541,7 @@ GeneratorD : (I : Set) → (p : I → Set) → Set
 GeneratorD I p = Colist (∃ p)
 \end{verbatim}
 The crucial difference is what kind of interface they provide to the user.
-In the angelic version the user gets to choose the index \texttt{i}, which determines the (unique) type of the returned values. In the demoniac version the user does not, but rather is given an heterogeneous collection of values, in which the index \texttt{I} may have different values, and thus the value different types. Even if colist are homogeneous collections, this is still possible as the common trait of such values is exactly represented by the existential \texttt{∃ p}, which is implemented as a dependent pair. The first component is the (variable) index, the second is a value of the type obtained applying \texttt{p} to such index.
+In the angelic version the user gets to choose the index \texttt{i}, which determines the type of the returned values. In the demonic version the user does not, but rather is given an heterogeneous collection of values, in which the index \texttt{I} may have different values, and thus the value different types. Even if colist are homogeneous collections, this is still possible as the common trait of such values is exactly represented by the existential \texttt{∃ p}, which is implemented as a dependent pair. The first component is the (variable) index, the second is a value of the type obtained applying \texttt{p} to such index.
 
 \subsection{Nature of dependent types}
 An interesting insight is that such duality actually reflects a double nature of dependent types themselves. 
@@ -590,8 +596,8 @@ Although this definition it is valid and correct with respect to its specificati
 it is not the best answer if the goal is to generated even numbers.
 Indeed a eveness proof exists if and only if the given number is even in the first place. Therefore in such cases an angelic generator becomes merely a decision procedure that checks whether a property holds for a certain object or not.
 
-\paragraph{Demoniac Generator}
-On the contrary the demoniac version is particularly apt for the second kind of dependent type. The advantage is that the constructors' signatures, which can be read as production rules, already describe how to construct proofs objects, manipulating their index.
+\paragraph{demonic Generator}
+On the contrary the demonic version is particularly apt for the second kind of dependent type. The advantage is that the constructors' signatures, which can be read as production rules, already describe how to construct proofs objects, manipulating their index.
 Moreover note that when a proof data-type is defined, much care is usually taken to use as few constructors as possible, in order to represent the property completely, yet without any redundancy, simply and possibly inductively. For instance we could have added to the even data type the constructor \texttt{isEven*2 :\ \{n\} → Even (n * 2)}, however this property could be derived from the other two.
 
 \paragraph{Example}
@@ -607,8 +613,8 @@ Following the \texttt{Even} definition, the base case is given by the seed 0, an
 \paragraph{Conclusion}
 In order to show the essential dissimilarity of the two types of generators we will show how it is not possible to write a \emph{total} converter from one type to the other.
 \begin{verbatim}
-angelic2demoniac : SimpleGenerator I → GeneratorA I P → GeneratorD I P
-angelic2demoniac is a = concatMap f is
+angelic2demonic : SimpleGenerator I → GeneratorA I P → GeneratorD I P
+angelic2demonic is a = concatMap f is
    where f i = map (λ p → (i ,  p)) (a i) 
 \end{verbatim}
 For any index of \texttt{is} the angelic generator is used to produce a colist of 
@@ -622,18 +628,18 @@ Converting this generator will result in a looping computation that will never p
 
 Consider instead the opposite converter, in which we reasonably assume decidable equality over the index type \texttt{I} with the binary operator \texttt{\_≟\_ :\ Decidable (\_≡\_  \{I\})}.
 \begin{verbatim}
-demoniac2angelic : GeneratorD I P → GeneratorA I P
-demoniac2angelic [] i = []
-demoniac2angelic ((i₁ , p) ∷ xs) i₂ with i₁ ≟ i₂
-demoniac2angelic  ((i₁ , p) ∷ xs) .i₁ | yes refl = p ∷ ♯ (demoniac2angelic (♭ xs) i₁)
-demoniac2angelic ((i₁ , p) ∷ xs) i₂ | no ¬p = demoniac2angelic (♭ xs) i₂
+demonic2angelic : GeneratorD I P → GeneratorA I P
+demonic2angelic [] i = []
+demonic2angelic ((i₁ , p) ∷ xs) i₂ with i₁ ≟ i₂
+demonic2angelic  ((i₁ , p) ∷ xs) .i₁ | yes refl = p ∷ ♯ (demonic2angelic (♭ xs) i₁)
+demonic2angelic ((i₁ , p) ∷ xs) i₂ | no ¬p = demonic2angelic (♭ xs) i₂
 \end{verbatim}
-Given an index \texttt{i} the function looks up for it in the demoniac generator. If one is found the corresponding proof object is produced and we lookup for further (possibly different) proof objects with the same index.
-If the demoniac generator is finite, eventually the first case will match and the corresponding angelic generator will be finite. The non-termination comes from the last case. There we corecursively call \texttt{demoniac2angel} without producing any intermediate value, (contrary to the second case, that call is unguarded) which could possibly lead to a non terminating computation.
+Given an index \texttt{i} the function looks up for it in the demonic generator. If one is found the corresponding proof object is produced and we lookup for further (possibly different) proof objects with the same index.
+If the demonic generator is finite, eventually the first case will match and the corresponding angelic generator will be finite. The non-termination comes from the last case. There we corecursively call \texttt{demonic2angel} without producing any intermediate value, (contrary to the second case, that call is unguarded) which could possibly lead to a non terminating computation.
 As an example consider converting \texttt{even-gen} using this function and trying to query the proof object that 1 is even. Clearly there is no such proof in \texttt{even-gen}, however the computation will endlessly search for it in the infinite collection of eveness proofs.  
  
 Our conclusion is that using an angelic generator for the second kind of dependent types is in essence equivalent to filtering input values using the implication construct \texttt{==>}. In both cases we don't have any control on the input, thus we can merely check the validity of the property, if this is not the case the result is the empty colist, or similarly that input value is discarded.
-Instead using the demoniac generator in such cases is more similar to defining an ad-hoc new type and custom generators with some important benefits.
+Instead using the demonic generator in such cases is more similar to defining an ad-hoc new type and custom generators with some important benefits.
 The expressiveness of dependent types considerably helps the user in writing such generators, because it exposes those crucial aspects of the property at hand.
 
 \section{Productivity}
@@ -912,6 +918,7 @@ bar₂ n = ⟦ Input count (n ∷ []) ⟧SG
 This project leaves room for further extensions to the library.
 \begin{itemize}
 	\item The framework currently supports only decidable properties, because in this setting it is always clear the distinction between a success and a failure. 	It would be useful handle also partially-decidable properties and investigate alternative approaches for undecidable properties.	
+	
 	\item The user needs to write custom generator for each data-type under testing. Even if the library gives support in writing such generators, it would be very useful to derive generators for non-dependent types automatically using a generic approach. Generic approaches for generating dependent types would be another interesting topic to investigate.
 	
 	\item A crucial aspect of this library is giving precise, readable and informative feedback to the user. Adding more constructors to the \texttt{Predicate}, rather then just mapping them to basic constructors (as it happens for conjunction, implication and bi-implication), could certainly improve the quality of the results, because they could be tailored for each constructor. The normalization of the internal \texttt{Result} data type could also be improved further with this goal in mind.

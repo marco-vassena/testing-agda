@@ -147,9 +147,14 @@ even-next-odd (isEven+2 p) (isEven+2 x) = even-next-odd p x
 -- | Either n is Even or suc n is Even
 this-or-next : ∀ n -> (Even n) ⊎ (Even (suc n))
 this-or-next zero = inj₁ isEven0
-this-or-next (suc n) with this-or-next n
-this-or-next (suc n₁) | inj₁ x = inj₂ (isEven+2 x)
-this-or-next (suc n₁) | inj₂ y = inj₁ y
+this-or-next (suc zero) = inj₂ (isEven+2 isEven0)
+this-or-next (suc (suc n)) with this-or-next n
+this-or-next (suc (suc n)) | inj₁ x = inj₁ (isEven+2 x)
+this-or-next (suc (suc n)) | inj₂ y = inj₂ (isEven+2 y)
+
+--  with this-or-next n
+-- this-or-next (suc n₁) | inj₁ x = inj₂ (isEven+2 x)
+-- this-or-next (suc n₁) | inj₂ y = inj₁ y
 
 -- | If n is not Even then suc n is Even
 odd-next-even : ∀ {n} -> (¬ Even n) -> Even (suc n)
